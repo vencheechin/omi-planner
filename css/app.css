@@ -1036,6 +1036,7 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .need-focus input { width: 18px; height: 18px; accent-color: var(--highlight); margin: 0; }
 .tb-b-dur { display: block; font-size: calc(11.5px * var(--scale) * var(--type)); opacity: .8; font-weight: 400; }
 .tb-b-title .tb-b-dur { display: inline; }
+.chat-note { white-space: pre-wrap; padding: 8px 12px; border-radius: 10px; border-left: 3px solid var(--ochre); background: color-mix(in srgb, var(--ink) 6%, transparent); font-size: calc(13.5px * var(--scale) * var(--type)); }
 .bp-ctext { display: block; }
 .bp-cell.multi { text-align: left; vertical-align: top; }
 .bp-list { list-style: none; display: grid; gap: 4px; padding: 2px 0; }
