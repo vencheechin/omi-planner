@@ -168,13 +168,14 @@ function renderTask() {
       <section class="task-sec">
         <div class="sec-head"><h3>Checklist${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
           ${t.assignees.some((a) => a !== S.meId) ? `<button class="btn ghost xs ck-alert ${(t.checkAlerts || []).includes(S.meId) ? 'active' : ''}" data-act="toggleCheckAlerts" aria-pressed="${(t.checkAlerts || []).includes(S.meId)}" title="Get a notification when someone ticks an item on this task">${icon('bell', 13)} ${(t.checkAlerts || []).includes(S.meId) ? 'Notifying me when ticked' : 'Notify me when ticked'}</button>` : ''}</div>
-        <ul class="checklist">
-          ${t.checklist.map((c) => `<li class="ck-item ${c.done ? 'done' : ''}" data-drag="check" data-id="${esc(c.id)}">
-            <span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>
+        ${t.checklist.length > 1 ? `<label class="mini ck-group">Group <select data-change="ckGroup" aria-label="Group checklist"><option value="">None</option><option value="added" ${S.settings.ckGroup === 'added' ? 'selected' : ''}>Date added</option><option value="done" ${S.settings.ckGroup === 'done' ? 'selected' : ''}>Date completed</option></select></label>` : ''}
+        <ul class="checklist ${S.settings.ckGroup && t.checklist.length > 1 ? 'grouped' : ''}">
+          ${checklistRows(t, (c) => `<li class="ck-item ${c.done ? 'done' : ''}" ${S.settings.ckGroup ? '' : 'data-drag="check"'} data-id="${esc(c.id)}">
+            ${S.settings.ckGroup ? '' : '<span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'}
             <button class="check small ${c.done ? 'on' : ''}" data-act="toggleCheck" data-id="${esc(c.id)}" aria-label="${c.done ? 'Uncheck' : 'Check'} item">${icon('check', 10)}</button>
             <div class="ck-main"><input value="${esc(c.text)}" data-input="checkText" data-id="${esc(c.id)}" aria-label="Checklist item">
               ${checkWhoHTML(c)}</div>
-            <button class="icon-btn" data-act="delCheck" data-id="${esc(c.id)}" aria-label="Delete item">${icon('close', 13)}</button></li>`).join('')}
+            ${canDelCheck(t, c) ? `<button class="icon-btn" data-act="delCheck" data-id="${esc(c.id)}" aria-label="Delete item">${icon('close', 13)}</button>` : '<span class="ck-x-gap"></span>'}</li>`)}
         </ul>
         <form class="inline-add" data-submit="addCheck"><span>${icon('plus', 14)}</span><input name="text" placeholder="Add an item" data-focus="check-add" autocomplete="off" aria-label="Add a checklist item"></form>
       </section>
@@ -190,6 +191,20 @@ function renderTask() {
   ui.chatToBottom = false;
 }
 
+/** Only whoever added an item can delete it (older items without a record: the task's assigner or owner). */
+const canDelCheck = (t, c) => (c.by ? c.by === S.meId : !t.assignedBy || t.assignedBy === S.meId);
+/** Checklist rows, optionally grouped by the day items were added or completed (newest first). */
+function checklistRows(t, row) {
+  const by = t.checklist.length > 1 ? S.settings.ckGroup : '';
+  if (!by) return t.checklist.map(row).join('');
+  const dayOf = (ms) => (ms ? toISO(new Date(ms)) : '');
+  const groups = new Map();
+  const put = (k, c) => { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); };
+  t.checklist.forEach((c) => put(by === 'done' ? (c.done ? dayOf(c.doneAt) || 'earlier' : 'open') : dayOf(c.at) || 'earlier', c));
+  const keys = [...groups.keys()].sort((a, b) => (a === 'open' ? -1 : b === 'open' ? 1 : a === 'earlier' ? 1 : b === 'earlier' ? -1 : b.localeCompare(a)));
+  const label = (k) => (k === 'open' ? 'Not completed' : k === 'earlier' ? 'Earlier' : k === todayISO() ? 'Today' : fmtDate(k));
+  return keys.map((k) => `<li class="ck-head">${esc(label(k))} <small>${groups.get(k).length}</small></li>${groups.get(k).map(row).join('')}`).join('');
+}
 /** Who added a checklist item, and who ticked it and when. */
 function checkWhoHTML(c) {
   const name = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');

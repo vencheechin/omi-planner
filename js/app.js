@@ -822,7 +822,13 @@ const actions = {
     commit();
     toast(on ? 'You won’t be notified when items are ticked.' : 'You’ll be notified when someone ticks an item on this task.');
   },
-  delCheck: (el) => { const t = openTaskObj(); t.checklist = t.checklist.filter((c) => c.id !== el.dataset.id); commit(); },
+  delCheck: (el) => {
+    const t = openTaskObj();
+    const c = t.checklist.find((x) => x.id === el.dataset.id);
+    if (!c || !canDelCheck(t, c)) { toast('Only the person who added this item can delete it.', { error: true }); return; }
+    t.checklist = t.checklist.filter((x) => x !== c);
+    commit();
+  },
   // Comments are marked deleted rather than removed, so the deletion syncs to teammates.
   delComment: (el) => { const c = openTaskObj().comments.find((x) => x.id === el.dataset.id); if (c) c.deleted = true; commit(); },
   delAttachment: (el) => { const t = openTaskObj(); t.attachments = t.attachments.filter((a) => a.id !== el.dataset.id); commit(); },
@@ -1299,6 +1305,7 @@ const changes = {
   stViewerAdd: (el) => { if (!el.value) return; const p = stPlans().find((x) => x.id === el.dataset.plan); p.viewers = [...new Set([...(p.viewers || []), el.value])]; commit(); refreshSettings(); },
   bpGroupName: (el) => { bpGroup(el.dataset.g).name = el.value.trim() || 'Group'; commit(); },
   bpRow: (el) => { bpRowOf(el.dataset.g, el.dataset.r)[el.dataset.k] = el.value.trim(); commit(); },
+  ckGroup: (el) => { S.settings.ckGroup = el.value; commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
     const t = openTaskObj();
