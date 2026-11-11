@@ -2032,10 +2032,13 @@ function route() {
   if (plan) { plan.lastOpened = Date.now(); Store.save(); }
   render();
   $('#main').scrollTop = 0;
+  const main = $('#main');
+  main.classList.remove('page-in'); void main.offsetWidth; main.classList.add('page-in');
   if (c === 'task' && taskById(d)) openTask(d);
 }
 
 // ---------- Startup ----------
+sheetSwipe($('#taskDialog'), () => actions.closeTask());
 (async function start() {
   try {
     await Store.load();

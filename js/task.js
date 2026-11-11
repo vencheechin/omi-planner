@@ -3,6 +3,28 @@
 
 const topDialog = () => $$('dialog[open]').pop() || null;
 
+/** People who asked their device for less motion get instant changes. */
+const calmMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Phones: pull a sheet down by its top to close it, like iOS. */
+function sheetSwipe(d, close) {
+  let y0 = null, dy = 0;
+  d.addEventListener('touchstart', (e) => {
+    if (innerWidth > 760 || !e.target.closest('.task-head, .dlg > header, .sheet-grab')) return;
+    y0 = e.touches[0].clientY; dy = 0; d.style.transition = 'none';
+  }, { passive: true });
+  d.addEventListener('touchmove', (e) => {
+    if (y0 === null) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    d.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  d.addEventListener('touchend', () => {
+    if (y0 === null) return;
+    y0 = null; d.style.transition = '';
+    // Past the threshold the sheet carries on down from where your finger left it.
+    if (dy > 110) close(); else d.style.transform = '';
+  });
+}
+
 // ---------- Toasts ----------
 /** The toast container; recreated if a closed dialog took it with it. */
 function toastHost() {
@@ -27,7 +49,7 @@ function toast(msg, opts = {}) {
     el.append(b);
   }
   host.append(el);
-  setTimeout(() => el.remove(), opts.undo ? 7000 : 3500);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }, opts.undo ? 7000 : 3500);
 }
 /** Runs a destructive change and offers to roll the whole state back. */
 function undoable(msg, fn) {
@@ -88,9 +110,15 @@ function showDialog({ title, html, wide, onClose }) {
     if (onClose) onClose();
   };
   const nativeClose = d.close.bind(d);
-  d.close = () => { nativeClose(); finish(); };
+  d.close = () => {
+    if (d.classList.contains('closing')) return;
+    if (calmMotion()) { nativeClose(); finish(); return; }
+    d.classList.add('closing');
+    setTimeout(() => { nativeClose(); finish(); }, 200);
+  };
   d.addEventListener('close', finish);
   d.addEventListener('cancel', () => setTimeout(finish, 0));
+  sheetSwipe(d, () => d.close());
   d.showModal();
   return d;
 }
@@ -129,9 +157,13 @@ function renderTask() {
   const t = ui.openTask && taskById(ui.openTask);
   if (!t) {
     ui.openTask = null;
-    if (d.open) d.close();
+    if (d.open && !d.classList.contains('closing')) {
+      d.classList.add('closing');
+      setTimeout(() => { d.classList.remove('closing'); d.style.transform = ''; if (!ui.openTask && d.open) d.close(); }, calmMotion() ? 0 : 240);
+    }
     return;
   }
+  d.classList.remove('closing');
   const plan = planById(t.planId);
   const doneItems = t.checklist.filter((c) => c.done).length;
   const field = (label, control) => `<label class="field"><span>${label}</span>${control}</label>`;
