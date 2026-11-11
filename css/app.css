@@ -1038,7 +1038,8 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .need-focus { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-weight: 600; color: var(--ink-2);
   box-shadow: inset 0 0 0 1px var(--line-strong); }
 .need-focus:hover { background: color-mix(in srgb, var(--highlight) 12%, transparent); }
-.need-focus .icon { color: var(--highlight); }
+.need-focus:not(.on) { color: var(--muted); }
+.need-focus .icon { color: inherit; }
 .need-focus.on { background: var(--highlight); color: var(--accent-ink, #1b2433); box-shadow: none; }
 .need-focus.on .icon { color: inherit; }
 .tb-b-dur { display: block; font-size: calc(11.5px * var(--scale) * var(--type)); opacity: .8; font-weight: 400; }
