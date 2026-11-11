@@ -72,8 +72,22 @@ function normalizeOrg(o) {
     ...(o._v && typeof o._v === 'object' ? { _v: o._v } : {}),
     depts: (Array.isArray(o.depts) ? o.depts : []).filter((d) => d && d.id).map((d) => ({ id: String(d.id), name: String(d.name || 'Department'), dic: d.dic || null, members: Array.isArray(d.members) ? d.members.filter((x) => typeof x === 'string') : [] })),
     admins: Array.isArray(o.admins) ? o.admins.filter((x) => typeof x === 'string') : [],
+    reportsTo: o.reportsTo && typeof o.reportsTo === 'object' ? Object.fromEntries(Object.entries(o.reportsTo).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')) : {},
   };
 }
+/** One key per person on every device: their email when known. */
+const pkey = (id) => (person(id)?.email ? `e:${person(id).email}` : id);
+const managerOf = (id) => org().reportsTo?.[pkey(id)] || null;
+const hierarchyOn = () => Object.keys(org().reportsTo || {}).length > 0;
+/** True when `boss` is somewhere above `id` in the reporting lines. */
+function isAbove(boss, id) {
+  const b = pkey(boss);
+  const seen = new Set();
+  for (let m = managerOf(id); m && !seen.has(m); m = org().reportsTo?.[m]) { if (m === b) return true; seen.add(m); }
+  return false;
+}
+/** You delegate downwards only, once Admin has set reporting lines (until then, to anyone). */
+const canDelegateTo = (id) => pkey(id) === pkey(S.meId) || !hierarchyOn() || isAbove(S.meId, id);
 /** Plans from before there were several: the single shared plan becomes "legacy", the same id on every device. */
 function migrateStPlans(raw, meId) {
   const list = (Array.isArray(raw.stPlans) ? raw.stPlans : []).filter((p) => p && p.id).map(normalizeStPlan);
@@ -259,7 +273,7 @@ function stFields(p) {
   return ['meta', 'approval', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
-const orgRecord = () => ({ depts: org().depts, admins: org().admins });
+const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {} });
 const orgWire = () => ({ ...orgRecord(), _v: clone(org()._v || {}) });
 function applyOrg(d) {
   if (!d || typeof d !== 'object') return false;
@@ -267,7 +281,7 @@ function applyOrg(d) {
   o._v = o._v || {};
   const sh = (S.sync.shadow.org = S.sync.shadow.org || {});
   let changed = false;
-  for (const f of ['depts', 'admins']) {
+  for (const f of ['depts', 'admins', 'reportsTo']) {
     const rv = d._v?.[f];
     if (!rv || !newer(rv, o._v[f])) continue;
     o[f] = normalizeOrg({ [f]: d[f] })[f];
@@ -382,6 +396,9 @@ function adminSettingsHTML() {
           <button class="icon-btn" data-act="stDeptDel" data-d="${esc(d.id)}" aria-label="Delete ${esc(d.name)}">${icon('trash', 14)}</button></div>
         <div class="adm-chips"><span class="small muted">Members</span>${(d.members || []).map((id) => chip(id, 'stDeptDelMember', `data-d="${esc(d.id)}"`)).join('')}${pick('stDeptAddMember', `data-d="${esc(d.id)}"`, d.members || [])}</div></div>`).join('')}
       <button class="btn ghost sm" data-act="stDeptAdd">${icon('plus', 13)} Department</button></div>
+    <div class="adm-block"><b>Who Reports to Whom</b>
+      ${[...new Map(people.map((x) => [pkey(x.id), x])).values()].map((x) => { const m = org().reportsTo?.[pkey(x.id)] || ''; return `<div class="adm-row"><span>${esc(x.name)}</span>
+        <label class="mini">Reports to <select data-change="orgReportsTo" data-p="${esc(pkey(x.id))}"><option value="">— Top</option>${[...new Map(people.map((y) => [pkey(y.id), y])).values()].filter((y) => pkey(y.id) !== pkey(x.id)).map((y) => `<option value="${esc(pkey(y.id))}" ${pkey(y.id) === m ? 'selected' : ''}>${esc(y.name)}</option>`).join('')}</select></label></div>`; }).join('')}</div>
     <div class="adm-block"><b>Who Can See Each S-Team Plan</b>
       ${stPlans().filter((p) => !p.deleted).map((p) => {
         const auto = stAudience({ ...p, viewers: [] });

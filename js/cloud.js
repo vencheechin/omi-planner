@@ -57,7 +57,7 @@ function stampAll() {
   sy.prefs = sy.prefs || {};
   stamp('prefs', prefsRecord(), PREFS_FIELDS, sy.prefs);
   stPlans().forEach((p) => stamp(`st:${p.id}`, stRecord(p), stFields(p), p));
-  stamp('org', orgRecord(), ['depts', 'admins'], org());
+  stamp('org', orgRecord(), ['depts', 'admins', 'reportsTo'], org());
   const live = new Set([...S.tasks, ...S.plans, ...S.people].map((x) => x.id).concat('prefs', 'org', ...stPlans().map((p) => `st:${p.id}`)));
   for (const id of Object.keys(sy.shadow)) {
     if (!live.has(id)) { sy.tombstones[id] = [now, S.meId]; delete sy.shadow[id]; sy.dirty[id] = 1; }

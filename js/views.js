@@ -134,6 +134,7 @@ function applyGroup(t, by, from, to) {
       // Delegated to you: dragging between people can only pass it on, never drop the assigner or you.
       if (delegatedToMe(t)) { if (to === 'none' || !canDelegate(t, to) || (from !== 'none' && !canDelegate(t, from))) return false; setDelegate(t, from, false); setDelegate(t, to, true); break; }
       if (to === 'none') { t.assignees = []; break; }
+      if (!canDelegateTo(to)) { toast(`${person(to)?.name || 'They'} don’t report to you.`); return false; }
       t.assignees = t.assignees.filter((a) => a !== from);
       if (!t.assignees.includes(to)) t.assignees.push(to);
       break;
@@ -228,7 +229,8 @@ function dueSoonHTML() {
 }
 /** Tasks submitted for your check (from every plan), oldest first. */
 function checkingHubHTML() {
-  const list = S.tasks.filter(isReviewer).sort((a, b) => a.review.at - b.review.at);
+  const list = S.tasks.filter((t) => isReviewer(t) || (t.changeReq?.status === 'pending' && t.changeReq.to === S.meId))
+    .sort((a, b) => (a.review?.at || a.changeReq?.at) - (b.review?.at || b.changeReq?.at));
   return `<section class="dr-hub chk-hub"><h2>${icon('check', 16)} Checking <span class="count">${list.length}</span></h2>
     ${list.length ? `<div class="dr-cards">${list.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing to check.</p>'}</section>`;
 }

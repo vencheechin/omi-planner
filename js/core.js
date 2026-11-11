@@ -325,6 +325,7 @@ function canDelegate(t, id) {
 function setDelegate(t, id, on) {
   if (!canDelegate(t, id)) return false;
   if (on && !t.assignees.includes(id)) {
+    if (!canDelegateTo(id)) { toast(`${person(id)?.name || 'They'} don’t report to you. Admin sets who reports to whom.`); return false; }
     t.assignees = [...t.assignees, id];
     if (delegatedToMe(t)) t.subBy = { ...(t.subBy || {}), [id]: S.meId };
   } else if (!on) {

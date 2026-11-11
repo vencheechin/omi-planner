@@ -160,13 +160,18 @@ function renderTask() {
       </div>
       ${workflowHTML(t)}
       <div class="task-fields two">
-        ${field('Priority', `<select data-change="taskField" data-field="priority">${options(PRIORITY, t.priority)}</select>`)}
+        ${field(delegatedToMe(t) ? `Priority ${icon('lock', 11)}` : 'Priority', `<select data-change="taskField" data-field="priority" ${delegatedToMe(t) ? 'disabled' : ''}>${options(PRIORITY, t.priority)}</select>`)}
         ${field(dueLocked(t) ? `Due date ${icon('lock', 11)}` : 'Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}" ${dueLocked(t) ? `disabled title="Set by ${esc(person(t.assignedBy)?.name || 'the assigner')}"` : ''}>`)}
       </div>
+      ${changeReqHTML(t)}
       ${remindersHTML(t)}
       ${timeboxHTML(t)}
       <section class="task-sec">
-        <div class="sec-head"><h3>Task${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
+        <div class="sec-head"><h3>Task Details</h3></div>
+        ${delegatedToMe(t) ? `<p class="task-details ro">${esc(t.notes) || '<span class="muted">—</span>'}</p>` : `<textarea class="task-details" rows="3" data-input="notes" aria-label="Task details">${esc(t.notes)}</textarea>`}
+      </section>
+      <section class="task-sec">
+        <div class="sec-head"><h3>Check List${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
           ${t.assignees.some((a) => a !== S.meId) ? `<button class="btn ghost xs ck-alert ${(t.checkAlerts || []).includes(S.meId) ? 'active' : ''}" data-act="toggleCheckAlerts" aria-pressed="${(t.checkAlerts || []).includes(S.meId)}" title="Get a notification when someone ticks an item on this task">${icon('bell', 13)} ${(t.checkAlerts || []).includes(S.meId) ? 'Notifying me when ticked' : 'Notify me when ticked'}</button>` : ''}</div>
         ${t.checklist.length > 1 ? `<label class="mini ck-group">Group <select data-change="ckGroup" aria-label="Group checklist"><option value="">None</option><option value="added" ${S.settings.ckGroup === 'added' ? 'selected' : ''}>Date added</option><option value="done" ${S.settings.ckGroup === 'done' ? 'selected' : ''}>Date completed</option></select></label>` : ''}
         <ul class="checklist ${S.settings.ckGroup && t.checklist.length > 1 ? 'grouped' : ''}">
@@ -240,6 +245,22 @@ function logHTML(t) {
   }).join('');
   return `<ul class="log">${rows || '<li class="log-day">Nothing yet</li>'}</ul>`;
 }
+// ---------- Change requests: the delegatee asks, the delegator approves ----------
+const CR_FIELDS = [['title', 'Task Name'], ['notes', 'Task Details'], ['priority', 'Priority'], ['due', 'Due Date']];
+const crValue = (f, v) => (f === 'priority' ? PRIORITY.find((p) => p.v === Number(v))?.label || v : f === 'due' ? (v ? fmtDate(v) : 'None') : v || '—');
+function changeReqHTML(t) {
+  const cr = t.changeReq;
+  const pending = cr && cr.status === 'pending';
+  if (pending && cr.to === S.meId) {
+    return `<div class="cr-box"><b>${esc(person(cr.by)?.name || 'Someone')} requests a change</b>
+      <ul>${CR_FIELDS.filter(([f]) => f in cr.fields).map(([f, label]) => `<li><span>${label}</span><s>${esc(crValue(f, t[f]))}</s> → <b>${esc(crValue(f, cr.fields[f]))}</b></li>`).join('')}</ul>
+      ${cr.note ? `<p class="small">“${esc(cr.note)}”</p>` : ''}
+      <div class="row"><button class="btn primary sm" data-act="crApprove">Approve</button><button class="btn ghost sm" data-act="crDecline">Decline</button></div></div>`;
+  }
+  if (!delegatedToMe(t)) return '';
+  if (pending && cr.by === S.meId) return `<div class="cr-box mine">Change request sent to ${esc(person(cr.to)?.name || 'them')} <button class="link-btn" data-act="crWithdraw">Withdraw</button></div>`;
+  return `<button class="add-chip cr-ask" data-act="crAsk">${icon('pencil', 13)} Request Change</button>`;
+}
 function chatHTML(t) {
   const items = t.comments.filter((c) => !(c.deleted && !c.deletedBy) && !chatPrefs().hidden.includes(c.id)).map((c) => ({ at: c.at, c }))
     .sort((x, y) => x.at - y.at);
@@ -285,7 +306,6 @@ function chatHTML(t) {
   if (tab === 'log') return `<section class="task-sec chat-sec">${head}<div class="chat-scroll log-scroll">${logHTML(t)}</div></section>`;
   return `<section class="task-sec chat-sec">
     ${head}
-    ${t.notes.trim() ? `<div class="chat-note">${esc(t.notes)}</div>` : ''}
     <div class="chat-scroll" data-chat>
       ${t.attachments.length ? `<div class="chat-event"><span>Files added earlier</span></div><div class="msg-files earlier">${t.attachments.map(fileChip).join('')}</div>` : ''}
       <ul class="chat">${rows || '<li class="chat-event"><span>No messages yet.</span></li>'}</ul>
@@ -365,7 +385,8 @@ const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim());
 function assignPicker(t) {
   const plan = planById(t.planId);
   const ids = [...plan.members, ...S.people.map((p) => p.id).filter((id) => !plan.members.includes(id))].filter(person)
-    .filter((id) => !delegatedToMe(t) || canDelegate(t, id) || (t.assignees.includes(id) && id !== S.meId && id !== t.assignedBy && id !== delegatorOf(t)));
+    .filter((id) => !delegatedToMe(t) || canDelegate(t, id) || (t.assignees.includes(id) && id !== S.meId && id !== t.assignedBy && id !== delegatorOf(t)))
+    .filter((id) => t.assignees.includes(id) || canDelegateTo(id));
   const q = (ui.assignQuery || '').trim().toLowerCase();
   const match = (p) => !q || p.name.toLowerCase().includes(q) || (p.email || '').includes(q);
   const exact = S.people.some((p) => p.name.toLowerCase() === q || (p.email || '') === q);

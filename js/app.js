@@ -797,6 +797,56 @@ const actions = {
     const steps = [0, 10, 50, 80, 100];
     setField(t, 'progress', t.progress === v ? steps[steps.indexOf(v) - 1] : v);
   },
+  crAsk: () => {
+    const t = openTaskObj();
+    if (!t || !delegatedToMe(t)) return;
+    const to = delegatorOf(t);
+    const d = showDialog({
+      title: 'Request Change',
+      html: `<form class="stack">
+        <label class="field"><span>Task Name</span><input name="title" value="${esc(t.title)}"></label>
+        <label class="field"><span>Task Details</span><textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
+        <div class="task-fields two"><label class="field"><span>Priority</span><select name="priority">${PRIORITY.map((p) => `<option value="${p.v}" ${p.v === t.priority ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></label>
+        <label class="field"><span>Due Date</span><input type="date" name="due" value="${t.due || ''}"></label></div>
+        <label class="field"><span>Reason</span><input name="note" autocomplete="off"></label>
+        <div class="dlg-foot"><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Send to ${esc(person(to)?.name || 'them')}</button></div></form>`,
+    });
+    const form = $('form', d);
+    $('[data-role="no"]', d).onclick = () => d.close();
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const v = { title: form.elements.title.value.trim(), notes: form.elements.notes.value, priority: Number(form.elements.priority.value), due: form.elements.due.value || null };
+      const fields = Object.fromEntries(Object.entries(v).filter(([f, x]) => x !== (t[f] ?? null) && !(f === 'title' && !x)));
+      if (!Object.keys(fields).length) { toast('Nothing changed.'); return; }
+      const note = form.elements.note.value.trim();
+      t.changeReq = { by: S.meId, to, at: Date.now(), fields, note, status: 'pending' };
+      addEvent(t, 'changeReq', { to, text: CR_FIELDS.filter(([f]) => f in fields).map(([, l]) => l.toLowerCase()).join(', '), note });
+      d.close();
+      commit();
+      toast(`Sent to ${person(to)?.name || 'them'} for approval.`);
+    };
+    $('input', form).focus();
+  },
+  crApprove: () => {
+    const t = openTaskObj();
+    const cr = t?.changeReq;
+    if (!cr || cr.to !== S.meId) return;
+    for (const [f, v] of Object.entries(cr.fields)) if (CR_FIELDS.some(([k]) => k === f)) t[f] = v;
+    t.changeReq = { ...cr, status: 'approved', decidedAt: Date.now() };
+    addEvent(t, 'changeOk', {});
+    commit();
+  },
+  crDecline: async () => {
+    const t = openTaskObj();
+    const cr = t?.changeReq;
+    if (!cr || cr.to !== S.meId) return;
+    const note = await promptDlg('Decline Change', 'Reason (optional)', '', 'Decline');
+    if (note === null) return;
+    t.changeReq = { ...cr, status: 'declined', decidedAt: Date.now(), reply: note };
+    addEvent(t, 'changeNo', { note });
+    commit();
+  },
+  crWithdraw: () => { const t = openTaskObj(); if (t?.changeReq?.by === S.meId) { t.changeReq = null; commit(); } },
   chatTab: (el) => { const sc = $('.task-scroll'); const y = sc?.scrollTop; ui.chatTab = el.dataset.tab; renderTask(); const s2 = $('.task-scroll'); if (s2 && y != null) s2.scrollTop = y; },
   setBucket: (el) => { const t = taskById(el.dataset.id); closePop(); if (t && setBucketFor(t, el.dataset.b)) commit(); },
   cardMenu: (el) => openMenu(el, taskMenuItems(taskById(el.dataset.id), el)),
@@ -1375,6 +1425,7 @@ const changes = {
     render();
   },
   stSwitch: (el) => { ui.stPlanId = el.value; render(); },
+  orgReportsTo: (el) => { const rt = { ...(org().reportsTo || {}) }; if (el.value) rt[el.dataset.p] = el.value; else delete rt[el.dataset.p]; if (el.value && isAbove(el.dataset.p, el.value)) { toast('That would make a loop.'); refreshSettings(); return; } org().reportsTo = rt; commit(); refreshSettings(); },
   stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },
   stDeptName: (el) => { const d = deptById(el.dataset.d); d.name = el.value.trim() || d.name; org().depts = [...org().depts]; commit(); },
   stDeptDic: (el) => { const d = deptById(el.dataset.d); d.dic = el.value || null; org().depts = [...org().depts]; stTouchAll(); commit(); refreshSettings(); },
@@ -1440,7 +1491,7 @@ function setField(t, field, value) {
   if (field === 'bucketId') { if (setBucketFor(t, value)) commit(); else render(); return; }
   if (field === 'due' && dueLocked(t)) { toast(`${person(t.assignedBy)?.name || 'The assigner'} set this due date.`, { error: true }); render(); return; }
   if (field === 'progress') completeNotice(setProgress(t, Number(value)));
-  else if (field === 'priority') t.priority = Number(value);
+  else if (field === 'priority') { if (delegatedToMe(t)) { render(); return; } t.priority = Number(value); }
   else if (field === 'health') {
     const prev = t.health;
     t.health = value;
@@ -1458,7 +1509,7 @@ function setField(t, field, value) {
 const inputs = {
   contactSearch: (el) => { ui.contactQuery = el.value; refreshPop(); const i = $('[data-focus="contact-search"]', ui.pop?.el); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } },
   title: (el) => { if (delegatedToMe(openTaskObj())) return; openTaskObj().title = el.value; Store.save(); renderMainOnly(); },
-  notes: (el) => { openTaskObj().notes = el.value; Store.save(); renderMainOnly(); },
+  notes: (el) => { if (delegatedToMe(openTaskObj())) return; openTaskObj().notes = el.value; Store.save(); renderMainOnly(); },
   checkText: (el) => { openTaskObj().checklist.find((c) => c.id === el.dataset.id).text = el.value; Store.save(); },
   commentDraft: (el) => { ui.draft.comment = el.value; },
   assignSearch: (el) => {

@@ -1160,3 +1160,15 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .log-scroll { display: block; }
 
 .person-row.fixed { opacity: .55; cursor: default; }
+
+/* Task details, change requests, reporting lines */
+.task-details { width: 100%; min-height: 64px; resize: vertical; }
+.task-details.ro { white-space: pre-wrap; margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
+.cr-ask { margin: 2px 0 8px; }
+.cr-box { margin: 4px 0 10px; padding: 10px 12px; border-radius: 10px; border-left: 3px solid var(--highlight); background: color-mix(in srgb, var(--highlight) 10%, var(--surface)); display: grid; gap: 6px; }
+.cr-box ul { margin: 0; padding-left: 16px; display: grid; gap: 3px; }
+.cr-box li span { color: var(--muted); margin-right: 6px; }
+.cr-box li s { color: var(--muted); }
+.cr-box .row { display: flex; gap: 8px; }
+.cr-box.mine { display: block; color: var(--ink-2); }
+.adm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); }
