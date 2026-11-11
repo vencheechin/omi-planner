@@ -996,6 +996,8 @@ const actions = {
   },
   bpCell: (el) => {
     if (!stCanEdit(stCurrent())) return;
+    // Saving the previous cell redraws the table; open beside the new copy of the cell you clicked.
+    if (!el.isConnected) el = $(`.bp-cell[data-r="${CSS.escape(el.dataset.r)}"][data-m="${el.dataset.m}"]`) || el;
     const g = bpGroup(el.dataset.g);
     const r = bpRowOf(el.dataset.g, el.dataset.r);
     openPop(el, () => bpCellPicker(g, r, el.dataset.m));
