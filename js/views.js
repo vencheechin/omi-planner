@@ -30,7 +30,11 @@ function priorityIcon(p) {
   if (p === 9) return `<span class="prio low" title="Low">${icon('down', 13)}</span>`;
   return '';
 }
-/** A small ring that fills with the task's progress (10%, 50%, 80%). */
+/** A bar across the card with the percentage, once work has started. */
+const progressBarHTML = (t) => (t.progress > 0
+  ? `<div class="prog-bar ${isDone(t) ? 'done' : ''}" role="progressbar" aria-valuenow="${t.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="${t.progress}% done"><span><i style="width:${t.progress}%"></i></span><b>${t.progress}%</b></div>`
+  : '');
+/** A small ring that fills with the task's progress (10%, 50%, 80%). Replaced on cards by the bar. */
 const progressIcon = (t) => {
   if (!inProgress(t)) return '';
   const c = 2 * Math.PI * 6;
@@ -239,7 +243,7 @@ function cardHTML(t, { showPlan } = {}) {
   const meta = [
     S.inbox.some((n) => n.taskId === t.id && !n.read) ? `<span class="meta alert" title="New notifications on this task">${icon('bell', 13)}${S.inbox.filter((n) => n.taskId === t.id && !n.read).length}</span>` : '',
     t.review ? `<span class="meta checking" title="Submitted for checking ${esc(fmtDateTime(t.review.at))}">Checking</span>` : '',
-    timeboxMeta(t), progressIcon(t), priorityIcon(t.priority),
+    timeboxMeta(t), priorityIcon(t.priority),
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
     t.repeat ? `<span class="meta" title="Repeats">${icon('repeat', 13)}</span>` : '',
     t.checklist.length ? `<span class="meta" title="Checklist">${icon('list', 13)}${doneItems}/${t.checklist.length}</span>` : '',
@@ -252,6 +256,7 @@ function cardHTML(t, { showPlan } = {}) {
     <button class="icon-btn card-more" data-act="cardMenu" data-id="${esc(t.id)}" aria-label="More options for ${esc(t.title || 'Untitled task')}" title="More options">${icon('more', 16)}</button>
     ${cardPreview(t)}
     ${showPlan && plan ? `<div class="card-plan">${planTile(plan, 14)}${esc(plan.name)}</div>` : ''}
+    ${progressBarHTML(t)}
     ${meta || t.assignees.length ? `<footer><div class="card-meta">${meta}</div><div class="avatars">${t.assignees.slice(0, 3).map((a) => avatar(person(a), 24)).join('')}${t.assignees.length > 3 ? `<span class="avatar more" style="--s:24px">+${t.assignees.length - 3}</span>` : ''}</div></footer>` : ''}
   </article>`;
 }
