@@ -846,6 +846,17 @@ const actions = {
     refreshSettings();
   },
   tbForgetAddTo: () => { TB().addTo = null; commit(); refreshSettings(); toast('You’ll be asked each time.'); },
+  colourPick: (el) => {
+    const { kind, id } = el.dataset;
+    if (kind === 'task') { const t = taskById(id); openPop(el, () => colourListHTML('task', id, t.tbColor, autoColor(t), 'Automatic')); }
+    else { const b = TB().blocks.find((x) => x.id === id); openPop(el, () => colourListHTML('block', id, b.color, workTypeOf(b.kind).color, 'Type colour')); }
+  },
+  colourSet: (el) => {
+    const { kind, id, v } = el.dataset;
+    closePop();
+    if (kind === 'task') { taskById(id).tbColor = v; commit(); }
+    else { TB().blocks.find((x) => x.id === id).color = v || null; commit(); refreshSettings(); }
+  },
   teamDevice: () => Team.connectDevice(),
   openUsage: () => usageDlg(),
   exportUsage: (el) => {

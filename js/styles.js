@@ -99,6 +99,22 @@ function tbColors(cur) {
   if (cur && !list.some((c) => c.v.toLowerCase() === String(cur).toLowerCase())) list.push({ v: cur, label: 'Earlier colour' });
   return list;
 }
+/** A colour button: shows the swatch and name; tapping it opens the list of colours. */
+function colourButtonHTML(kind, id, cur, autoHex, autoLabel) {
+  const c = tbColors(cur).find((x) => x.v === (cur || '')) || { v: '', label: autoLabel };
+  return `<button type="button" class="colour-btn" data-act="colourPick" data-kind="${kind}" data-id="${esc(id)}" aria-haspopup="true" aria-label="Colour: ${esc(c.v ? c.label : autoLabel)}">
+    <i style="background:${c.v || autoHex}"></i><span>${esc(c.v ? c.label : autoLabel)}</span>${icon('chevD', 12)}</button>`;
+}
+/** The list of colours, each with its swatch and name. */
+function colourListHTML(kind, id, cur, autoHex, autoLabel) {
+  return `<div class="picker colour-list">${tbColors(cur).map((c) => `<button class="colour-opt ${c.v === (cur || '') ? 'on' : ''}" data-act="colourSet" data-kind="${kind}" data-id="${esc(id)}" data-v="${c.v}">
+    <i style="background:${c.v || autoHex}"></i><span>${esc(c.v ? c.label : autoLabel)}</span>${c.v === (cur || '') ? icon('check', 14) : ''}</button>`).join('')}</div>`;
+}
+/** Inside a form: the colours as a grid of swatches with names (one is picked). */
+function colourChoicesHTML(name, cur, autoHex, autoLabel) {
+  return `<div class="colour-grid">${tbColors(cur).map((c) => `<label class="colour-opt ${c.v === (cur || '') ? 'on' : ''}"><input type="radio" name="${name}" value="${c.v}" ${c.v === (cur || '') ? 'checked' : ''}>
+    <i style="background:${c.v || autoHex}"></i><span>${esc(c.v ? c.label : autoLabel)}</span></label>`).join('')}</div>`;
+}
 function styleSettingsHTML() {
   const cur = currentStyle().id;
   return `<div class="style-list" role="radiogroup" aria-label="Colour style">${STYLES.map((st) => `<button class="style-card ${st.id === cur ? 'on' : ''}" role="radio" aria-checked="${st.id === cur}" data-act="setStyle" data-v="${st.id}">
