@@ -347,12 +347,26 @@ const Cloud = {
         try { await this.syncAccess(p); S.sync.stAccess = { ...(S.sync.stAccess || {}), [id + ':' + stAudience(p).join(',')]: 1 }; } catch { /* tried again next sync */ }
       }
     }
-    for (let i = 0; i < ids.length; i += 200) {
-      const batch = ids.slice(i, i + 200);
+    // S-Team Plans go one at a time: if the server refuses one (no access yet, or an older setup.sql),
+    // it waits for the next sync and everything else still goes up.
+    const plans = ids.filter((x) => x.startsWith('st:'));
+    const rest = ids.filter((x) => !x.startsWith('st:'));
+    for (let i = 0; i < rest.length; i += 200) {
+      const batch = rest.slice(i, i + 200);
       const rows = batch.flatMap((id) => this.rowsFor(id));
       if (rows.length) await this.req('/rest/v1/rpc/merge_records', { method: 'POST', body: { rows } });
       batch.forEach((id) => { delete S.sync.dirty[id]; });
     }
+    let refused = 0;
+    for (const id of plans) {
+      const rows = this.rowsFor(id);
+      try {
+        if (rows.length) await this.req('/rest/v1/rpc/merge_records', { method: 'POST', body: { rows } });
+        delete S.sync.dirty[id];
+      } catch { refused++; }
+    }
+    if (refused) this.planError = `${refused} S-Team Plan${refused === 1 ? '' : 's'} not synced yet: the server needs the latest setup.sql, or access for this plan.`;
+    else this.planError = '';
     await Store.flush();
   },
   async pull({ adoptMine = false } = {}) {
@@ -578,7 +592,7 @@ function cloudSettingsHTML() {
   }
   const t = Cloud.team;
   const waiting = Object.keys(S.sync.dirty || {}).length;
-  return `<p class="small">Signed in as <b>${esc(s.email)}</b> · ${esc(Cloud.statusText()?.text || '')}${waiting ? ` · ${waiting} waiting` : ''}${Cloud.error ? `<br><span class="danger-text">${esc(Cloud.error)}</span>` : ''}</p>
+  return `<p class="small">Signed in as <b>${esc(s.email)}</b> · ${esc(Cloud.statusText()?.text || '')}${waiting ? ` · ${waiting} waiting` : ''}${Cloud.error ? `<br><span class="danger-text">${esc(Cloud.error)}</span>` : ''}${Cloud.planError ? `<br><span class="danger-text">${esc(Cloud.planError)}</span>` : ''}</p>
     ${t ? `<p class="small">Team: <b>${esc(t.name)}</b></p>
       <ul class="people-list">${t.members.map((m) => {
         const admin = (t.admins || []).includes(m);

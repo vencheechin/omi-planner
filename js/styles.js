@@ -78,20 +78,30 @@ function applyStyle() {
 
 /** Time Box colours: each task keeps the same colour from the style's palette unless you pick one. */
 const hashOf = (id) => { let h = 0; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
-function autoColor(t) {
-  const pal = currentStyle().palette.map(([c]) => c);
-  if (!(t.slotDate && Number.isFinite(t.slotStart))) return pal[hashOf(t.id) % pal.length];
-  // On the grid, walk that day's blocks in time order so the one before never has the same colour.
-  const day = S.tasks.filter((x) => x.slotDate === t.slotDate && Number.isFinite(x.slotStart) && !(x.boxId && taskById(x.boxId)))
+/** Colours for a whole day at once, cached until the next render (one pass per day, not per block). */
+const autoColorCache = { tick: -1, days: new Map() };
+function dayColours(iso, pal) {
+  if (autoColorCache.tick !== ui.renderTick) { autoColorCache.tick = ui.renderTick; autoColorCache.days.clear(); }
+  let m = autoColorCache.days.get(iso);
+  if (m) return m;
+  m = new Map();
+  // Walk the day's blocks in time order so the one before never has the same colour.
+  const day = S.tasks.filter((x) => x.slotDate === iso && Number.isFinite(x.slotStart) && !(x.boxId && taskById(x.boxId)))
     .sort((a, b) => a.slotStart - b.slotStart || String(a.id).localeCompare(String(b.id)));
   let prev = null;
   for (const x of day) {
     let c = x.tbColor || pal[hashOf(x.id) % pal.length];
     if (!x.tbColor && c === prev) c = pal[(pal.indexOf(c) + 1) % pal.length];
-    if (x.id === t.id) return c;
+    m.set(x.id, c);
     prev = c;
   }
-  return pal[hashOf(t.id) % pal.length];
+  autoColorCache.days.set(iso, m);
+  return m;
+}
+function autoColor(t) {
+  const pal = currentStyle().palette.map(([c]) => c);
+  if (!(t.slotDate && Number.isFinite(t.slotStart))) return pal[hashOf(t.id) % pal.length];
+  return dayColours(t.slotDate, pal).get(t.id) || pal[hashOf(t.id) % pal.length];
 }
 /** Colour choices for a dropdown: Automatic, then the style's palette (plus a colour picked earlier, if it's from another style). */
 function tbColors(cur) {

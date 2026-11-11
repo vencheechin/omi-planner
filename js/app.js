@@ -2,6 +2,7 @@
 /* Rendering loop, user actions, drag and drop, and startup. */
 
 function render() {
+  ui.renderTick = (ui.renderTick || 0) + 1;
   const scroll = {};
   $$('[data-scroll]').forEach((el) => { scroll[el.dataset.scroll] = [el.scrollLeft, el.scrollTop]; });
   const focusKey = ui.focus || document.activeElement?.dataset?.focus;
