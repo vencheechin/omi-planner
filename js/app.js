@@ -1891,6 +1891,15 @@ function route() {
   bindShell();
   applyTheme();
   route();
+  if (!S.settings.bucketsV1) {
+    const p = S.plans.find((x) => x.personal);
+    if (p) {
+      const have = new Set(p.buckets.map((b) => b.name.toLowerCase()));
+      p.buckets = [...DEFAULT_BUCKETS.filter((n) => !have.has(n.toLowerCase())).map((name) => ({ id: uid(), name })), ...p.buckets];
+    }
+    S.settings.bucketsV1 = true;
+    Store.save();
+  }
   if (S.settings.onboarded === false) setTimeout(setupDlg, 60);
   setTimeout(checkReminders, 1500);
   setInterval(checkReminders, 60000);

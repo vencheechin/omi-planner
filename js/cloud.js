@@ -452,7 +452,6 @@ function replaceWithCloud(email) {
 }
 function ensurePersonalPlan() {
   const plan = makePlan('Personal tasks', PLAN_COLORS[2], { personal: true });
-  plan.buckets[0].name = 'Tasks';
   S.plans.push(plan);
 }
 

@@ -117,10 +117,13 @@ function makeTask(fields) {
     box: false, boxId: null, tbQueued: false, tbColor: '', ...fields,
   };
 }
+/** The buckets a new plan starts with; rename, reorder or add more on the board. */
+const DEFAULT_BUCKETS = ['To be Assigned', 'Strategic', 'Management', 'Ideas', 'Corporate Culture', 'KIV'];
+const defaultBuckets = () => DEFAULT_BUCKETS.map((name) => ({ id: uid(), name }));
 function makePlan(name, color, extra = {}) {
   return {
     id: uid(), name, color: color || PLAN_COLORS[0], pinned: false, created: Date.now(), lastOpened: Date.now(),
-    labels: Array(LABELS.length).fill(''), buckets: [{ id: uid(), name: 'To do' }], members: [S.meId], ...extra,
+    labels: Array(LABELS.length).fill(''), buckets: defaultBuckets(), members: [S.meId], ...extra,
   };
 }
 
@@ -193,9 +196,9 @@ function seedState() {
   const me = { id: uid(), name: 'Me', color: PERSON_COLORS[0] };
   S = { v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { theme: 'system', lastBackup: null, timebox: defaultTimebox(), chat: defaultChatPrefs(), onboarded: false }, sync: freshSync(), personPlans: [], inbox: [], days: {}, msgLog: [] };
   const personal = makePlan('Personal tasks', PLAN_COLORS[2], { personal: true, lastOpened: 1 });
-  personal.buckets[0].name = 'Tasks';
   const t = todayISO();
   const plan = makePlan('Getting started', PLAN_COLORS[0], { pinned: true });
+  plan.buckets = [{ id: uid(), name: 'To do' }];
   plan.labels[4] = 'Tip';
   plan.labels[3] = 'Offline';
   const [todo, doing, done] = [plan.buckets[0], { id: uid(), name: 'In progress' }, { id: uid(), name: 'Done' }];
