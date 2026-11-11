@@ -198,6 +198,38 @@ function planBucketFields(planId, bucketId) {
     <label class="field"><span>Plan</span><select name="plan">${S.plans.map((p) => `<option value="${esc(p.id)}" ${p.id === planId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
     <label class="field"><span>Bucket</span><select name="bucket">${plan.buckets.map((b) => `<option value="${esc(b.id)}" ${b.id === bucketId ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></label></div>`;
 }
+/**
+ * Asks which plan and bucket a task typed into the Time Box belongs in. Resolves { planId, bucketId },
+ * or null when cancelled. With "Use this every time" ticked, it stops asking (Settings > Time boxing).
+ */
+function askPlanBucket(title) {
+  const saved = TB().addTo;
+  const sp = saved && planById(saved.planId);
+  if (sp && sp.buckets.some((b) => b.id === saved.bucketId)) return Promise.resolve({ planId: sp.id, bucketId: saved.bucketId });
+  const p = personalPlan();
+  return new Promise((resolve) => {
+    let answer = null;
+    const d = showDialog({
+      title: 'Add to Your Planner?',
+      html: `<form class="stack">
+        <p>“<b>${esc(title)}</b>” goes in the Time Box. Which plan and bucket should it go in?</p>
+        ${planBucketFields(p.id, p.buckets[0].id)}
+        <label class="mini"><input type="checkbox" name="remember"> Use this every time (change it in Settings › Time boxing)</label>
+        <div class="dlg-foot"><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Add</button></div></form>`,
+      onClose: () => resolve(answer),
+    });
+    const form = $('form', d);
+    bindPlanBucket(form);
+    $('[data-role="no"]', d).onclick = () => d.close();
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      answer = { planId: form.elements.plan.value, bucketId: form.elements.bucket.value };
+      if (form.elements.remember.checked) TB().addTo = { ...answer };
+      d.close();
+    };
+    $('select', form).focus();
+  });
+}
 function bindPlanBucket(form) {
   form.elements.plan.onchange = () => {
     form.elements.bucket.innerHTML = planById(form.elements.plan.value).buckets.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
@@ -789,6 +821,7 @@ const actions = {
     d.classList.add('settings');
     refreshSettings();
   },
+  tbForgetAddTo: () => { TB().addTo = null; commit(); refreshSettings(); toast('You’ll be asked each time.'); },
   setStyle: (el) => { S.settings.style = el.dataset.v; applyStyle(); Store.save(); render(); refreshSettings(); toast(`Colour style: ${styleOf(el.dataset.v).name}.`); },
   setTheme: (el) => { S.settings.theme = el.dataset.v; applyTheme(); Store.save(); refreshSettings(); },
   delPerson: async (el) => {
@@ -945,8 +978,9 @@ const submits = {
   tbQuickAdd: async (form, data) => {
     const title = data.get('title').trim();
     if (!title) return;
-    const p = personalPlan();
-    const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title, assignees: [S.meId], estimate: Number(data.get('estimate')) || 30, workType: data.get('workType') || '' });
+    const dest = await askPlanBucket(title);
+    if (!dest) { const i = $('[data-focus="tb-quick"]'); if (i) i.value = title; return; }
+    const t = addTask({ planId: dest.planId, bucketId: dest.bucketId, title, assignees: [S.meId], estimate: Number(data.get('estimate')) || 30, workType: data.get('workType') || '' });
     ui.focus = 'tb-quick';
     const day = data.get('date') || ui.dayDate;
     const start = parseHM(data.get('start'));
@@ -962,20 +996,22 @@ const submits = {
     if (!slot) t.tbQueued = true;
     toast(slot ? `Booked ${dayLabel(slot.date)} ${fmtTime(slot.start)}–${fmtTime(slot.start + durOf(t))}.` : 'No free slot in the next 4 weeks. It’s waiting in the Time Box list.');
   },
-  tbPopAdd: (form, data) => {
+  tbPopAdd: async (form, data) => {
     const lines = data.get('title').split('\n').map((x) => x.trim()).filter(Boolean);
     if (!lines.length) return;
+    const { date, start } = form.dataset;
     closePop();
-    const p = personalPlan();
+    const dest = await askPlanBucket(lines.length === 1 ? lines[0] : `${lines.length} tasks`);
+    if (!dest) return;
     const fields = { estimate: Number(data.get('estimate')) || 30, workType: data.get('workType') || '' };
     let t;
-    if (lines.length === 1) t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: lines[0], assignees: [S.meId], ...fields });
+    if (lines.length === 1) t = addTask({ planId: dest.planId, bucketId: dest.bucketId, title: lines[0], assignees: [S.meId], ...fields });
     else {
       t = makeBox(fields);
-      lines.forEach((line) => putInBox(t, addTask({ planId: p.id, bucketId: p.buckets[0].id, title: line, assignees: [S.meId] })));
+      lines.forEach((line) => putInBox(t, addTask({ planId: dest.planId, bucketId: dest.bucketId, title: line, assignees: [S.meId] })));
     }
     commit();
-    scheduleTask(t, form.dataset.date, Number(form.dataset.start));
+    scheduleTask(t, date, Number(start));
   },
   boxAddItem: (form, data) => {
     const title = data.get('title').trim();

@@ -126,6 +126,7 @@ function normalizeTimebox(tb) {
     workDays: Array.isArray(tb.workDays) ? tb.workDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) : [1, 2, 3, 4, 5],
     dayStart: mins(tb.dayStart, 510), dayEnd: mins(tb.dayEnd, 1050), capacity: Number.isFinite(tb.capacity) && tb.capacity > 0 ? tb.capacity : 8,
     interval: INTERVALS.includes(tb.interval) ? tb.interval : 15,
+    addTo: tb.addTo && typeof tb.addTo.planId === 'string' && typeof tb.addTo.bucketId === 'string' ? { planId: tb.addTo.planId, bucketId: tb.addTo.bucketId } : null,
     workTypes,
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
     blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start).map((b) => ({
@@ -856,6 +857,11 @@ function timeboxSettingsHTML() {
       <div class="f-chips">${tb.estimates.map((m) => `<span class="f-chip on est-chip">${esc(fmtDur(m))}<button class="chip-x" data-act="tbDelEstimate" data-m="${m}" aria-label="Remove ${esc(fmtDur(m))}">${icon('close', 10)}</button></span>`).join('')}</div>
       <form class="row est-add" data-submit="tbAddEstimate"><input name="minutes" type="number" min="1" max="720" step="1" placeholder="Minutes" aria-label="Add a duration in minutes" required><button class="btn ghost sm">${icon('plus', 14)} Add</button><button class="btn ghost sm" type="button" data-act="tbResetEstimates">Reset</button></form>
     </div>
+    ${(() => {
+      const a = tb.addTo && planById(tb.addTo.planId);
+      const b = a && a.buckets.find((x) => x.id === tb.addTo.bucketId);
+      return `<div class="row"><span class="small">Tasks typed into the Time Box go to: <b>${a && b ? `${esc(a.name)} › ${esc(b.name)}` : 'ask each time'}</b></span>${a && b ? '<button class="btn ghost xs" data-act="tbForgetAddTo">Ask each time</button>' : ''}</div>`;
+    })()}
     <ul class="tb-blocks">${tb.blocks.map((b) => `<li>
       <i class="dot" style="background:${b.color || workTypeOf(b.kind).color}"></i>
       <input value="${esc(b.name)}" list="tb-block-names" data-change="tbBlock" data-id="${esc(b.id)}" data-k="name" aria-label="Block name">
