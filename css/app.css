@@ -1030,7 +1030,8 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .pg-step.done, .pg-steps:has(.done) .pg-step.on { background: #30a158; }
 .pg-val { font-variant-numeric: tabular-nums; min-width: 34px; }
 .need-focus { gap: 6px; }
-.need-focus select { padding: 5px 8px; }
+.need-focus { cursor: pointer; user-select: none; }
+.need-focus input { width: 18px; height: 18px; accent-color: var(--highlight); margin: 0; }
 .bp-ctext { display: block; }
 .bp-cell.multi { text-align: left; vertical-align: top; }
 .bp-list { list-style: none; display: grid; gap: 4px; padding: 2px 0; }

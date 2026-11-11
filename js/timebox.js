@@ -575,7 +575,7 @@ function healthRowHTML(t) {
       <button class="health-toggle" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Traffic Light: ${esc(h ? `${h.label}, ${h.meaning}` : 'not set')}" title="Traffic Light">
         <span class="tl ${h ? 'set' : ''}" aria-hidden="true">${['red', 'yellow', 'green'].map((v) => `<i class="tl-${v} ${t.health === v ? 'on' : ''}"></i>`).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : ''}</button>
       ${progressPickHTML(t)}
-      <label class="mini need-focus">Need Focus <select data-change="tbField" data-field="workType" aria-label="Need Focus"><option value="focus" ${t.workType === 'focus' ? 'selected' : ''}>Yes</option><option value="" ${t.workType === 'focus' ? '' : 'selected'}>No</option></select></label>
+      <label class="mini need-focus"><input type="checkbox" data-change="needFocus" data-id="${esc(t.id)}" ${t.workType === 'focus' ? 'checked' : ''}> Need Focus</label>
       </div>
       ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note">${esc(t.healthNote || '')}</textarea></label>` : ''}
     </div>`;
