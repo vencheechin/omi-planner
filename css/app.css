@@ -1033,6 +1033,7 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .pg-val { font-variant-numeric: tabular-nums; min-width: 34px; }
 .need-focus { gap: 6px; }
 .need-focus { cursor: pointer; user-select: none; }
+.need-focus .icon { color: var(--highlight); }
 .need-focus input { width: 18px; height: 18px; accent-color: var(--highlight); margin: 0; }
 .tb-b-dur { display: block; font-size: calc(11.5px * var(--scale) * var(--type)); opacity: .8; font-weight: 400; }
 .tb-b-title .tb-b-dur { display: inline; }
