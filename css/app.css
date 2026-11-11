@@ -1004,6 +1004,8 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .bp-cell.bp-green { background: color-mix(in srgb, #4f8f5a 16%, var(--surface)); color: color-mix(in srgb, #2f7a45 75%, var(--ink)); }
 .bp-cell.bp-yellow { background: color-mix(in srgb, #d8a336 20%, var(--surface)); color: color-mix(in srgb, #9a6d10 75%, var(--ink)); }
 .bp-cell.bp-red { background: color-mix(in srgb, #b8432e 18%, var(--surface)); color: color-mix(in srgb, #a33522 80%, var(--ink)); }
+.bp-ctext { display: block; }
+.bp-cpic { display: block; margin-top: 3px; font-size: calc(10.5px * var(--scale) * var(--type)); font-weight: 400; opacity: .85; }
 .bp-add td { text-align: left; padding: 2px 6px; }
 @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .bp-cell.bp-green { background: color-mix(in srgb, #4f8f5a 38%, var(--surface)); color: #b9ecc2; }
 :root:where(:not([data-theme="light"])) .bp-cell.bp-yellow { background: color-mix(in srgb, #d8a336 36%, var(--surface)); color: #ffe39a; }

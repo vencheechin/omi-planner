@@ -22,8 +22,8 @@ function normalizeBrandPlan(b) {
       rows: (Array.isArray(g.rows) ? g.rows : []).filter((r) => r && r.id).map((r) => ({
         id: String(r.id), brand: String(r.brand || ''), pic: String(r.pic || ''),
         cells: Object.fromEntries(Object.entries(r.cells && typeof r.cells === 'object' ? r.cells : {})
-          .filter(([k, c]) => /^\d{4}-\d{2}$/.test(k) && c && (c.text || c.status))
-          .map(([k, c]) => [k, { text: String(c.text || ''), status: BP_STATUS.some((s) => s.v === c.status) ? c.status : '' }])),
+          .filter(([k, c]) => /^\d{4}-\d{2}$/.test(k) && c && (c.text || c.status || c.pic))
+          .map(([k, c]) => [k, { text: String(c.text || ''), pic: String(c.pic || ''), status: BP_STATUS.some((s) => s.v === c.status) ? c.status : '' }])),
       })),
     })),
   };
@@ -42,7 +42,7 @@ function renderBrandPlan() {
   const groups = bp().groups;
   const cell = (g, r, k) => {
     const c = r.cells[k];
-    return `<td class="bp-cell ${c?.status ? `bp-${c.status}` : ''}" data-act="bpCell" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${r.brand}, ${bpMonthLabel(k)}: ${c?.text || 'empty'}${c?.status ? `, ${c.status}` : ''}`)}">${esc(c?.text || '')}</td>`;
+    return `<td class="bp-cell ${c?.status ? `bp-${c.status}` : ''}" data-act="bpCell" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${r.brand}, ${bpMonthLabel(k)}: ${c?.text || 'empty'}${c?.status ? `, ${c.status}` : ''}${c?.pic ? `, PIC ${c.pic}` : ''}`)}">${c?.text ? `<span class="bp-ctext">${esc(c.text)}</span>` : ''}${c?.pic ? `<small class="bp-cpic">${esc(c.pic)}</small>` : ''}</td>`;
   };
   return `<div class="page bp-page">
     <header class="bp-head">
@@ -72,6 +72,7 @@ function bpCellPicker(g, r, k) {
   return `<form class="picker bp-pick" data-submit="bpCellSave" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}">
     <h4>${esc(r.brand || 'Brand')} · ${esc(bpMonthLabel(k))}</h4>
     <textarea name="text" rows="2" aria-label="Focus for the month">${esc(c.text)}</textarea>
+    <input name="pic" value="${esc(c.pic || '')}" placeholder="PIC" aria-label="PIC" autocomplete="off">
     <div class="bp-status">${[{ v: '', label: 'None', meaning: '' }, ...BP_STATUS].map((s) => `<label class="bp-opt"><input type="radio" name="status" value="${s.v}" ${c.status === s.v ? 'checked' : ''}><i class="bp-dot ${s.v ? `bp-${s.v}` : 'bp-none'}"></i><span>${esc(s.label)}</span></label>`).join('')}</div>
     <div class="row"><button class="btn ghost sm" type="button" data-act="bpCellClear">Clear</button><span class="spacer"></span><button class="btn primary sm">Save</button></div></form>`;
 }

@@ -979,7 +979,8 @@ const submits = {
     const r = bpRowOf(form.dataset.g, form.dataset.r);
     const text = String(data.get('text') || '').trim();
     const status = String(data.get('status') || '');
-    if (text || status) r.cells[form.dataset.m] = { text, status }; else delete r.cells[form.dataset.m];
+    const pic = String(data.get('pic') || '').trim().slice(0, 60);
+    if (text || status || pic) r.cells[form.dataset.m] = { text, status, pic }; else delete r.cells[form.dataset.m];
     closePop();
     commit();
   },
