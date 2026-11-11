@@ -138,6 +138,15 @@ function bpSpanText(start, h1, h2) {
   const m = (n) => MONTH_NAMES[((n - 1) % 12 + 12) % 12].slice(0, 3);
   return `H1: ${m(start)} – ${m(start + h1 - 1)} · H2: ${m(start + h1)} – ${m(start + h1 + h2 - 1)}`;
 }
+/** Years to choose from: five either side of this year (and the one shown, if further). */
+const bpYears = (cur) => { const now = new Date().getFullYear(); const list = Array.from({ length: 11 }, (_, i) => now - 5 + i); return [...new Set([...list, cur])].sort((a, b) => a - b); };
+/** Month and year dropdowns for a custom range end ("from" or "to"). */
+function bpMonthYear(label, which, key) {
+  const [y, m] = String(key || bpKey(new Date().getFullYear(), new Date().getMonth() + 1)).split('-').map(Number);
+  return `<span class="bp-my" role="group" aria-label="${label}">
+    <select data-change="bpRange" data-which="${which}" data-part="m" aria-label="${label} month">${MONTH_NAMES.map((n, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${n.slice(0, 3)}</option>`).join('')}</select>
+    <select data-change="bpRange" data-which="${which}" data-part="y" aria-label="${label} year">${bpYears(y).map((v) => `<option value="${v}" ${v === y ? 'selected' : ''}>${v}</option>`).join('')}</select></span>`;
+}
 const bpShort = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 function bpPeriodLabel(h, months) {
   const span = `${bpShort(months[0])} – ${bpShort(months[months.length - 1])}`;
@@ -190,8 +199,8 @@ function renderBrandPlan() {
       <div class="seg">${[['half', 'Half Year'], ['year', 'Full Year'], ['custom', 'Custom']].map(([v, l]) => `<button class="${h.mode === v ? 'on' : ''}" data-act="bpMode" data-v="${v}">${l}</button>`).join('')}</div>
       ${h.mode === 'half' ? `<div class="seg">${[1, 2].map((n) => `<button class="${h.half === n ? 'on' : ''}" data-act="bpHalf" data-v="${n}">H${n}</button>`).join('')}</div>` : ''}
       ${h.mode === 'custom'
-        ? `<div class="row bp-custom"><input type="month" value="${esc(h.from)}" data-change="bpFrom" aria-label="From"><span class="muted">to</span><input type="month" value="${esc(h.to)}" data-change="bpTo" aria-label="To"></div>`
-        : `<div class="row bp-year"><button class="icon-btn" data-act="bpYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><b>${h.mode === 'year' ? 'FY' : ''}${h.year}</b><button class="icon-btn" data-act="bpYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>`}
+        ? `<div class="row bp-custom">${bpMonthYear('From', 'from', h.from)}<span class="muted">to</span>${bpMonthYear('To', 'to', h.to)}</div>`
+        : `<div class="row bp-year"><button class="icon-btn" data-act="bpYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><select class="bp-ysel" data-change="bpYearSel" aria-label="Year">${bpYears(h.year).map((y) => `<option value="${y}" ${y === h.year ? 'selected' : ''}>${h.mode === 'year' ? 'FY' : ''}${y}</option>`).join('')}</select><button class="icon-btn" data-act="bpYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>`}
       ${ro ? '' : `<button class="icon-btn" data-act="bpPeriod" aria-label="Half year months" title="Half year months">${icon('gear', 17)}</button>`}
     </header>
     ${groups.length ? `<div class="bp-scroll"><table class="bp-table ${ro ? 'ro' : ''}" style="--bp-cols:${months.length}">

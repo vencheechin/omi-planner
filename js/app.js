@@ -1329,8 +1329,16 @@ const changes = {
   chatTranslate: (el) => { chatPrefs().translate = el.checked; commit(); },
   msgPick: (el) => { const s = ui.chatSelect || new Set(); if (el.checked) s.add(el.dataset.id); else s.delete(el.dataset.id); ui.chatSelect = s; renderTask(); },
   plannerName: (el) => { S.settings.plannerName = el.value.trim().slice(0, 60); commit(); },
-  bpFrom: (el) => { if (el.value) { bpHalf().from = el.value; if (bpHalf().to < el.value) bpHalf().to = el.value; render(); } },
-  bpTo: (el) => { if (el.value) { bpHalf().to = el.value; if (bpHalf().from > el.value) bpHalf().from = el.value; render(); } },
+  bpYearSel: (el) => { bpHalf().year = Number(el.value); render(); },
+  bpRange: (el) => {
+    const h = bpHalf();
+    const [y, m] = String(h[el.dataset.which]).split('-').map(Number);
+    const key = el.dataset.part === 'y' ? bpKey(Number(el.value), m) : bpKey(y, Number(el.value));
+    h[el.dataset.which] = key;
+    // Keep From on or before To.
+    if (h.from > h.to) { if (el.dataset.which === 'from') h.to = h.from; else h.from = h.to; }
+    render();
+  },
   stSwitch: (el) => { ui.stPlanId = el.value; render(); },
   stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },
   stDeptName: (el) => { const d = deptById(el.dataset.d); d.name = el.value.trim() || d.name; org().depts = [...org().depts]; commit(); },

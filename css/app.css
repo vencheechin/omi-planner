@@ -1003,7 +1003,10 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .adm-chips select { width: auto; padding: 4px 8px; }
 .adm-dept, .adm-plan { display: grid; gap: 6px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .adm-dept .row input { flex: 1; min-width: 120px; }
-.bp-custom { gap: 6px; } .bp-custom input { width: 150px; }
+.bp-custom { gap: 6px; }
+.bp-my { display: inline-flex; gap: 4px; }
+.bp-my select, .bp-ysel { padding: 5px 8px; width: auto; }
+.bp-ysel { font-weight: 700; }
 .bp-period { width: min(320px, calc(100vw - 24px)); display: grid; gap: 8px; }
 .bp-scroll .bp-table { min-width: calc(320px + var(--bp-cols, 6) * 120px); }
 .bp-year { gap: 2px; } .bp-year b { min-width: 44px; text-align: center; }
