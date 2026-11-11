@@ -145,7 +145,8 @@ function promptDlg(title, label, value = '', action = 'Save') {
     const input = $('input', d);
     input.select();
     $('[data-role=no]', d).onclick = () => d.close();
-    $('form', d).onsubmit = () => { result = input.value.trim() || null; };
+    // Close through d.close() so the answer arrives even where the dialog's 'close' event is late or missing.
+    $('form', d).onsubmit = (e) => { e.preventDefault(); result = input.value.trim() || null; d.close(); };
   });
 }
 

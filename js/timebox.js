@@ -444,7 +444,7 @@ function timeboxMeta(t) {
 }
 const estimateOptions = (cur) => {
   const list = [...new Set([...estimateList(), ...(cur ? [cur] : [])])].sort((a, b) => a - b);
-  return `<option value="" ${cur ? '' : 'selected'}>No estimate</option>${list.map((m) => `<option value="${m}" ${m === cur ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}`;
+  return `<option value="" ${cur ? '' : 'selected'}>Not set</option>${list.map((m) => `<option value="${m}" ${m === cur ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}`;
 };
 function setHealth(t, v, exact = false) {
   const prev = t.health;
@@ -571,6 +571,7 @@ function tbRowHTML(t) {
   // Need Focus first, then the Time Box: assign it, or once it's there, a button that takes you to it.
   return `<div class="tb-row">
         <button class="need-focus ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}">${icon('target', 15)} Need Focus</button>
+        <label class="time-req"><span>Time Required</span><select data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time Required">${estimateOptions(t.estimate)}<option value="custom">Other…</option></select></label>
         ${inTimebox
           ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}

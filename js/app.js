@@ -1416,9 +1416,18 @@ const changes = {
   tbInterval: (el) => { TB().interval = Number(el.value); commit(); refreshSettings(); },
   tbFullDay: (el) => { ui.tbFullDay = el.checked; render(); },
   tbPick: (el) => { const id = el.dataset.id; ui.tbPicked = el.checked ? [...new Set([...ui.tbPicked, id])] : ui.tbPicked.filter((x) => x !== id); render(); },
-  tbQueueEstimate: (el) => {
+  tbQueueEstimate: async (el) => {
     const t = taskById(el.dataset.id);
-    const dur = Number(el.value) || null;
+    let dur = Number(el.value) || null;
+    if (el.value === 'custom') {
+      // Any length: "45", "1h", "1h 30m", "1.5h".
+      const v = await promptDlg('Time Required', 'Minutes, or hours like 1h 30m', t.estimate ? fmtDur(t.estimate) : '', 'Set');
+      if (v === null || v === undefined) { render(); return; }
+      const s = String(v).toLowerCase().replace(/\s+/g, '');
+      const h = s.match(/([\d.]+)h/), m = s.match(/(\d+)m/);
+      dur = h || m ? Math.round((h ? parseFloat(h[1]) * 60 : 0) + (m ? Number(m[1]) : 0)) : Math.round(Number(s));
+      if (!Number.isFinite(dur) || dur <= 0 || dur > 720) { toast('Enter a time up to 12 hours, like 40 or 1h 30m.', { error: true }); render(); return; }
+    }
     if (isScheduled(t) && dur) scheduleTask(t, t.slotDate, t.slotStart, dur); else { t.estimate = dur; commit(); }
   },
   boxAddExisting: (el) => { if (!el.value) return; putInBox(taskById(el.dataset.id), taskById(el.value)); commit(); },
