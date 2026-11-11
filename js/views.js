@@ -203,6 +203,12 @@ function renderSidebar() {
 }
 
 // ---------- Hub ----------
+/** Decision requests waiting for you, at the top of My Planner. */
+function decisionHubHTML() {
+  const asks = S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending').sort((a, b) => a.decisionReq.at - b.decisionReq.at);
+  return `<section class="dr-hub"><h2>⚑ Decision Request <span class="count">${asks.length}</span></h2>
+    ${asks.length ? `<div class="dr-cards">${asks.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing waiting.</p>'}</section>`;
+}
 function renderHub() {
   const plans = [...S.plans].sort((a, b) => (b.pinned - a.pinned) || (b.lastOpened - a.lastOpened));
   const card = (p) => {
@@ -222,6 +228,7 @@ function renderHub() {
   };
   return `<div class="page">
     <header class="page-head"><h1>My Planner</h1></header>
+    ${decisionHubHTML()}
     ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
       : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
   </div>`;
