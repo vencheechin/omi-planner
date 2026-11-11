@@ -151,6 +151,7 @@ function renderTask() {
         <button class="check big ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 14)}</button>
         <input value="${esc(t.title)}" placeholder="Task name" data-input="title" data-focus="task-title" aria-label="Task name">
       </div>
+      ${tbRowHTML(t)}
       ${healthRowHTML(t)}
       <div class="assign-row">
         <div class="avatars">${t.assignees.map((a) => avatar(person(a), 28)).join('')}</div>
@@ -158,14 +159,9 @@ function renderTask() {
       </div>
       ${workflowHTML(t)}
       <div class="task-fields">
-        ${field('Bucket', `<select data-change="taskField" data-field="bucketId">${options(plan.buckets.map((b) => ({ v: b.id, label: b.name })), t.bucketId)}</select>`)}
-        ${field('Progress', `<select data-change="taskField" data-field="progress">${options(PROGRESS, t.progress)}</select>`)}
         ${field('Priority', `<select data-change="taskField" data-field="priority">${options(PRIORITY, t.priority)}</select>`)}
-        ${field('Start date', `<input type="date" value="${t.start || ''}" data-change="taskField" data-field="start">`)}
         ${field(dueLocked(t) ? `Due date ${icon('lock', 11)}` : 'Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}" ${dueLocked(t) ? `disabled title="Set by ${esc(person(t.assignedBy)?.name || 'the assigner')}"` : ''}>`)}
         ${field('Repeat', `<select data-change="taskField" data-field="repeat">${options(REPEATS, t.repeat)}</select>`)}
-        ${field('Work type', `<select data-change="tbField" data-field="workType">${workTypeOptions(t.workType)}</select>`)}
-        ${field('Show on card', `<select data-change="taskField" data-field="preview">${options([{ v: 'auto', label: 'Automatic' }, { v: 'notes', label: 'Description' }, { v: 'checklist', label: 'Checklist' }, { v: 'attachment', label: 'Picture' }, { v: 'none', label: 'Nothing' }], t.preview)}</select>`)}
       </div>
       ${remindersHTML(t)}
       ${timeboxHTML(t)}

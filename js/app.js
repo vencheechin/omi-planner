@@ -177,6 +177,7 @@ function taskMenuItems(t, anchor) {
       label: t.assignees.length ? `Assigned to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Assign to someone', icon: 'user', sub: true,
       run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },
     },
+    ...(planById(t.planId)?.buckets.length > 1 ? [{ label: 'Bucket', icon: 'list', sub: true, run: () => openPop(anchor, () => `<div class="menu" role="menu">${planById(t.planId).buckets.map((b) => `<button role="menuitem" data-act="setBucket" data-id="${esc(t.id)}" data-b="${esc(b.id)}"><span>${esc(b.name)}</span>${b.id === t.bucketId ? icon('check', 14) : ''}</button>`).join('')}</div>`) }] : []),
     { label: 'Label', icon: 'tag', sub: true, run: () => openLabels(anchor, { taskId: t.id, planId: t.planId }) },
     { label: 'Copy task', icon: 'copy', run: () => copyTaskDialog(t) },
     { label: 'Copy link to task', icon: 'link', run: () => copyTaskLink(t) },
@@ -751,6 +752,13 @@ const actions = {
   // task panel
   closeTask: () => { ui.openTask = null; closePop(); renderTask(); },
   taskMenu: (el) => openMenu(el, taskMenuItems(openTaskObj(), el)),
+  pgStep: (el) => {
+    const t = taskById(el.dataset.id);
+    const v = Number(el.dataset.v);
+    const steps = [0, 10, 50, 80, 100];
+    setField(t, 'progress', t.progress === v ? steps[steps.indexOf(v) - 1] : v);
+  },
+  setBucket: (el) => { const t = taskById(el.dataset.id); closePop(); if (t) { t.bucketId = el.dataset.b; commit(); } },
   cardMenu: (el) => openMenu(el, taskMenuItems(taskById(el.dataset.id), el)),
   pickLabels: (el) => {
     const t = taskById(el.dataset.id);
@@ -1714,6 +1722,16 @@ document.addEventListener('submit', (e) => {
   Usage.track(`form:${form.dataset.submit}`);
   submits[form.dataset.submit](form, new FormData(form));
   if (form.isConnected) form.reset();
+});
+// Right-click (or long-press on a phone) on a task card opens its menu (bucket, labels, copy, move…).
+document.addEventListener('contextmenu', (e) => {
+  const card = e.target.closest('.card[data-id]');
+  if (!card || e.target.closest('input, textarea, a')) return;
+  const t = taskById(card.dataset.id);
+  if (!t) return;
+  e.preventDefault();
+  const anchor = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false };
+  openMenu(anchor, taskMenuItems(t, anchor));
 });
 // Right-click (or long-press on a phone) on a message opens its menu.
 document.addEventListener('contextmenu', (e) => {

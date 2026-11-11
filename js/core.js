@@ -341,6 +341,7 @@ function addTask(fields) {
  * A task someone else assigned can't be completed by its assignee: it goes to Checking instead.
  */
 function setProgress(t, value) {
+  if (value > 0 && !t.start) t.start = todayISO();
   // Ticking a time box ticks every task in it; the box follows its items.
   if (t.box && boxItems(t).length) {
     boxItems(t).forEach((i) => { if ((value === 100) !== isDone(i)) setProgress(i, value === 100 ? 100 : 0); });

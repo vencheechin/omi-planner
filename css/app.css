@@ -1016,6 +1016,16 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .bp-cell.bp-green { background: color-mix(in srgb, #4f8f5a 16%, var(--surface)); color: color-mix(in srgb, #2f7a45 75%, var(--ink)); }
 .bp-cell.bp-yellow { background: color-mix(in srgb, #d8a336 20%, var(--surface)); color: color-mix(in srgb, #9a6d10 75%, var(--ink)); }
 .bp-cell.bp-red { background: color-mix(in srgb, #b8432e 18%, var(--surface)); color: color-mix(in srgb, #a33522 80%, var(--ink)); }
+.status-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.pg-pick { display: inline-flex; align-items: center; gap: 8px; }
+.pg-steps { display: inline-flex; gap: 3px; padding: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.pg-step { width: 26px; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--ink) 16%, transparent); }
+.pg-step:hover { background: color-mix(in srgb, var(--highlight) 45%, transparent); }
+.pg-step.on { background: var(--highlight); }
+.pg-step.done, .pg-steps:has(.done) .pg-step.on { background: #30a158; }
+.pg-val { font-variant-numeric: tabular-nums; min-width: 34px; }
+.need-focus { gap: 6px; }
+.need-focus select { padding: 5px 8px; }
 .bp-ctext { display: block; }
 .bp-cell.multi { text-align: left; vertical-align: top; }
 .bp-list { list-style: none; display: grid; gap: 4px; padding: 2px 0; }

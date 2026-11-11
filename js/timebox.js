@@ -543,12 +543,40 @@ function saveBlockFromMenu(form, data) {
   toast(`Saved “${b.name}”.`);
 }
 
+/** The Time Box row under the task name: assign, or where it is (with open, remove and colour). */
+function tbRowHTML(t) {
+  const inBox = !!(t.boxId && boxOf(t));
+  const inTimebox = isScheduled(t) || inBox || t.tbQueued;
+  const where = isScheduled(t) ? `${dayLabel(t.slotDate)} ${fmtTime(t.slotStart)}–${fmtTime(endOf(t))}${blockAt(t.slotDate, t.slotStart) ? ` · ${blockAt(t.slotDate, t.slotStart).name}` : ''}`
+    : inBox ? `in “${boxOf(t).title}”${isScheduled(boxOf(t)) ? `, ${slotText(boxOf(t))}` : ''}` : 'waiting in the Time Box list';
+  return `<div class="tb-row">
+        ${inTimebox
+          ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>
+            <button class="btn ghost sm" data-act="openInTimebox" data-id="${esc(t.id)}">Open</button>
+            <button class="btn ghost sm" data-act="removeFromTimebox" data-id="${esc(t.id)}">Remove</button>
+            ${colourButtonHTML('task', t.id, t.tbColor, autoColor(t), 'Automatic')}`
+          : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
+      </div>`;
+}
+/** Progress as a bar you tap: 10%, 50%, 80%, 100% (tap the current step again to go back one). */
+function progressPickHTML(t) {
+  const steps = [10, 50, 80, 100];
+  return `<div class="pg-pick" role="group" aria-label="Progress ${t.progress}%">
+      <div class="pg-steps">${steps.map((v) => `<button class="pg-step ${t.progress >= v ? 'on' : ''} ${v === 100 && t.progress === 100 ? 'done' : ''}" data-act="pgStep" data-id="${esc(t.id)}" data-v="${v}" aria-label="${v}%" title="${v}%"></button>`).join('')}</div>
+      <b class="pg-val">${t.progress ? `${t.progress}%` : 'Not started'}</b>
+      ${t.start && t.progress ? `<small class="muted">Started ${esc(fmtDate(t.start))}</small>` : ''}
+    </div>`;
+}
+
 /** The Traffic Light row under the task name: a dropdown, plus a recovery or support note when not Green. */
 function healthRowHTML(t) {
   const h = healthOf(t.health);
-  return `<div class="health-row">
+  return `<div class="health-row"><div class="status-row">
       <button class="health-toggle" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Traffic Light: ${esc(h ? `${h.label}, ${h.meaning}` : 'not set')}" title="Traffic Light">
         <span class="tl ${h ? 'set' : ''}" aria-hidden="true">${['red', 'yellow', 'green'].map((v) => `<i class="tl-${v} ${t.health === v ? 'on' : ''}"></i>`).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : ''}</button>
+      ${progressPickHTML(t)}
+      <label class="mini need-focus">Need Focus <select data-change="tbField" data-field="workType" aria-label="Need Focus"><option value="focus" ${t.workType === 'focus' ? 'selected' : ''}>Yes</option><option value="" ${t.workType === 'focus' ? '' : 'selected'}>No</option></select></label>
+      </div>
       ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note">${esc(t.healthNote || '')}</textarea></label>` : ''}
     </div>`;
 }
@@ -560,30 +588,11 @@ function healthPickerHTML(t) {
     ${t.health ? `<button class="health-opt clear" data-act="pickHealth" data-id="${esc(t.id)}" data-v=""><i></i><span>Clear</span></button>` : ''}</div>`;
 }
 
-/** The Time Box and Decision Request sections of the task panel. */
+/** The time box contents (for a box) and the Decision Request section of the task panel. */
 function timeboxHTML(t) {
-  const mio = mioDateOf(t);
-  const targetDay = t.slotDate && t.slotDate >= todayISO() ? t.slotDate : todayISO();
-  const h = healthOf(t.health);
   const dec = t.decision || {};
   const decField = (k, label, rows = 2) => `<label class="field"><span>${label}</span><textarea rows="${rows}" data-input="decisionField" data-k="${k}" data-focus="dec-${k}">${esc(dec[k] || '')}</textarea></label>`;
-  const inBox = !!(t.boxId && boxOf(t));
-  const inTimebox = isScheduled(t) || inBox || t.tbQueued;
-  const where = isScheduled(t) ? `${dayLabel(t.slotDate)} ${fmtTime(t.slotStart)}–${fmtTime(endOf(t))}${blockAt(t.slotDate, t.slotStart) ? ` · ${blockAt(t.slotDate, t.slotStart).name}` : ''}`
-    : inBox ? `in “${boxOf(t).title}”${isScheduled(boxOf(t)) ? `, ${slotText(boxOf(t))}` : ''}` : 'waiting in the Time Box list';
-  return `<section class="task-sec tb-sec">
-      <div class="tb-row">
-        ${inTimebox
-          ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>
-            <button class="btn ghost sm" data-act="openInTimebox" data-id="${esc(t.id)}">Open</button>
-            <button class="btn ghost sm" data-act="removeFromTimebox" data-id="${esc(t.id)}">Remove</button>
-            ${colourButtonHTML('task', t.id, t.tbColor, autoColor(t), 'Automatic')}`
-          : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
-        <span class="spacer"></span>
-        <button class="btn ghost sm ${mio ? 'active' : ''}" data-act="toggleMio" data-id="${esc(t.id)}" data-date="${mio || targetDay}" title="3 Most Important Outcomes">★ ${mio ? `In 3MIO for ${esc(dayLabel(mio))}` : `Add to 3MIO for ${esc(dayLabel(targetDay))}`}</button>
-      </div>
-    </section>
-    ${isBox(t) ? boxSectionHTML(t) : ''}
+  return `${isBox(t) ? boxSectionHTML(t) : ''}
     ${t.workType === 'decision' ? `<section class="task-sec decision-sec">
       <div class="sec-head"><h3>Decision request</h3></div>
       ${decField('issue', 'Issue')}${decField('recommendation', 'Recommendation')}${decField('impact', 'Impact')}${decField('needed', 'Decision needed')}
