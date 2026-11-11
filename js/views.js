@@ -203,9 +203,12 @@ function renderSidebar() {
 }
 
 // ---------- Hub ----------
+/** Decision requests: the closest deadline first, then those without one (oldest request first). */
+const byDecisionDeadline = (a, b) => String(a.decision?.deadline || '9999').localeCompare(String(b.decision?.deadline || '9999')) || a.decisionReq.at - b.decisionReq.at;
+const decisionsForMe = () => S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending').sort(byDecisionDeadline);
 /** Decision requests waiting for you, at the top of My Planner. */
 function decisionHubHTML() {
-  const asks = S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending').sort((a, b) => a.decisionReq.at - b.decisionReq.at);
+  const asks = decisionsForMe();
   return `<section class="dr-hub"><h2>⚑ Decision Request <span class="count">${asks.length}</span></h2>
     ${asks.length ? `<div class="dr-cards">${asks.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing waiting.</p>'}</section>`;
 }
@@ -250,6 +253,7 @@ function cardHTML(t, { showPlan } = {}) {
   const doneItems = t.checklist.filter((c) => c.done).length;
   const meta = [
     S.inbox.some((n) => n.taskId === t.id && !n.read) ? `<span class="meta alert" title="New notifications on this task">${icon('bell', 13)}${S.inbox.filter((n) => n.taskId === t.id && !n.read).length}</span>` : '',
+    t.decisionReq?.status === 'pending' && t.decision?.deadline ? `<span class="meta ${t.decision.deadline < todayISO() ? 'late' : ''}" title="Decision deadline">⚑ ${fmtDate(t.decision.deadline)}</span>` : '',
     t.review ? `<span class="meta checking" title="Submitted for checking ${esc(fmtDateTime(t.review.at))}">Checking</span>` : '',
     timeboxMeta(t), priorityIcon(t.priority),
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
@@ -277,9 +281,8 @@ function assignedToMeGroups(plan) {
   if (!plan.personal) return [];
   const mine = S.tasks.filter((t) => t.planId !== plan.id && t.assignees.includes(S.meId) && t.assignedBy && t.assignedBy !== S.meId && !t.boxId);
   const by = [...new Set(mine.map((t) => t.assignedBy))];
-  const asks = S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending');
   const decision = { key: 'from:decision', label: 'Decision Request', locked: true, movable: true, noAdd: true, color: plan.fromColor?.['from:decision'] || '',
-    tasks: applyFilter(asks, filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)) };
+    tasks: applyFilter(decisionsForMe(), filterOf(plan.id)) };
   return [decision, ...by.map((id) => ({
     key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true, movable: true, noAdd: true,
     color: plan.fromColor?.[`from:${id}`] || '',

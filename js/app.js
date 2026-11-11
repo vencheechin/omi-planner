@@ -1544,7 +1544,8 @@ function dragMove(x, y) {
     const col = under?.closest('.col[data-group]');
     // Tasks shown in an "Assigned by …" bucket belong to another plan, so they stay put.
     const fromBucket = String(s.fromGroup || '').startsWith('from:');
-    if (!col || (fromBucket ? col.dataset.group !== s.fromGroup : col.dataset.locked)) { s.ph.remove(); s.target = null; return; }
+    // The Decision Request bucket always runs by deadline, so its cards don't move by hand.
+    if (!col || s.fromGroup === 'from:decision' || (fromBucket ? col.dataset.group !== s.fromGroup : col.dataset.locked)) { s.ph.remove(); s.target = null; return; }
     const body = $('.col-body', col);
     const cards = $$('.card:not(.drag-src)', body);
     const before = cards.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
