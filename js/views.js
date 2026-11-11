@@ -140,7 +140,12 @@ function applyGroup(t, by, from, to) {
 
 // ---------- Sidebar ----------
 /** A plan someone else shared with you shows their name, e.g. "Getting started (Ven)". */
-const planLabel = (p) => (p.owner && p.owner !== S.meId && person(p.owner) ? `${p.name} (${person(p.owner).name})` : p.name);
+/** Someone else's plan shared with you reads "Assigned by Ven" (plus the plan's name if they share more than one). */
+const planLabel = (p) => {
+  if (!(p.owner && p.owner !== S.meId && person(p.owner))) return p.name;
+  const theirs = S.plans.filter((x) => x.owner === p.owner).length;
+  return `Assigned by ${person(p.owner).name}${theirs > 1 ? ` · ${p.name}` : ''}`;
+};
 /** "Ven's Planner" once you've set your name in Settings; plain "Planner" until then. */
 const plannerName = () => { if (S.settings.plannerName) return S.settings.plannerName; const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n}${/s$/i.test(n) ? "'" : "'s"} Planner` : 'Planner'; };
 /** Phones: a tab bar at the bottom, like iOS. */
@@ -463,7 +468,7 @@ function renderPlan(plan) {
   return `<div class="plan-page">
     <header class="plan-head">
       ${planTile(plan, 36)}
-      <input class="plan-title" value="${esc(plan.name)}" data-change="planName" data-id="${esc(plan.id)}" aria-label="Plan name">
+      ${plan.owner && plan.owner !== S.meId && person(plan.owner) ? `<h1 class="plan-title">${esc(planLabel(plan))}</h1>` : `<input class="plan-title" value="${esc(plan.name)}" data-change="planName" data-id="${esc(plan.id)}" aria-label="Plan name">`}
       <button class="icon-btn pin ${plan.pinned ? 'on' : ''}" data-act="togglePin" data-id="${esc(plan.id)}" aria-label="${plan.pinned ? 'Unpin plan' : 'Pin plan'}" title="${plan.pinned ? 'Unpin' : 'Pin'}">${icon('star')}</button>
       <div class="spacer"></div>
       <button class="avatars members" data-act="pickMembers" aria-label="Plan members">${plan.members.slice(0, 5).map((m) => avatar(person(m), 26)).join('')}</button>
