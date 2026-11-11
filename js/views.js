@@ -162,6 +162,8 @@ const planLabel = (p) => {
   return `${me}${/s$/i.test(me) ? "'" : "'s"} Task (${person(p.owner).name})${theirs > 1 ? ` · ${p.name}` : ''}`;
 };
 /** "Ven's Planner" once you've set your name in Settings; plain "Planner" until then. */
+/** A person's first name in a small pill in their colour (on task cards). */
+const nameChip = (p) => (p ? `<span class="name-chip" style="--pc:${esc(p.color || '#b5894d')}" title="${esc(p.name)}">${esc(String(p.name).trim().split(/\s+/)[0])}</span>` : '');
 const plannerName = () => { if (S.settings.plannerName) return S.settings.plannerName; const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n}${/s$/i.test(n) ? "'" : "'s"} Planner` : 'Planner'; };
 /** Phones: a tab bar at the bottom, like iOS. */
 function renderTabbar() {
@@ -282,7 +284,7 @@ function cardHTML(t, { showPlan } = {}) {
     ${cardPreview(t)}
     ${showPlan && plan ? `<div class="card-plan">${planTile(plan, 14)}${esc(plan.name)}</div>` : ''}
     ${progressBarHTML(t)}
-    ${meta || t.assignees.length ? `<footer><div class="card-meta">${meta}</div><div class="avatars">${t.assignees.slice(0, 3).map((a) => avatar(person(a), 24)).join('')}${t.assignees.length > 3 ? `<span class="avatar more" style="--s:24px">+${t.assignees.length - 3}</span>` : ''}</div></footer>` : ''}
+    ${meta || t.assignees.length ? `<footer><div class="card-meta">${meta}</div><div class="name-chips">${t.assignees.slice(0, 3).map((a) => nameChip(person(a))).join('')}${t.assignees.length > 3 ? `<span class="name-chip more">+${t.assignees.length - 3}</span>` : ''}</div></footer>` : ''}
   </article>`;
 }
 
