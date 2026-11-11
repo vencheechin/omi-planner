@@ -270,16 +270,20 @@ function assignedToMeGroups(plan) {
   if (!plan.personal) return [];
   const mine = S.tasks.filter((t) => t.planId !== plan.id && t.assignees.includes(S.meId) && t.assignedBy && t.assignedBy !== S.meId && !t.boxId);
   const by = [...new Set(mine.map((t) => t.assignedBy))];
-  return by.map((id) => ({
+  const asks = S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending');
+  const decision = { key: 'from:decision', label: 'Decision Request', locked: true, movable: true, noAdd: true, color: plan.fromColor?.['from:decision'] || '',
+    tasks: applyFilter(asks, filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)) };
+  return [decision, ...by.map((id) => ({
     key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true, movable: true, noAdd: true,
     color: plan.fromColor?.[`from:${id}`] || '',
     tasks: applyFilter(mine.filter((t) => t.assignedBy === id), filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)),
-  }));
+  }))];
 }
 /** Your own planner's columns: its buckets with the "Assigned by" buckets placed where you put them. */
 function placeFromGroups(plan, real, from) {
   const cols = [...real];
-  from.forEach((g) => { const at = plan.fromPos?.[g.key]; cols.splice(Number.isInteger(at) ? Math.min(at, cols.length) : cols.length, 0, g); });
+  // Decision Request starts at the front; "Assigned by" buckets at the end, until you move them.
+  from.forEach((g) => { const at = plan.fromPos?.[g.key] ?? (g.key === 'from:decision' ? 0 : null); cols.splice(Number.isInteger(at) ? Math.min(at, cols.length) : cols.length, 0, g); });
   return cols;
 }
 function boardHTML(groups, by, ctx) {

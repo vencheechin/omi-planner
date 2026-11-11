@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder'];
 const FILE_APP = 'planner-team';
@@ -37,6 +37,8 @@ const EVENT_TEXT = {
   returned: () => 'sent back for more work', withdrawn: () => 'withdrew from checking', completed: () => 'approved and completed', reopened: () => 'reopened',
   health: (e) => `marked it ${healthText(e.value) || e.value}`,
   check: (e) => `${e.done ? 'ticked' : 'unticked'} “${e.text}”`,
+  decision: (e) => `sent a decision request to ${nameOf(e.to)}`,
+  decided: (e) => `${e.value === 'approved' ? 'approved' : 'rejected'} the decision request`,
 };
 const nameOf = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
 
@@ -254,6 +256,8 @@ function newEvents(t, known) {
     else if (e.type === 'assigned' && e.to === S.meId) out.push({ kind: 'assigned', text: `${who} assigned you “${t.title}”` });
     else if (e.type === 'returned' && t.assignees.includes(S.meId)) out.push({ kind: 'returned', text: `${who} sent back “${t.title}”`, note: e.note });
     else if (e.type === 'completed' && t.assignees.includes(S.meId)) out.push({ kind: 'completed', text: `${who} approved “${t.title}”` });
+    else if (e.type === 'decision' && e.to === S.meId && t.decisionReq?.status === 'pending') out.push({ kind: 'review', text: `${who} sent you a decision request: “${t.title}”` });
+    else if (e.type === 'decided' && t.decisionReq?.by === S.meId) out.push({ kind: e.value === 'approved' ? 'completed' : 'returned', text: `${who} ${e.value === 'approved' ? 'approved' : 'rejected'} your decision request “${t.title}”`, note: e.note });
     else if (e.type === 'check' && e.done && (t.checkAlerts || []).includes(S.meId)) out.push({ kind: 'check', text: `${who} ticked “${e.text}” on “${t.title}”` });
     else if (e.type === 'health' && reviewerOf(t) === S.meId) out.push({ kind: e.value === 'red' ? 'returned' : 'review', text: `${who} marked “${t.title}” ${healthText(e.value) || e.value}`, note: e.note });
   }
@@ -532,7 +536,7 @@ function workflowHTML(t) {
   const reviewer = reviewerOf(t);
   const lines = [];
   if (t.assignedBy && t.assignees.some((a) => a !== t.assignedBy)) {
-    lines.push(`<span class="muted small">Assigned by ${esc(nameOf(t.assignedBy))}${t.assignedAt ? ` on ${esc(fmtDateTime(t.assignedAt))}` : ''}</span>`);
+    lines.push(`<span class="muted small">Delegated by ${esc(nameOf(t.assignedBy))}${t.assignedAt ? ` on ${esc(fmtDateTime(t.assignedAt))}` : ''}</span>`);
   }
   let action = '';
   if (t.review && isReviewer(t)) {

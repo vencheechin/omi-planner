@@ -155,7 +155,8 @@ function renderTask() {
       ${healthRowHTML(t)}
       <div class="assign-row">
         <div class="avatars">${t.assignees.map((a) => avatar(person(a), 28)).join('')}</div>
-        <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? esc(t.assignees.map((a) => (a === S.meId ? 'Me' : person(a)?.name || 'Someone')).join(', ')) : 'Assign'}</button>
+        <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? esc(t.assignees.map((a) => (a === S.meId ? 'Me' : person(a)?.name || 'Someone')).join(', ')) : 'Delegate'}</button>
+        ${t.decisionReq ? '' : `<button class="add-chip" data-act="decisionSend" data-id="${esc(t.id)}">${icon('flag', 13)} Decision Request</button>`}
       </div>
       ${workflowHTML(t)}
       <div class="task-fields">
@@ -359,7 +360,7 @@ function assignPicker(t) {
   const q = (ui.assignQuery || '').trim().toLowerCase();
   const match = (p) => !q || p.name.toLowerCase().includes(q) || (p.email || '').includes(q);
   const exact = S.people.some((p) => p.name.toLowerCase() === q || (p.email || '') === q);
-  return `<div class="picker assign"><h4>Assign to</h4>
+  return `<div class="picker assign"><h4>Delegate to</h4>
     <form class="label-search" data-submit="assignSearch" data-id="${esc(t.id)}">${icon('search', 14)}<input name="q" value="${esc(ui.assignQuery || '')}" placeholder="Name or email" data-input="assignSearch" data-focus="assign-search" autocomplete="off" aria-label="Find or add a person by name or email"></form>
     <button class="label-create" data-act="assignCreate" data-id="${esc(t.id)}" ${q && !exact ? '' : 'hidden'}>${icon('plus', 14)}<span>${isEmail(q) ? 'Add and assign' : 'Add'} “<b>${esc(ui.assignQuery || '')}</b>”</span></button>
     <div class="picker-scroll">${ids.map((id) => {

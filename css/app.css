@@ -1041,6 +1041,10 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .tb-b-dur { display: block; font-size: calc(11.5px * var(--scale) * var(--type)); opacity: .8; font-weight: 400; }
 .tb-b-title .tb-b-dur { display: inline; }
 .chat-note { white-space: pre-wrap; padding: 8px 12px; border-radius: 10px; border-left: 3px solid var(--ochre); background: color-mix(in srgb, var(--ink) 6%, transparent); font-size: calc(13.5px * var(--scale) * var(--type)); }
+.dr-status { font-size: calc(12px * var(--scale) * var(--type)); font-weight: 700; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.dr-status.dr-approved { background: color-mix(in srgb, #30a158 25%, transparent); }
+.dr-status.dr-rejected { background: color-mix(in srgb, #d0453a 25%, transparent); }
+.col[data-group="from:decision"] .col-title b::before { content: "⚑ "; color: var(--highlight); }
 .bp-ctext { display: block; }
 .bp-cell.multi { text-align: left; vertical-align: top; }
 .bp-list { list-style: none; display: grid; gap: 4px; padding: 2px 0; }

@@ -10,7 +10,7 @@ const USAGE_NAMES = {
   'page:plan': 'A plan', 'page:person': 'A person plan', 'page:report': 'Assignment report', 'page:halfplan': 'S-Team Plan',
   // Common buttons
   newPlan: 'New plan', openSettings: 'Settings', openInbox: 'Notifications', openNav: 'Menu (phone)', taskMenu: 'Task ••• menu',
-  toggleMyDay: 'My Day (task)', toggleDone: 'Tick task', pickAssignees: 'Assign', pickLabels: 'Add label', healthMenu: 'Traffic light',
+  toggleMyDay: 'My Day (task)', toggleDone: 'Tick task', pickAssignees: 'Delegate', decisionSend: 'Decision Request', decisionApprove: 'Approve decision', decisionReject: 'Reject decision', pickLabels: 'Add label', healthMenu: 'Traffic light',
   assignTimebox: 'Assign to Time Box', openInTimebox: 'Open in Time Box', removeFromTimebox: 'Remove from Time Box', toggleMio: '3MIO (task)',
   chatPlus: 'Chat +', chatAttach: 'Attach', chatPhotos: 'Photos', chatCamera: 'Camera', chatLocation: 'Location', chatContact: 'Contact', chatLink: 'Link',
   msgMenu: 'Message menu', setDayView: 'Day / Week / Month', tbNav: 'Time Box ‹ ›', tbToday: 'Time Box Today', tbAdd: 'Tap empty time',

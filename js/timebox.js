@@ -543,6 +543,25 @@ function saveBlockFromMenu(form, data) {
   toast(`Saved “${b.name}”.`);
 }
 
+/** Who the request is with, and the answer so far. */
+function decisionStatusHTML(t) {
+  const r = t.decisionReq;
+  if (!r) return '';
+  const label = { pending: 'Waiting', approved: 'Approved', rejected: 'Rejected' }[r.status] || r.status;
+  return `<span class="dr-status dr-${esc(r.status)}">${esc(label)} · ${esc(r.to === S.meId ? 'you' : person(r.to)?.name || 'someone')}</span>`;
+}
+/** Approve / Reject for the person deciding; withdraw for the sender while it waits. */
+function decisionActionsHTML(t) {
+  const r = t.decisionReq;
+  if (!r) return '';
+  if (r.status === 'pending' && r.to === S.meId) return `<div class="review-box"><p><b>${esc(person(r.by)?.name || 'A teammate')}</b> asked for your decision on ${esc(fmtDateTime(r.at))}.</p>
+    <div class="row"><button class="btn primary sm" data-act="decisionApprove" data-id="${esc(t.id)}">${icon('check', 14)} Approve</button><button class="btn ghost sm danger-text" data-act="decisionReject" data-id="${esc(t.id)}">Reject</button></div></div>`;
+  if (r.status === 'pending' && r.by === S.meId) return `<div class="review-box"><p>Sent to <b>${esc(person(r.to)?.name || 'someone')}</b> on ${esc(fmtDateTime(r.at))}.</p>
+    <div class="row"><button class="btn ghost sm" data-act="decisionWithdraw" data-id="${esc(t.id)}">Withdraw</button></div></div>`;
+  if (r.status !== 'pending') return `<div class="review-box"><p><b>${esc(r.status === 'approved' ? 'Approved' : 'Rejected')}</b> by ${esc(r.to === S.meId ? 'you' : person(r.to)?.name || 'someone')} on ${esc(fmtDateTime(r.decidedAt))}${r.note ? `: “${esc(r.note)}”` : ''}</p></div>`;
+  return '';
+}
+
 /** The Time Box row under the task name: assign, or where it is (with open, remove and colour). */
 function tbRowHTML(t) {
   const inBox = !!(t.boxId && boxOf(t));
@@ -590,8 +609,9 @@ function timeboxHTML(t) {
   const dec = t.decision || {};
   const decField = (k, label, rows = 2) => `<label class="field"><span>${label}</span><textarea rows="${rows}" data-input="decisionField" data-k="${k}" data-focus="dec-${k}">${esc(dec[k] || '')}</textarea></label>`;
   return `${isBox(t) ? boxSectionHTML(t) : ''}
-    ${t.workType === 'decision' ? `<section class="task-sec decision-sec">
-      <div class="sec-head"><h3>Decision request</h3></div>
+    ${t.workType === 'decision' || t.decisionReq ? `<section class="task-sec decision-sec">
+      <div class="sec-head"><h3>Decision Request</h3>${decisionStatusHTML(t)}</div>
+      ${decisionActionsHTML(t)}
       ${decField('issue', 'Issue')}${decField('recommendation', 'Recommendation')}${decField('impact', 'Impact')}${decField('needed', 'Decision needed')}
       <div class="task-fields two">
         <label class="field"><span>Deadline</span><input type="date" value="${esc(dec.deadline || '')}" data-change="decisionDeadline"></label>

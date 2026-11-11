@@ -173,7 +173,7 @@ function taskMenuItems(t, anchor) {
       ? [{ label: 'Remove from Time Box', icon: 'clock', run: () => actions.removeFromTimebox({ dataset: { id: t.id } }) }]
       : [{ label: 'Add to Time Box', icon: 'clock', run: () => { t.tbQueued = true; commit(); toast('Added to Time Box. It’s waiting in the list on the right of the Time Box page.'); } }]),
     {
-      label: t.assignees.length ? `Assigned to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Assign to someone', icon: 'user', sub: true,
+      label: t.assignees.length ? `Delegated to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Delegate to someone', icon: 'user', sub: true,
       run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },
     },
     ...(planById(t.planId)?.buckets.length > 1 ? [{ label: 'Bucket', icon: 'list', sub: true, run: () => openPop(anchor, () => `<div class="menu" role="menu">${planById(t.planId).buckets.map((b) => `<button role="menuitem" data-act="setBucket" data-id="${esc(t.id)}" data-b="${esc(b.id)}"><span>${esc(b.name)}</span>${b.id === t.bucketId ? icon('check', 14) : ''}</button>`).join('')}</div>`) }] : []),
@@ -751,6 +751,36 @@ const actions = {
   // task panel
   closeTask: () => { ui.openTask = null; closePop(); renderTask(); },
   taskMenu: (el) => openMenu(el, taskMenuItems(openTaskObj(), el)),
+  decisionSend: (el) => {
+    const t = taskById(el.dataset.id);
+    const people = S.people.filter((p) => p.id !== S.meId);
+    if (!people.length) { toast('Add the person who decides in Settings › People first.', { error: true }); return; }
+    openMenu(el, people.map((p) => ({ label: p.name, icon: 'user', run: () => {
+      t.decisionReq = { to: p.id, by: S.meId, at: Date.now(), status: 'pending' };
+      if (t.workType !== 'decision') t.workType = 'decision';
+      t.shared = true;
+      addEvent(t, 'decision', { to: p.id });
+      commit();
+      toast(`Decision request sent to ${p.name}. Fill in the issue, recommendation and impact below.`);
+    } })));
+  },
+  decisionApprove: (el) => {
+    const t = taskById(el.dataset.id);
+    t.decisionReq = { ...t.decisionReq, status: 'approved', decidedAt: Date.now() };
+    addEvent(t, 'decided', { value: 'approved' });
+    commit();
+    toast('Approved. They\u2019ve been notified.');
+  },
+  decisionReject: async (el) => {
+    const t = taskById(el.dataset.id);
+    const note = await promptDlg('Reject decision request', 'Reason', '', 'Reject');
+    if (note === null || note === undefined) return;
+    t.decisionReq = { ...t.decisionReq, status: 'rejected', decidedAt: Date.now(), note: String(note).trim() };
+    addEvent(t, 'decided', { value: 'rejected', note: String(note).trim() });
+    commit();
+    toast('Rejected. They\u2019ve been notified.');
+  },
+  decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);
