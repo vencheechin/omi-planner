@@ -155,7 +155,7 @@ function renderTask() {
       ${healthRowHTML(t)}
       <div class="assign-row">
         <div class="avatars">${t.assignees.map((a) => avatar(person(a), 28)).join('')}</div>
-        <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? 'Change' : 'Assign'}</button>
+        <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? esc(t.assignees.map((a) => (a === S.meId ? 'Me' : person(a)?.name || 'Someone')).join(', ')) : 'Assign'}</button>
       </div>
       ${workflowHTML(t)}
       <div class="task-fields">
