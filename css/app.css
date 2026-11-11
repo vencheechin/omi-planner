@@ -982,6 +982,51 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .prog-bar i { display: block; height: 100%; border-radius: 3px; background: var(--highlight); transition: width .25s ease; }
 .prog-bar.done i { background: #30a158; }
 .prog-bar b { font-size: calc(12px * var(--scale) * var(--type)); color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+/* ---------- H1 / H2 Plan ---------- */
+.bp-page { display: grid; gap: 14px; max-width: 1400px; }
+.bp-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bp-head h1 { font-size: calc(26px * var(--scale) * var(--type)); color: var(--heading); }
+.bp-year { gap: 2px; } .bp-year b { min-width: 44px; text-align: center; }
+.bp-scroll { overflow-x: auto; border-radius: 12px; background: var(--surface); box-shadow: 0 0 0 0.5px var(--line); }
+.bp-table { width: 100%; border-collapse: collapse; min-width: 900px; table-layout: fixed; }
+.bp-table th, .bp-table td { border-bottom: 1px solid var(--line); padding: 0; text-align: center; vertical-align: middle; }
+.bp-table thead th { padding: 10px 8px; font-weight: 700; color: var(--heading); border-bottom: 2px solid var(--heading); white-space: nowrap; }
+.bp-table .bp-brand { width: 170px; text-align: left; position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.bp-table .bp-pic { width: 150px; text-align: left; }
+.bp-table .bp-x { width: 40px; }
+.bp-table input { width: 100%; background: none; box-shadow: none; border-radius: 6px; padding: 10px 12px; }
+.bp-table input:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.bp-group th, .bp-group td { background: color-mix(in srgb, var(--ochre) 14%, var(--surface)); }
+.bp-group input { font-weight: 700; }
+.bp-cell { cursor: pointer; padding: 6px 8px !important; height: 52px; font-size: calc(13px * var(--scale) * var(--type)); line-height: 1.25; }
+.bp-cell:hover { outline: 2px solid color-mix(in srgb, var(--highlight) 50%, transparent); outline-offset: -2px; }
+.bp-cell.bp-green { background: color-mix(in srgb, #4f8f5a 16%, var(--surface)); color: color-mix(in srgb, #2f7a45 75%, var(--ink)); }
+.bp-cell.bp-yellow { background: color-mix(in srgb, #d8a336 20%, var(--surface)); color: color-mix(in srgb, #9a6d10 75%, var(--ink)); }
+.bp-cell.bp-red { background: color-mix(in srgb, #b8432e 18%, var(--surface)); color: color-mix(in srgb, #a33522 80%, var(--ink)); }
+.bp-add td { text-align: left; padding: 2px 6px; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .bp-cell.bp-green { background: color-mix(in srgb, #4f8f5a 38%, var(--surface)); color: #b9ecc2; }
+:root:where(:not([data-theme="light"])) .bp-cell.bp-yellow { background: color-mix(in srgb, #d8a336 36%, var(--surface)); color: #ffe39a; }
+:root:where(:not([data-theme="light"])) .bp-cell.bp-red { background: color-mix(in srgb, #b8432e 40%, var(--surface)); color: #ffc2b5; }
+:root:where(:not([data-theme="light"])) .bp-cell { font-weight: 600; } }
+:root[data-theme="dark"] .bp-cell.bp-green { background: color-mix(in srgb, #4f8f5a 38%, var(--surface)); color: #b9ecc2; }
+:root[data-theme="dark"] .bp-cell.bp-yellow { background: color-mix(in srgb, #d8a336 36%, var(--surface)); color: #ffe39a; }
+:root[data-theme="dark"] .bp-cell.bp-red { background: color-mix(in srgb, #b8432e 40%, var(--surface)); color: #ffc2b5; }
+:root[data-theme="dark"] .bp-cell { font-weight: 600; }
+.bp-legend { display: flex; gap: 22px; flex-wrap: wrap; padding: 8px 2px; }
+.bp-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.bp-dot { width: 18px; height: 18px; border-radius: 50%; display: inline-block; flex: none; }
+.bp-dot.bp-green { background: #4f8f5a; } .bp-dot.bp-yellow { background: #d8a336; } .bp-dot.bp-red { background: #b8432e; }
+.bp-dot.bp-none { box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.bp-pick { width: min(320px, calc(100vw - 24px)); display: grid; gap: 8px; }
+.bp-status { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+.bp-opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+.bp-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.bp-opt:has(input:checked) { background: color-mix(in srgb, var(--highlight) 20%, transparent); }
+@media (max-width: 760px) {
+  .bp-table .bp-brand { width: 120px; }
+  .bp-table .bp-pic { width: 110px; }
+  .bp-table { min-width: 820px; }
+}
 .sug { list-style: disc; padding-left: 18px; display: grid; gap: 2px; font-size: calc(13px * var(--scale) * var(--type)); }
 
 /* Phones: tab bar at the bottom; the menu button stays for the full list of plans and people. */

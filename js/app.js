@@ -868,6 +868,36 @@ const actions = {
   remPreset: (el) => { closePop(); addReminder(openTaskObj(), JSON.parse(el.dataset.r)); },
   remAllowSystem: async () => { closePop(); try { const p = await Notification.requestPermission(); toast(p === 'granted' ? 'Reminders will also appear in this device’s notifications.' : 'Notifications stay in Planner’s bell.'); } catch { /* not supported */ } },
   colourFrom: (el) => { const p = currentPlan(); openPop(el, () => colourListHTML('from', el.dataset.id, p.fromColor?.[el.dataset.id], 'transparent', 'None')); },
+  bpHalf: (el) => { bpHalf().half = Number(el.dataset.v); render(); },
+  bpYear: (el) => { bpHalf().year += Number(el.dataset.d); render(); },
+  bpExample: () => { bpExample(); commit(); },
+  bpAddGroup: async () => {
+    const name = await promptDlg('New group', 'Group name', '', 'Add');
+    if (!name) return;
+    bp().groups.push({ id: uid(), name, rows: [] });
+    commit();
+  },
+  bpDelGroup: async (el) => {
+    const g = bpGroup(el.dataset.g);
+    if (g.rows.length && !await confirmDlg(`Delete “${g.name}”?`, `Its ${g.rows.length} brand${g.rows.length === 1 ? '' : 's'} and their months go too.`, 'Delete')) return;
+    bp().groups = bp().groups.filter((x) => x !== g);
+    commit();
+  },
+  bpAddRow: (el) => { const r = { id: uid(), brand: '', pic: '', cells: {} }; bpGroup(el.dataset.g).rows.push(r); ui.focusEl = `[data-r="${r.id}"][data-k="brand"]`; commit(); setTimeout(() => $(ui.focusEl)?.focus(), 30); },
+  bpDelRow: async (el) => {
+    const g = bpGroup(el.dataset.g);
+    const r = bpRowOf(el.dataset.g, el.dataset.r);
+    if (Object.keys(r.cells).length && !await confirmDlg(`Delete ${r.brand || 'this brand'}?`, 'Its months go too.', 'Delete')) return;
+    g.rows = g.rows.filter((x) => x !== r);
+    commit();
+  },
+  bpCell: (el) => {
+    const g = bpGroup(el.dataset.g);
+    const r = bpRowOf(el.dataset.g, el.dataset.r);
+    openPop(el, () => bpCellPicker(g, r, el.dataset.m));
+    $('textarea', ui.pop.el)?.focus();
+  },
+  bpCellClear: (el) => { const f = el.closest('form'); delete bpRowOf(f.dataset.g, f.dataset.r).cells[f.dataset.m]; closePop(); commit(); },
   teamDevice: () => Team.connectDevice(),
   openUsage: () => usageDlg(),
   exportUsage: (el) => {
@@ -945,6 +975,14 @@ const actions = {
 
 // ---------- Form submits ----------
 const submits = {
+  bpCellSave: (form, data) => {
+    const r = bpRowOf(form.dataset.g, form.dataset.r);
+    const text = String(data.get('text') || '').trim();
+    const status = String(data.get('status') || '');
+    if (text || status) r.cells[form.dataset.m] = { text, status }; else delete r.cells[form.dataset.m];
+    closePop();
+    commit();
+  },
   remCustom: (form, data) => {
     const n = Math.max(0, Math.min(52, Number(data.get('n')) || 0));
     closePop();
@@ -1166,6 +1204,8 @@ const changes = {
   chatTranslate: (el) => { chatPrefs().translate = el.checked; commit(); },
   msgPick: (el) => { const s = ui.chatSelect || new Set(); if (el.checked) s.add(el.dataset.id); else s.delete(el.dataset.id); ui.chatSelect = s; renderTask(); },
   plannerName: (el) => { S.settings.plannerName = el.value.trim().slice(0, 60); commit(); },
+  bpGroupName: (el) => { bpGroup(el.dataset.g).name = el.value.trim() || 'Group'; commit(); },
+  bpRow: (el) => { bpRowOf(el.dataset.g, el.dataset.r)[el.dataset.k] = el.value.trim(); commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
     const t = openTaskObj();
@@ -1621,6 +1661,8 @@ document.addEventListener('input', (e) => {
   if (el) inputs[el.dataset.input](el);
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && e.target.closest?.('.bp-pick textarea')) { e.preventDefault(); e.target.form.requestSubmit(); return; }
+  if (e.key === 'Enter' && e.target.closest?.('.bp-cell')) { e.preventDefault(); actions.bpCell(e.target.closest('.bp-cell')); return; }
   if (e.key === 'Enter' && e.target.matches?.('[data-focus="wt-new"]')) { e.preventDefault(); actions.wtAddRow(e.target); return; }
   const tag = e.target.tagName;
   const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
@@ -1676,7 +1718,7 @@ function route() {
   const [path, query] = location.hash.split('?');
   const [, a, b, c, d] = path.split('/');
   Usage.track(`page:${a || 'hub'}`);
-  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['my-tasks', 'my-day', 'report', 'timebox'].includes(a) ? { view: a } : { view: 'hub' };
+  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['my-tasks', 'my-day', 'report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
   // A link like #/hub?name=Sam&email=sam@company.com fills in your identity on a fresh copy, then opens Settings.

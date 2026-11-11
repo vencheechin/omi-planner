@@ -177,6 +177,7 @@ function normalizeState(raw) {
     settings: (() => { const st = { theme: 'system', lastBackup: null, ...(raw.settings || {}) }; st.timebox = normalizeTimebox(st.timebox); st.chat = normalizeChatPrefs(st.chat); return st; })(),
     msgLog: Array.isArray(raw.msgLog) ? raw.msgLog.filter((e) => e && e.id).slice(-2000) : [],
     usage: raw.usage && typeof raw.usage === 'object' && raw.usage.counts ? raw.usage : { since: Date.now(), counts: {} },
+    brandPlan: normalizeBrandPlan(raw.brandPlan),
     // Each day keeps up to three Most Important Outcomes; a single one saved earlier becomes the first.
     days: Object.fromEntries(Object.entries(raw.days && typeof raw.days === 'object' ? raw.days : {})
       .filter(([d, v]) => /^\d{4}-\d{2}-\d{2}$/.test(d) && v && typeof v === 'object')
