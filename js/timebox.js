@@ -740,12 +740,15 @@ function blockHTML(t, iso, ppm, y, lane, n) {
   const h = Math.max(durOf(t) * ppm - 1, 16);
   const items = isBox(t) ? boxItems(t) : [];
   const omio = isMio(t, iso);
+  const fit = items.length ? fitItems(items, h) : null;
+  const dur = `(${durOf(t)} min)`;
   const cls = ['tb-block', isBox(t) ? 'box' : '', isDone(t) ? 'done' : '', overlapsOf(t).length ? 'overlap' : '', intrudes(t) ? 'intrude' : '', h < 30 ? 'short' : '', omio ? 'is-omio' : ''].join(' ');
   const label = `${t.title || 'Untitled task'}, ${fmtTime(t.slotStart)} to ${fmtTime(endOf(t))}${items.length ? `, ${items.filter(isDone).length} of ${items.length} done` : ''}`;
   return `<div class="${cls}" style="top:${y(t.slotStart)}px;height:${h}px;left:calc(${lane / n} * 100% + 1px);width:calc(100% / ${n} - 2px);--c:${fillOf(t)}"
     data-open-task="${esc(t.id)}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" title="${esc(`${fmtTime(t.slotStart)}–${fmtTime(endOf(t))} · ${fmtDur(durOf(t))}`)}">
-    <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fitItems(items, h).hidden ? ` · +${fitItems(items, h).hidden} more` : ''}</small>` : ''}</div>
-    ${items.length ? `<ul class="tb-items">${fitItems(items, h).shown.map((i) => `<li class="${isDone(i) ? 'done' : ''}"><button class="check small ${isDone(i) ? 'on' : ''} ${i.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(i.id)}" aria-label="${esc(`${checkLabel(i)}: ${i.title}`)}" title="${checkLabel(i)}">${icon('check', 9)}</button><span>${esc(i.title || 'Untitled task')}</span></li>`).join('')}</ul>` : ''}
+    <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${h < 38 ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
+    ${h >= 38 ? `<small class="tb-b-dur">${dur}</small>` : ''}
+    ${items.length ? `<ul class="tb-items">${fit.shown.map((i) => `<li class="${isDone(i) ? 'done' : ''}"><button class="check small ${isDone(i) ? 'on' : ''} ${i.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(i.id)}" aria-label="${esc(`${checkLabel(i)}: ${i.title}`)}" title="${checkLabel(i)}">${icon('check', 9)}</button><span>${esc(i.title || 'Untitled task')}</span></li>`).join('')}</ul>` : ''}
     <span class="tb-resize" data-drag="resize" data-id="${esc(t.id)}" aria-hidden="true"></span></div>`;
 }
 function timeGridHTML(dates, mode) {

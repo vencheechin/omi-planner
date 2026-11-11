@@ -1032,6 +1032,8 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .need-focus { gap: 6px; }
 .need-focus { cursor: pointer; user-select: none; }
 .need-focus input { width: 18px; height: 18px; accent-color: var(--highlight); margin: 0; }
+.tb-b-dur { display: block; font-size: calc(11.5px * var(--scale) * var(--type)); opacity: .8; font-weight: 400; }
+.tb-b-title .tb-b-dur { display: inline; }
 .bp-ctext { display: block; }
 .bp-cell.multi { text-align: left; vertical-align: top; }
 .bp-list { list-style: none; display: grid; gap: 4px; padding: 2px 0; }
