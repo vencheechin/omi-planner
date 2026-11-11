@@ -14,9 +14,10 @@ const BP_STATUS = [
 ];
 const bp = () => (S.brandPlan = S.brandPlan && Array.isArray(S.brandPlan.groups) ? S.brandPlan : { groups: [] });
 function normalizeBrandPlan(b) {
-  if (!b || !Array.isArray(b.groups)) return { groups: [], ...(b && b._v ? { _v: b._v } : {}) };
+  if (!b || !Array.isArray(b.groups)) return { groups: [], ...(b && b._v ? { _v: b._v } : {}), ...(b && b.cfg ? { cfg: b.cfg } : {}) };
   return {
     ...(b._v && typeof b._v === 'object' ? { _v: b._v } : {}),
+    ...(b.cfg && typeof b.cfg === 'object' ? { cfg: { start: Number(b.cfg.start) || 4, h1: Number(b.cfg.h1) || 6 } } : {}),
     groups: b.groups.filter((g) => g && g.id).map((g) => ({
       id: String(g.id), name: String(g.name || 'Group'),
       rows: (Array.isArray(g.rows) ? g.rows : []).filter((r) => r && r.id).map((r) => ({
@@ -28,12 +29,53 @@ function normalizeBrandPlan(b) {
     })),
   };
 }
-/** The half shown: H1 = Jan–Jun, H2 = Jul–Dec. Starts on the current half. */
+// ---------- Periods ----------
+/* The year starts in H1's first month (default April). H1 runs to its end month (default
+   September) and H2 is the rest of the year (October to March). Shared with the team. */
+const bpCfg = () => { const c = bp().cfg || {}; const start = c.start >= 1 && c.start <= 12 ? c.start : 4; const h1 = c.h1 >= 1 && c.h1 <= 11 ? c.h1 : 6; return { start, h1, h2: 12 - h1 }; };
+const bpKey = (y, m) => { const d = new Date(y, m - 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const bpRange = (y, m, n) => Array.from({ length: n }, (_, i) => bpKey(y, m + i));
+const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString(undefined, { month: 'long' }));
+/** What's shown: a half, a full year or a custom range. Starts on the half that contains today. */
 function bpHalf() {
-  if (!ui.bpHalf) { const d = new Date(); ui.bpHalf = { year: d.getFullYear(), half: d.getMonth() < 6 ? 1 : 2 }; }
+  if (!ui.bpHalf) {
+    const { start, h1 } = bpCfg();
+    const d = new Date();
+    const into = (d.getMonth() + 1 - start + 12) % 12;
+    const year = d.getFullYear() - (d.getMonth() + 1 < start ? 1 : 0);
+    ui.bpHalf = { mode: 'half', year, half: into < h1 ? 1 : 2, from: bpKey(year, start), to: bpKey(year, start + 11) };
+  }
+  ui.bpHalf.mode = ui.bpHalf.mode || 'half';
   return ui.bpHalf;
 }
-const bpMonths = ({ year, half }) => Array.from({ length: 6 }, (_, i) => `${year}-${String((half - 1) * 6 + i + 1).padStart(2, '0')}`);
+function bpMonths(h) {
+  const { start, h1, h2 } = bpCfg();
+  if (h.mode === 'year') return bpRange(h.year, start, 12);
+  if (h.mode === 'custom') {
+    const [fy, fm] = (h.from || bpKey(h.year, start)).split('-').map(Number);
+    const [ty, tm] = (h.to || bpKey(h.year, start + 11)).split('-').map(Number);
+    const n = Math.max(1, Math.min(36, (ty - fy) * 12 + tm - fm + 1));
+    return bpRange(fy, fm, n);
+  }
+  return h.half === 1 ? bpRange(h.year, start, h1) : bpRange(h.year, start + h1, h2);
+}
+const bpShort = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+function bpPeriodLabel(h, months) {
+  const span = `${bpShort(months[0])} – ${bpShort(months[months.length - 1])}`;
+  if (h.mode === 'year') return `FY${h.year} · ${span}`;
+  if (h.mode === 'custom') return span;
+  return `H${h.half} ${h.year} · ${span}`;
+}
+function bpPeriodPicker() {
+  const { start, h1 } = bpCfg();
+  const end = ((start + h1 - 2) % 12) + 1;
+  const opts = (sel) => MONTH_NAMES.map((n, i) => `<option value="${i + 1}" ${i + 1 === sel ? 'selected' : ''}>${n}</option>`).join('');
+  return `<form class="picker bp-period" data-submit="bpPeriodSave"><h4>Half Years</h4>
+    <div class="task-fields two"><label class="field"><span>H1 Starts</span><select name="start">${opts(start)}</select></label>
+    <label class="field"><span>H1 Ends</span><select name="end">${opts(end)}</select></label></div>
+    <p class="small" data-role="sum">H1: ${h1} months · H2: ${12 - h1} months</p>
+    <div class="row"><span class="spacer"></span><button class="btn primary sm">Save</button></div></form>`;
+}
 const bpMonthLabel = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 
 function renderBrandPlan() {
@@ -46,12 +88,16 @@ function renderBrandPlan() {
   };
   return `<div class="page bp-page">
     <header class="bp-head">
-      <div><h1>S-Team Plan <span class="bp-sub">H${h.half} ${h.year}</span></h1></div>
+      <div><h1>S-Team Plan <span class="bp-sub">${esc(bpPeriodLabel(h, months))}</span></h1></div>
       <div class="spacer"></div>
-      <div class="seg">${[1, 2].map((n) => `<button class="${h.half === n ? 'on' : ''}" data-act="bpHalf" data-v="${n}">H${n}</button>`).join('')}</div>
-      <div class="row bp-year"><button class="icon-btn" data-act="bpYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><b>${h.year}</b><button class="icon-btn" data-act="bpYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>
+      <div class="seg">${[['half', 'Half Year'], ['year', 'Full Year'], ['custom', 'Custom']].map(([v, l]) => `<button class="${h.mode === v ? 'on' : ''}" data-act="bpMode" data-v="${v}">${l}</button>`).join('')}</div>
+      ${h.mode === 'half' ? `<div class="seg">${[1, 2].map((n) => `<button class="${h.half === n ? 'on' : ''}" data-act="bpHalf" data-v="${n}">H${n}</button>`).join('')}</div>` : ''}
+      ${h.mode === 'custom'
+        ? `<div class="row bp-custom"><input type="month" value="${esc(h.from)}" data-change="bpFrom" aria-label="From"><span class="muted">to</span><input type="month" value="${esc(h.to)}" data-change="bpTo" aria-label="To"></div>`
+        : `<div class="row bp-year"><button class="icon-btn" data-act="bpYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><b>${h.mode === 'year' ? 'FY' : ''}${h.year}</b><button class="icon-btn" data-act="bpYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>`}
+      <button class="icon-btn" data-act="bpPeriod" aria-label="Half year months" title="Half year months">${icon('gear', 17)}</button>
     </header>
-    ${groups.length ? `<div class="bp-scroll"><table class="bp-table">
+    ${groups.length ? `<div class="bp-scroll"><table class="bp-table" style="--bp-cols:${months.length}">
       <thead><tr><th class="bp-brand">Brand</th><th class="bp-pic">PIC</th>${months.map((k) => `<th>${esc(bpMonthLabel(k))}</th>`).join('')}<th class="bp-x"></th></tr></thead>
       <tbody>${groups.map((g) => `
         <tr class="bp-group"><th colspan="2" class="bp-brand"><input value="${esc(g.name)}" data-change="bpGroupName" data-g="${esc(g.id)}" aria-label="Group name"></th><td colspan="${months.length}"></td>
@@ -69,7 +115,7 @@ function renderBrandPlan() {
 }
 function bpCellPicker(g, r, k) {
   const c = r.cells[k] || { text: '', status: '' };
-  return `<form class="picker bp-pick" data-submit="bpCellSave" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}">
+  return `<form class="picker bp-pick" data-autosave data-submit="bpCellSave" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}">
     <h4>${esc(r.brand || 'Brand')} · ${esc(bpMonthLabel(k))}</h4>
     <textarea name="text" rows="2" aria-label="Focus for the month">${esc(c.text)}</textarea>
     <input name="pic" value="${esc(c.pic || '')}" placeholder="PIC" aria-label="PIC" autocomplete="off">
@@ -77,12 +123,12 @@ function bpCellPicker(g, r, k) {
     <div class="row"><button class="btn ghost sm" type="button" data-act="bpCellClear">Clear</button><span class="spacer"></span><button class="btn primary sm">Save</button></div></form>`;
 }
 // ---------- Sharing: one record, one field per group plus the order of the groups ----------
-const bpRecord = () => ({ order: bp().groups.map((g) => g.id), ...Object.fromEntries(bp().groups.map((g) => [`g:${g.id}`, g])) });
+const bpRecord = () => ({ order: bp().groups.map((g) => g.id), cfg: bp().cfg || null, ...Object.fromEntries(bp().groups.map((g) => [`g:${g.id}`, g])) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function bpFieldsOf() {
   const f = new Set(bp().groups.map((g) => `g:${g.id}`));
   [...Object.keys(S.sync?.shadow?.brandplan || {}), ...Object.keys(bp()._v || {})].forEach((k) => { if (k.startsWith('g:')) f.add(k); });
-  return ['order', ...f];
+  return ['order', 'cfg', ...f];
 }
 const bpWire = () => ({ ...bpRecord(), _v: clone(bp()._v || {}) });
 /** Applies a teammate's copy, field by field (newest wins). Returns true when anything changed. */
@@ -95,8 +141,9 @@ function applyBrandPlanData(d) {
   let changed = false;
   let order = null;
   for (const [f, rv] of Object.entries(v)) {
-    if ((f !== 'order' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if ((f !== 'order' && f !== 'cfg' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
     if (f === 'order') order = Array.isArray(d.order) ? d.order : null;
+    else if (f === 'cfg') b.cfg = d.cfg && typeof d.cfg === 'object' ? { start: Number(d.cfg.start) || 4, h1: Number(d.cfg.h1) || 6 } : null;
     else {
       const id = f.slice(2);
       const i = b.groups.findIndex((g) => g.id === id);
@@ -110,7 +157,7 @@ function applyBrandPlanData(d) {
     changed = true;
   }
   if (order) b.groups.sort((x, y) => ((order.indexOf(x.id) + 1) || 1e9) - ((order.indexOf(y.id) + 1) || 1e9));
-  if (changed) { const rec = bpRecord(); Object.keys(v).forEach((f) => { if (f === 'order' || f.startsWith('g:')) sh[f] = fieldHash(rec[f]); }); }
+  if (changed) { const rec = bpRecord(); Object.keys(v).forEach((f) => { if (f === 'order' || f === 'cfg' || f.startsWith('g:')) sh[f] = fieldHash(rec[f]); }); }
   return changed;
 }
 const bpGroup = (id) => bp().groups.find((g) => g.id === id);

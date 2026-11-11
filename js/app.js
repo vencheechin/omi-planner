@@ -869,6 +869,18 @@ const actions = {
   remAllowSystem: async () => { closePop(); try { const p = await Notification.requestPermission(); toast(p === 'granted' ? 'Reminders will also appear in this device’s notifications.' : 'Notifications stay in Planner’s bell.'); } catch { /* not supported */ } },
   colourFrom: (el) => { const p = currentPlan(); openPop(el, () => colourListHTML('from', el.dataset.id, p.fromColor?.[el.dataset.id], 'transparent', 'None')); },
   bpHalf: (el) => { bpHalf().half = Number(el.dataset.v); render(); },
+  bpMode: (el) => {
+    const h = bpHalf();
+    if (el.dataset.v === 'custom' && h.mode !== 'custom') { const m = bpMonths(h); h.from = m[0]; h.to = m[m.length - 1]; }
+    h.mode = el.dataset.v;
+    render();
+  },
+  bpPeriod: (el) => {
+    openPop(el, bpPeriodPicker);
+    const f = $('form', ui.pop.el);
+    const sum = () => { const s = Number(f.elements.start.value); const e = Number(f.elements.end.value); const n = ((e - s + 12) % 12) + 1; $('[data-role="sum"]', f).textContent = n >= 12 ? 'H1 needs to end before a full year.' : `H1: ${n} months · H2: ${12 - n} months`; };
+    f.onchange = sum;
+  },
   bpYear: (el) => { bpHalf().year += Number(el.dataset.d); render(); },
   bpExample: () => { bpExample(); commit(); },
   bpAddGroup: async () => {
@@ -975,6 +987,15 @@ const actions = {
 
 // ---------- Form submits ----------
 const submits = {
+  bpPeriodSave: (form, data) => {
+    const start = Number(data.get('start'));
+    const n = ((Number(data.get('end')) - start + 12) % 12) + 1;
+    if (n >= 12) { toast('H1 needs to end before a full year, so H2 has at least one month.', { error: true }); return; }
+    bp().cfg = { start, h1: n };
+    ui.bpHalf = null;
+    closePop();
+    commit();
+  },
   bpCellSave: (form, data) => {
     const r = bpRowOf(form.dataset.g, form.dataset.r);
     const text = String(data.get('text') || '').trim();
@@ -1205,6 +1226,8 @@ const changes = {
   chatTranslate: (el) => { chatPrefs().translate = el.checked; commit(); },
   msgPick: (el) => { const s = ui.chatSelect || new Set(); if (el.checked) s.add(el.dataset.id); else s.delete(el.dataset.id); ui.chatSelect = s; renderTask(); },
   plannerName: (el) => { S.settings.plannerName = el.value.trim().slice(0, 60); commit(); },
+  bpFrom: (el) => { if (el.value) { bpHalf().from = el.value; if (bpHalf().to < el.value) bpHalf().to = el.value; render(); } },
+  bpTo: (el) => { if (el.value) { bpHalf().to = el.value; if (bpHalf().from > el.value) bpHalf().from = el.value; render(); } },
   bpGroupName: (el) => { bpGroup(el.dataset.g).name = el.value.trim() || 'Group'; commit(); },
   bpRow: (el) => { bpRowOf(el.dataset.g, el.dataset.r)[el.dataset.k] = el.value.trim(); commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
@@ -1598,6 +1621,9 @@ document.addEventListener('click', (e) => {
   if (performance.now() < Drag.quietUntil && e.detail > 0) { e.preventDefault(); e.stopPropagation(); return; }
   if (ui.pop && !ui.pop.el.contains(e.target)) {
     const insideAnchor = ui.pop.anchor.contains(e.target);
+    // Some pop-ups (an S-Team Plan cell) save what you typed when you click away.
+    const auto = ui.pop.el.querySelector('form[data-autosave]');
+    if (auto) submits[auto.dataset.submit](auto, new FormData(auto));
     closePop();
     if (insideAnchor) return;
   }
