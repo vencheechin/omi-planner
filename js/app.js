@@ -751,6 +751,7 @@ const actions = {
   // task panel
   closeTask: () => { ui.openTask = null; closePop(); renderTask(); },
   taskMenu: (el) => openMenu(el, taskMenuItems(openTaskObj(), el)),
+  toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);
     const v = Number(el.dataset.v);
@@ -1304,7 +1305,6 @@ const changes = {
   stViewerAdd: (el) => { if (!el.value) return; const p = stPlans().find((x) => x.id === el.dataset.plan); p.viewers = [...new Set([...(p.viewers || []), el.value])]; commit(); refreshSettings(); },
   bpGroupName: (el) => { bpGroup(el.dataset.g).name = el.value.trim() || 'Group'; commit(); },
   bpRow: (el) => { bpRowOf(el.dataset.g, el.dataset.r)[el.dataset.k] = el.value.trim(); commit(); },
-  needFocus: (el) => { const t = taskById(el.dataset.id); t.workType = el.checked ? 'focus' : ''; commit(); },
   ckGroup: (el) => { S.settings.ckGroup = el.value; commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
