@@ -282,7 +282,10 @@ function mergeTeamFile(data) {
   }
   data.plans.forEach((p) => mergeRecord('plan', p, notices));
   data.tasks.forEach((t) => mergeRecord('task', t, notices));
-  const bpChanged = data.brandplan ? applyBrandPlanData(data.brandplan) : false;
+  let bpChanged = false;
+  (Array.isArray(data.stplans) ? data.stplans : []).forEach((p) => { if (applyStPlan(p.id, p)) bpChanged = true; });
+  if (data.org && applyOrg(data.org)) bpChanged = true;
+  if (data.brandplan && Array.isArray(data.brandplan.order) && data.brandplan.order.length && applyStPlan('legacy', data.brandplan)) bpChanged = true;
   notices.forEach(notify);
   return bpChanged || JSON.stringify([S.people, S.plans, S.tasks]) !== before;
 }
@@ -314,7 +317,7 @@ function buildTeamFile() {
   });
   const ids = new Set([S.meId, ...tasks.flatMap((t) => [...t.assignees, t.assignedBy, ...t.history.flatMap((e) => [e.by, e.to]), ...t.comments.map((c) => c.author)]), ...plans.flatMap((p) => p.members)]);
   const people = S.people.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name, email: p.email || '', color: p.color }));
-  return { app: FILE_APP, v: 1, device: deviceId, person: people.find((p) => p.id === S.meId), people, plans, tasks, tombstones: S.sync.tombstones, brandplan: bpWire() };
+  return { app: FILE_APP, v: 1, device: deviceId, person: people.find((p) => p.id === S.meId), people, plans, tasks, tombstones: S.sync.tombstones, stplans: stPlans().map(stWire), org: orgWire() };
 }
 
 // ---------- Notifications ----------
@@ -430,7 +433,7 @@ const Team = {
         if (handle.kind !== 'file' || !name.endsWith('.json') || name === this.fileName()) continue;
         const file = await handle.getFile();
         // The suffix changes when teammate files gain new parts (bp: the H1 / H2 Plan), so each file is read again once.
-        const stamp = `${file.lastModified}:${file.size}:bp`;
+        const stamp = `${file.lastModified}:${file.size}:st`;
         if (S.sync.files[name] === stamp) continue;
         try {
           if (mergeTeamFile(JSON.parse(await file.text()))) changed = true;

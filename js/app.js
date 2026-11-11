@@ -369,6 +369,7 @@ function settingsHTML() {
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
+  ${stAdmin() ? `<section class="set-sec"><h3>Admin</h3>${adminSettingsHTML()}</section>` : ''}
   <section class="set-sec"><h3>Planner</h3>
     <label class="field"><span>Planner Name</span><input value="${esc(plannerName())}" data-change="plannerName" autocomplete="off"></label>
     <button class="btn ghost sm" data-act="runSetup">Focus sessions</button></section>
@@ -869,6 +870,50 @@ const actions = {
   remAllowSystem: async () => { closePop(); try { const p = await Notification.requestPermission(); toast(p === 'granted' ? 'Reminders will also appear in this device’s notifications.' : 'Notifications stay in Planner’s bell.'); } catch { /* not supported */ } },
   colourFrom: (el) => { const p = currentPlan(); openPop(el, () => colourListHTML('from', el.dataset.id, p.fromColor?.[el.dataset.id], 'transparent', 'None')); },
   bpHalf: (el) => { bpHalf().half = Number(el.dataset.v); render(); },
+  stNew: (el) => {
+    const mine = stPlans().some((x) => x.kind === 'personal' && x.owner === S.meId && !x.deleted);
+    openMenu(el, [
+      ...(mine ? [] : [{ label: 'My S-Team Plan', icon: 'user', run: () => actions.stNewPersonal() }]),
+      ...(stAdmin() ? [{ label: 'Department S-Team Plan…', icon: 'table', run: () => actions.stNewDept() }] : []),
+    ]);
+  },
+  stNewPersonal: () => {
+    const p = normalizeStPlan({ id: uid(), kind: 'personal', owner: S.meId, groups: [] });
+    stPlans().push(p);
+    ui.stPlanId = p.id;
+    commit();
+  },
+  stNewDept: async () => {
+    const depts = org().depts || [];
+    if (!depts.length) { toast('Add a department in Settings › Admin first.', { error: true }); actions.openSettings(); return; }
+    const used = new Set(stPlans().filter((x) => x.kind === 'dept' && !x.deleted).map((x) => x.dept));
+    const free = depts.filter((d) => !used.has(d.id));
+    if (!free.length) { toast('Every department already has an S-Team Plan.'); return; }
+    const v = await choiceDlg('Department S-Team Plan', '', free.map((d, i) => ({ v: d.id, label: d.name, primary: i === 0 })).concat({ v: '', label: 'Cancel' }));
+    if (!v) return;
+    const p = normalizeStPlan({ id: uid(), kind: 'dept', dept: v, owner: S.meId, groups: [] });
+    stPlans().push(p);
+    ui.stPlanId = p.id;
+    commit();
+  },
+  stAdminDel: (el) => { org().admins = (org().admins || []).filter((x) => x !== el.dataset.p); commit(); refreshSettings(); },
+  stDeptAdd: async () => {
+    const name = await promptDlg('New department', 'Department name, e.g. Ops', '', 'Add');
+    if (!name) return;
+    org().depts = [...(org().depts || []), { id: uid(), name, dic: null, members: [] }];
+    commit();
+    refreshSettings();
+  },
+  stDeptDel: async (el) => {
+    const d = deptById(el.dataset.d);
+    if (!await confirmDlg(`Delete ${d.name}?`, 'Its S-Team Plan stays, visible to admins and anyone added to it.', 'Delete')) return;
+    org().depts = org().depts.filter((x) => x !== d);
+    stTouchAll();
+    commit();
+    refreshSettings();
+  },
+  stDeptDelMember: (el) => { const d = deptById(el.dataset.d); d.members = d.members.filter((x) => x !== el.dataset.p); org().depts = [...org().depts]; stTouchAll(); commit(); refreshSettings(); },
+  stViewerDel: (el) => { const p = stPlans().find((x) => x.id === el.dataset.plan); p.viewers = p.viewers.filter((x) => x !== el.dataset.p); commit(); refreshSettings(); },
   bpMode: (el) => {
     const h = bpHalf();
     if (el.dataset.v === 'custom' && h.mode !== 'custom') { const m = bpMonths(h); h.from = m[0]; h.to = m[m.length - 1]; }
@@ -878,12 +923,13 @@ const actions = {
   bpPeriod: (el) => {
     openPop(el, bpPeriodPicker);
     const f = $('form', ui.pop.el);
-    const sum = () => { const s = Number(f.elements.start.value); const e = Number(f.elements.end.value); const n = ((e - s + 12) % 12) + 1; $('[data-role="sum"]', f).textContent = n >= 12 ? 'H1 needs to end before a full year.' : `H1: ${n} months · H2: ${12 - n} months`; };
+    const sum = () => { $('[data-role="sum"]', f).textContent = bpSpanText(Number(f.elements.start.value), Number(f.elements.h1.value), Number(f.elements.h2.value)); };
     f.onchange = sum;
   },
   bpYear: (el) => { bpHalf().year += Number(el.dataset.d); render(); },
-  bpExample: () => { bpExample(); commit(); },
+  bpExample: () => { if (!stCanEdit(stCurrent())) return; bpExample(); commit(); },
   bpAddGroup: async () => {
+    if (!stCanEdit(stCurrent())) return;
     const name = await promptDlg('New group', 'Group name', '', 'Add');
     if (!name) return;
     bp().groups.push({ id: uid(), name, rows: [] });
@@ -895,7 +941,7 @@ const actions = {
     bp().groups = bp().groups.filter((x) => x !== g);
     commit();
   },
-  bpAddRow: (el) => { const r = { id: uid(), brand: '', pic: '', cells: {} }; bpGroup(el.dataset.g).rows.push(r); ui.focusEl = `[data-r="${r.id}"][data-k="brand"]`; commit(); setTimeout(() => $(ui.focusEl)?.focus(), 30); },
+  bpAddRow: (el) => { if (!stCanEdit(stCurrent())) return; const r = { id: uid(), brand: '', pic: '', cells: {} }; bpGroup(el.dataset.g).rows.push(r); ui.focusEl = `[data-r="${r.id}"][data-k="brand"]`; commit(); setTimeout(() => $(ui.focusEl)?.focus(), 30); },
   bpDelRow: async (el) => {
     const g = bpGroup(el.dataset.g);
     const r = bpRowOf(el.dataset.g, el.dataset.r);
@@ -904,10 +950,25 @@ const actions = {
     commit();
   },
   bpCell: (el) => {
+    if (!stCanEdit(stCurrent())) return;
     const g = bpGroup(el.dataset.g);
     const r = bpRowOf(el.dataset.g, el.dataset.r);
     openPop(el, () => bpCellPicker(g, r, el.dataset.m));
-    $('textarea', ui.pop.el)?.focus();
+    const form = $('form', ui.pop.el);
+    const list = $('.bp-items', form);
+    let n = list.children.length;
+    // A traffic light can be unticked by tapping it again.
+    list.addEventListener('click', (e) => {
+      const del = e.target.closest('[data-role="del"]');
+      if (del) { del.closest('.bp-item').remove(); if (!list.children.length) list.insertAdjacentHTML('beforeend', bpItemRow({ text: '', pic: '', status: '' }, n++)); return; }
+      const radio = e.target.closest('.bp-tl label')?.querySelector('input');
+      if (radio && radio.checked && radio.dataset.was === '1') { e.preventDefault(); radio.checked = false; radio.dataset.was = ''; return; }
+      $$('.bp-tl input', list).forEach((x) => { x.dataset.was = x.checked ? '1' : ''; });
+      if (radio) setTimeout(() => $$('.bp-tl input', list).forEach((x) => { x.dataset.was = x.checked ? '1' : ''; }), 0);
+    });
+    $$('.bp-tl input', list).forEach((x) => { x.dataset.was = x.checked ? '1' : ''; });
+    $('[data-role="add"]', form).onclick = () => { list.insertAdjacentHTML('beforeend', bpItemRow({ text: '', pic: '', status: '' }, n++)); list.lastElementChild.querySelector('[name=text]').focus(); };
+    $('[name=text]', list)?.focus();
   },
   bpCellClear: (el) => { const f = el.closest('form'); delete bpRowOf(f.dataset.g, f.dataset.r).cells[f.dataset.m]; closePop(); commit(); },
   teamDevice: () => Team.connectDevice(),
@@ -988,20 +1049,15 @@ const actions = {
 // ---------- Form submits ----------
 const submits = {
   bpPeriodSave: (form, data) => {
-    const start = Number(data.get('start'));
-    const n = ((Number(data.get('end')) - start + 12) % 12) + 1;
-    if (n >= 12) { toast('H1 needs to end before a full year, so H2 has at least one month.', { error: true }); return; }
-    bp().cfg = { start, h1: n };
+    bp().cfg = { start: Number(data.get('start')), h1: Number(data.get('h1')), h2: Number(data.get('h2')) };
     ui.bpHalf = null;
     closePop();
     commit();
   },
-  bpCellSave: (form, data) => {
+  bpCellSave: (form) => {
     const r = bpRowOf(form.dataset.g, form.dataset.r);
-    const text = String(data.get('text') || '').trim();
-    const status = String(data.get('status') || '');
-    const pic = String(data.get('pic') || '').trim().slice(0, 60);
-    if (text || status || pic) r.cells[form.dataset.m] = { text, status, pic }; else delete r.cells[form.dataset.m];
+    const items = bpReadItems(form);
+    if (items.length) r.cells[form.dataset.m] = { items }; else delete r.cells[form.dataset.m];
     closePop();
     commit();
   },
@@ -1228,6 +1284,12 @@ const changes = {
   plannerName: (el) => { S.settings.plannerName = el.value.trim().slice(0, 60); commit(); },
   bpFrom: (el) => { if (el.value) { bpHalf().from = el.value; if (bpHalf().to < el.value) bpHalf().to = el.value; render(); } },
   bpTo: (el) => { if (el.value) { bpHalf().to = el.value; if (bpHalf().from > el.value) bpHalf().from = el.value; render(); } },
+  stSwitch: (el) => { ui.stPlanId = el.value; render(); },
+  stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },
+  stDeptName: (el) => { const d = deptById(el.dataset.d); d.name = el.value.trim() || d.name; org().depts = [...org().depts]; commit(); },
+  stDeptDic: (el) => { const d = deptById(el.dataset.d); d.dic = el.value || null; org().depts = [...org().depts]; stTouchAll(); commit(); refreshSettings(); },
+  stDeptAddMember: (el) => { if (!el.value) return; const d = deptById(el.dataset.d); d.members = [...new Set([...(d.members || []), el.value])]; org().depts = [...org().depts]; stTouchAll(); commit(); refreshSettings(); },
+  stViewerAdd: (el) => { if (!el.value) return; const p = stPlans().find((x) => x.id === el.dataset.plan); p.viewers = [...new Set([...(p.viewers || []), el.value])]; commit(); refreshSettings(); },
   bpGroupName: (el) => { bpGroup(el.dataset.g).name = el.value.trim() || 'Group'; commit(); },
   bpRow: (el) => { bpRowOf(el.dataset.g, el.dataset.r)[el.dataset.k] = el.value.trim(); commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
@@ -1688,7 +1750,7 @@ document.addEventListener('input', (e) => {
   if (el) inputs[el.dataset.input](el);
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey && e.target.closest?.('.bp-pick textarea')) { e.preventDefault(); e.target.form.requestSubmit(); return; }
+  if (e.key === 'Enter' && e.target.closest?.('.bp-item input')) { e.preventDefault(); e.target.form.requestSubmit(); return; }
   if (e.key === 'Enter' && e.target.closest?.('.bp-cell')) { e.preventDefault(); actions.bpCell(e.target.closest('.bp-cell')); return; }
   if (e.key === 'Enter' && e.target.matches?.('[data-focus="wt-new"]')) { e.preventDefault(); actions.wtAddRow(e.target); return; }
   const tag = e.target.tagName;

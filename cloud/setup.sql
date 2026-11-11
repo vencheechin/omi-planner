@@ -52,6 +52,14 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.team_members where team_id = t and email = public.my_email())
 $$;
 
+-- Who may read each S-Team Plan (scope "s:<plan id>"). Admins see every plan of their team.
+create table if not exists public.st_access (
+  team_id uuid not null references public.teams(id) on delete cascade,
+  scope text not null,
+  email text not null check (email = lower(email)),
+  primary key (scope, email)
+);
+
 create or replace function public.is_admin(t uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.team_members where team_id = t and email = public.my_email() and role = 'admin')
@@ -64,7 +72,24 @@ language sql stable security definer set search_path = public as $$
   select 'u:' || auth.uid()::text where auth.uid() is not null
   union all
   select 't:' || team_id::text from public.team_members where email = public.my_email()
+  union all
+  select scope from public.st_access where email = public.my_email()
+  union all
+  select a.scope from public.st_access a where public.is_admin(a.team_id)
 $$;
+
+alter table public.st_access enable row level security;
+drop policy if exists st_access_read on public.st_access;
+drop policy if exists st_access_add on public.st_access;
+drop policy if exists st_access_remove on public.st_access;
+create policy st_access_read on public.st_access for select using (public.is_member(team_id) or public.is_admin(team_id));
+-- Admins grant access; anyone can register a brand-new plan (their own) with just themselves.
+create policy st_access_add on public.st_access for insert with check (
+  public.is_admin(team_id)
+  or (email = public.my_email() and public.is_member(team_id)
+      and not exists (select 1 from public.st_access b where b.scope = st_access.scope)));
+create policy st_access_remove on public.st_access for delete using (public.is_admin(team_id));
+grant select, insert, delete on public.st_access to authenticated;
 
 alter table public.teams enable row level security;
 alter table public.team_members enable row level security;

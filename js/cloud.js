@@ -56,8 +56,9 @@ function stampAll() {
   S.people.forEach((p) => stamp(p.id, p, PERSON_FIELDS, p));
   sy.prefs = sy.prefs || {};
   stamp('prefs', prefsRecord(), PREFS_FIELDS, sy.prefs);
-  stamp('brandplan', bpRecord(), bpFieldsOf(), bp());
-  const live = new Set([...S.tasks, ...S.plans, ...S.people].map((x) => x.id).concat('prefs', 'brandplan'));
+  stPlans().forEach((p) => stamp(`st:${p.id}`, stRecord(p), stFields(p), p));
+  stamp('org', orgRecord(), ['depts', 'admins'], org());
+  const live = new Set([...S.tasks, ...S.plans, ...S.people].map((x) => x.id).concat('prefs', 'org', ...stPlans().map((p) => `st:${p.id}`)));
   for (const id of Object.keys(sy.shadow)) {
     if (!live.has(id)) { sy.tombstones[id] = [now, S.meId]; delete sy.shadow[id]; sy.dirty[id] = 1; }
   }
@@ -290,7 +291,12 @@ const Cloud = {
     const user = this.scopeUser();
     const team = this.scopeTeam();
     const meta = (S.sync.cloudMeta = S.sync.cloudMeta || {});
-    if (id === 'brandplan') return [{ scope: team || user, id, kind: 'brandplan', data: bpWire() }];
+    if (id === 'org') return [{ scope: team || user, id, kind: 'org', data: orgWire() }];
+    if (id.startsWith('st:')) {
+      const p = stPlans().find((x) => x.id === id.slice(3));
+      // With a team, each plan lives in its own scope that only the people allowed can read.
+      return p ? [{ scope: team ? `s:${p.id}` : user, id, kind: 'stplan', data: stWire(p) }] : [];
+    }
     if (id === 'prefs') return [{ scope: user, id, kind: 'prefs', data: { ...pickFields(prefsRecord(), PREFS_FIELDS), _v: { ...(S.sync.prefs?._v || {}) } } }];
     const t = taskById(id);
     if (t) {
@@ -323,9 +329,24 @@ const Cloud = {
     if (stamp) return [{ scope: meta[id] || user, id, kind: 'deleted', data: { _v: { _deleted: stamp } } }];
     return [];
   },
+  /** Tells the server who may read a plan (admins replace the list; an owner registers a new plan). */
+  async syncAccess(p) {
+    if (!this.team) return;
+    const scope = `s:${p.id}`;
+    const emails = [...new Set(stAudience(p).map((id) => person(id)?.email).filter(Boolean).concat(this.session.email))];
+    if (isAdmin()) await this.req(`/rest/v1/st_access?scope=eq.${encodeURIComponent(scope)}`, { method: 'DELETE' });
+    const rows = (isAdmin() ? emails : [this.session.email]).map((email) => ({ team_id: this.team.id, scope, email }));
+    await this.req('/rest/v1/st_access', { method: 'POST', body: rows, headers: { Prefer: 'return=minimal,resolution=ignore-duplicates' } });
+  },
   async push() {
     const ids = Object.keys(S.sync.dirty || {});
     if (!ids.length) return;
+    for (const id of ids.filter((x) => x.startsWith('st:'))) {
+      const p = stPlans().find((x) => x.id === id.slice(3));
+      if (p && !(S.sync.stAccess || {})[id + ':' + stAudience(p).join(',')]) {
+        try { await this.syncAccess(p); S.sync.stAccess = { ...(S.sync.stAccess || {}), [id + ':' + stAudience(p).join(',')]: 1 }; } catch { /* tried again next sync */ }
+      }
+    }
     for (let i = 0; i < ids.length; i += 200) {
       const batch = ids.slice(i, i + 200);
       const rows = batch.flatMap((id) => this.rowsFor(id));
@@ -384,7 +405,8 @@ function sharedPeople() {
 function markSharedDirty() {
   S.sync.dirty = S.sync.dirty || {};
   [...S.tasks.filter((t) => t.shared), ...S.plans.filter((p) => p.shared), ...S.people].forEach((x) => { S.sync.dirty[x.id] = 1; });
-  S.sync.dirty.brandplan = 1;
+  S.sync.dirty.org = 1;
+  stTouchAll();
 }
 const nameFromEmail = (email) => email.split('@')[0].split(/[._-]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') || email;
 
@@ -466,7 +488,8 @@ function applyCloudRow(row, notices, adoptMine = false) {
       }
       return apply(p, PERSON_FIELDS);
     }
-    case 'brandplan': return applyBrandPlanData(d);
+    case 'stplan': return applyStPlan(String(row.id).slice(3), d);
+    case 'org': return applyOrg(d);
     case 'prefs': {
       const holder = (S.sync.prefs = S.sync.prefs || {});
       holder._v = holder._v || {};
