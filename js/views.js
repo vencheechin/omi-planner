@@ -131,6 +131,8 @@ function applyGroup(t, by, from, to) {
       setProgress(t, { todo: 0, doing: inProgress(t) ? t.progress : 50, done: 100 }[to]);
       break;
     case 'assignee':
+      // Delegated to you: dragging between people can only pass it on, never drop the assigner or you.
+      if (delegatedToMe(t)) { if (to === 'none' || !canDelegate(t, to) || (from !== 'none' && !canDelegate(t, from))) return false; setDelegate(t, from, false); setDelegate(t, to, true); break; }
       if (to === 'none') { t.assignees = []; break; }
       t.assignees = t.assignees.filter((a) => a !== from);
       if (!t.assignees.includes(to)) t.assignees.push(to);
@@ -198,7 +200,7 @@ function renderSidebar() {
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
       ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
-      ${S.personPlans.length ? `<h3>People</h3>${S.personPlans.map(personLink).join('')}` : ''}
+      ${S.personPlans.length ? `<h3>Delegate to</h3>${S.personPlans.map(personLink).join('')}` : ''}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
     </nav>`;
@@ -306,11 +308,11 @@ function cardHTML(t, { showPlan } = {}) {
 function assignedToMeGroups(plan) {
   if (!plan.personal) return [];
   const mine = S.tasks.filter((t) => t.planId !== plan.id && delegatedToMe(t) && !t.boxId && !myBucketOf(t));
-  const by = [...new Set(mine.map((t) => t.assignedBy))];
+  const by = [...new Set(mine.map((t) => delegatorOf(t)))];
   return by.map((id) => ({
     key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true, movable: true, noAdd: true,
     color: plan.fromColor?.[`from:${id}`] || '',
-    tasks: applyFilter(mine.filter((t) => t.assignedBy === id), filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)),
+    tasks: applyFilter(mine.filter((t) => delegatorOf(t) === id), filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)),
   }));
 }
 /** Your own planner's columns: its buckets with the "Assigned by" buckets placed where you put them. */
@@ -370,7 +372,7 @@ function gridHTML(tasks, ctx) {
   const row = (t) => {
     const plan = planById(t.planId);
     const bp = boardPlanOf(t) || plan;
-    const bucketOpts = bp.buckets.map((b) => ({ v: b.id, label: b.name })).concat(delegatedToMe(t) ? [{ v: '', label: `Assigned by ${person(t.assignedBy)?.name || 'someone'}` }] : []);
+    const bucketOpts = bp.buckets.map((b) => ({ v: b.id, label: b.name })).concat(delegatedToMe(t) ? [{ v: '', label: `Assigned by ${person(delegatorOf(t))?.name || 'someone'}` }] : []);
     return `<tr class="${isDone(t) ? 'done' : ''}">
       <td class="c-check"><button class="check ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 12)}</button></td>
       <td class="c-title"><button class="link-btn" data-open-task="${esc(t.id)}">${esc(t.title || 'Untitled task')}</button>${t.repeat ? icon('repeat', 12) : ''}</td>

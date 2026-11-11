@@ -106,7 +106,7 @@ function ensurePerson(name, email = '') {
 function assignByQuery(t, q) {
   if (!q.trim()) return;
   const p = personFromQuery(q);
-  if (!t.assignees.includes(p.id)) t.assignees.push(p.id);
+  if (!setDelegate(t, p.id, true)) { toast(p.id === S.meId ? 'You’re already on this task.' : `${p.name} delegated this to you. Pass it to someone else.`); return; }
   const plan = planById(t.planId);
   if (!plan.members.includes(p.id)) plan.members.push(p.id);
   ui.assignQuery = '';
@@ -832,7 +832,7 @@ const actions = {
   toggleAssignee: (el) => {
     const t = taskById(el.dataset.id);
     const id = el.dataset.person;
-    t.assignees = t.assignees.includes(id) ? t.assignees.filter((a) => a !== id) : [...t.assignees, id];
+    if (!setDelegate(t, id, !t.assignees.includes(id))) return;
     const plan = planById(t.planId);
     if (!plan.members.includes(id)) plan.members.push(id);
     refreshPop();
@@ -1448,7 +1448,7 @@ function setField(t, field, value) {
 }
 const inputs = {
   contactSearch: (el) => { ui.contactQuery = el.value; refreshPop(); const i = $('[data-focus="contact-search"]', ui.pop?.el); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } },
-  title: (el) => { openTaskObj().title = el.value; Store.save(); renderMainOnly(); },
+  title: (el) => { if (delegatedToMe(openTaskObj())) return; openTaskObj().title = el.value; Store.save(); renderMainOnly(); },
   notes: (el) => { openTaskObj().notes = el.value; Store.save(); renderMainOnly(); },
   checkText: (el) => { openTaskObj().checklist.find((c) => c.id === el.dataset.id).text = el.value; Store.save(); },
   commentDraft: (el) => { ui.draft.comment = el.value; },
@@ -1992,6 +1992,9 @@ function route() {
   bindShell();
   applyTheme();
   route();
+  // Your own plan is "<First name>'s Planner" (until you rename it yourself).
+  { const me = myPlan(); const first = String(person(S.meId)?.name || '').trim().split(/\s+/)[0];
+    if (me && first && first !== 'Me' && /^(personal tasks|planner|my plan)$/i.test(me.name)) { me.name = `${first}${/s$/i.test(first) ? "'" : "'s"} Planner`; Store.save(); } }
   if (!S.settings.noCheckingBucket) { removeCheckingBuckets(); S.settings.noCheckingBucket = true; Store.save(); }
   if (!S.settings.sampleGone) { removeSamplePlan(); S.settings.sampleGone = true; Store.save(); }
   if (!S.settings.bucketsV1) {

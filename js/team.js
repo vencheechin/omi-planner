@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder'];
 const FILE_APP = 'planner-team';
@@ -96,7 +96,7 @@ function onCompleted(t) {
 
 // ---------- Person plans ----------
 const personPlanById = (id) => S.personPlans.find((p) => p.id === id);
-const personPlanTasks = (pp) => S.tasks.filter((t) => t.assignees.includes(pp.personId) && t.assignedBy === S.meId);
+const personPlanTasks = (pp) => S.tasks.filter((t) => t.assignees.includes(pp.personId) && (t.assignedBy === S.meId || t.subBy?.[pp.personId] === S.meId));
 function ensurePersonPlan(personId) {
   if (personId === S.meId || S.personPlans.some((p) => p.personId === personId)) return null;
   const who = person(personId);
@@ -127,7 +127,7 @@ function trackChanges() {
       if (a === S.meId) continue;
       if (!t.assignedBy) { t.assignedBy = S.meId; t.assignedAt = now; }
       t.shared = true;
-      if (t.assignedBy === S.meId) { const pp = ensurePersonPlan(a); if (pp) created.push(pp); }
+      if (t.assignedBy === S.meId || t.subBy?.[a] === S.meId) { const pp = ensurePersonPlan(a); if (pp) created.push(pp); }
     }
     removed.forEach((a) => addEvent(t, 'unassigned', { to: a }));
     sy.seenAssignees[t.id] = [...t.assignees];
@@ -153,6 +153,7 @@ function rewritePerson(state, from, to) {
   for (const t of state.tasks || []) {
     t.assignees = [...new Set((t.assignees || []).map(swap))];
     t.assignedBy = swap(t.assignedBy);
+    if (t.subBy) t.subBy = Object.fromEntries(Object.entries(t.subBy).map(([k, v]) => [swap(k), swap(v)]));
     if (t.review) t.review.by = swap(t.review.by);
     (t.history || []).forEach((e) => { e.by = swap(e.by); if (e.to) e.to = swap(e.to); });
     (t.comments || []).forEach((c) => { c.author = swap(c.author); });

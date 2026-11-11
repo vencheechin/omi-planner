@@ -149,7 +149,7 @@ function renderTask() {
       </div>
       <div class="task-title">
         <button class="check big ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 14)}</button>
-        <input value="${esc(t.title)}" placeholder="Task name" data-input="title" data-focus="task-title" aria-label="Task name">
+        <input value="${esc(t.title)}" placeholder="Task name" ${delegatedToMe(t) ? 'readonly title="Only the person who delegated this can rename it"' : 'data-input="title" data-focus="task-title"'} aria-label="Task name">
       </div>
       ${tbRowHTML(t)}
       ${healthRowHTML(t)}
@@ -364,7 +364,8 @@ const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim());
 /** Assign by name or email: type to filter, Enter picks the match, a new email adds that person. */
 function assignPicker(t) {
   const plan = planById(t.planId);
-  const ids = [...plan.members, ...S.people.map((p) => p.id).filter((id) => !plan.members.includes(id))].filter(person);
+  const ids = [...plan.members, ...S.people.map((p) => p.id).filter((id) => !plan.members.includes(id))].filter(person)
+    .filter((id) => !delegatedToMe(t) || canDelegate(t, id) || (t.assignees.includes(id) && id !== S.meId && id !== t.assignedBy && id !== delegatorOf(t)));
   const q = (ui.assignQuery || '').trim().toLowerCase();
   const match = (p) => !q || p.name.toLowerCase().includes(q) || (p.email || '').includes(q);
   const exact = S.people.some((p) => p.name.toLowerCase() === q || (p.email || '') === q);
@@ -374,7 +375,8 @@ function assignPicker(t) {
     <div class="picker-scroll">${ids.map((id) => {
     const p = person(id);
     const on = t.assignees.includes(id);
-    return `<button class="person-row" data-act="toggleAssignee" data-id="${esc(t.id)}" data-person="${esc(id)}" data-name="${esc(`${p.name} ${p.email || ''}`.toLowerCase())}" aria-pressed="${on}" ${match(p) ? '' : 'hidden'}>${avatar(p, 26)}<span>${esc(p.name)}${id === S.meId ? ' (you)' : ''}${p.email ? `<small class="muted person-email">${esc(p.email)}</small>` : ''}</span>${on ? icon('check', 14) : ''}</button>`;
+    const fixed = !canDelegate(t, id);
+    return `<button class="person-row ${fixed ? 'fixed' : ''}" ${fixed ? 'disabled' : ''} data-act="toggleAssignee" data-id="${esc(t.id)}" data-person="${esc(id)}" data-name="${esc(`${p.name} ${p.email || ''}`.toLowerCase())}" aria-pressed="${on}" ${match(p) ? '' : 'hidden'}>${avatar(p, 26)}<span>${esc(p.name)}${id === S.meId ? ' (you)' : ''}${p.email ? `<small class="muted person-email">${esc(p.email)}</small>` : ''}</span>${on ? icon('check', 14) : ''}</button>`;
   }).join('')}</div>
     </div>`;
 }

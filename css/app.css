@@ -1158,3 +1158,5 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .log-row { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 3px 4px; font-size: calc(12.5px * var(--scale) * var(--type)); color: var(--ink-2); }
 .log-row time { color: var(--muted); font-variant-numeric: tabular-nums; }
 .log-scroll { display: block; }
+
+.person-row.fixed { opacity: .55; cursor: default; }

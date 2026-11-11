@@ -310,6 +310,27 @@ const isLate = (t) => !isDone(t) && !!t.due && t.due < todayISO();
 /** A task someone else delegated to you: where you put it is yours (myBucketId); their board keeps theirs. */
 const delegatedToMe = (t) => !!t.assignedBy && t.assignedBy !== S.meId && t.assignees.includes(S.meId);
 const myPlan = () => S.plans.find((p) => p.personal);
+/** Who handed this task to you: the person who re-delegated it (subBy), else the original assigner. */
+const delegatorOf = (t, id = S.meId) => t.subBy?.[id] || t.assignedBy;
+/** You can add or remove this person on the task. On a task delegated to you: never the assigner or yourself
+ *  (you stay answerable), and only people you passed it on to. */
+function canDelegate(t, id) {
+  if (!delegatedToMe(t)) return true;
+  if (id === S.meId || id === t.assignedBy || id === delegatorOf(t)) return false;
+  return !t.assignees.includes(id) || t.subBy?.[id] === S.meId;
+}
+/** Adds or removes a person; returns false when not allowed. */
+function setDelegate(t, id, on) {
+  if (!canDelegate(t, id)) return false;
+  if (on && !t.assignees.includes(id)) {
+    t.assignees = [...t.assignees, id];
+    if (delegatedToMe(t)) t.subBy = { ...(t.subBy || {}), [id]: S.meId };
+  } else if (!on) {
+    t.assignees = t.assignees.filter((a) => a !== id);
+    if (t.subBy?.[id]) { const { [id]: _, ...rest } = t.subBy; t.subBy = rest; }
+  }
+  return true;
+}
 /** The bucket of your own planner you moved a delegated task into, or null while it sits in "Assigned by …". */
 const myBucketOf = (t) => (delegatedToMe(t) && t.myBucketId && myPlan()?.buckets.some((b) => b.id === t.myBucketId) ? t.myBucketId : null);
 const bucketOf = (t) => myBucketOf(t) || t.bucketId;
