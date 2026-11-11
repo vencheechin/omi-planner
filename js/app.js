@@ -1669,7 +1669,7 @@ function dropOnDate(id, date, grabDate) {
 document.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   const el = e.target.closest('[data-drag]');
-  if (!el || e.target.closest('select, textarea, a, .check, .icon-btn, .btn, .ck-item input, .wt-row input')) return;
+  if (!el || e.target.closest('select, textarea, a, .check, .icon-btn, .btn, .wt-row input')) return;
   const touch = e.pointerType !== 'mouse';
   Drag.s = {
     el, type: el.dataset.drag, id: el.dataset.id, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, touch, active: false,
@@ -1730,6 +1730,19 @@ document.addEventListener('submit', (e) => {
   Usage.track(`form:${form.dataset.submit}`);
   submits[form.dataset.submit](form, new FormData(form));
   if (form.isConnected) form.reset();
+});
+// Right-click (or long-press) a checklist item: delete it, if you added it.
+document.addEventListener('contextmenu', (e) => {
+  const li = e.target.closest('#taskDialog .ck-item[data-id]');
+  if (!li) return;
+  const t = openTaskObj();
+  const c = t?.checklist.find((x) => x.id === li.dataset.id);
+  if (!c) return;
+  e.preventDefault();
+  const anchor = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false };
+  openMenu(anchor, canDelCheck(t, c)
+    ? [{ label: 'Delete item', icon: 'trash', danger: true, run: () => { t.checklist = t.checklist.filter((x) => x !== c); commit(); } }]
+    : [{ label: `Added by ${person(c.by)?.name || 'someone else'}: only they can delete it`, icon: 'lock', run: () => {} }]);
 });
 // Right-click (or long-press on a phone) on a task card opens its menu (bucket, labels, copy, move…).
 document.addEventListener('contextmenu', (e) => {

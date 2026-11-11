@@ -171,11 +171,10 @@ function renderTask() {
         ${t.checklist.length > 1 ? `<label class="mini ck-group">Group <select data-change="ckGroup" aria-label="Group checklist"><option value="">None</option><option value="added" ${S.settings.ckGroup === 'added' ? 'selected' : ''}>Date added</option><option value="done" ${S.settings.ckGroup === 'done' ? 'selected' : ''}>Date completed</option></select></label>` : ''}
         <ul class="checklist ${S.settings.ckGroup && t.checklist.length > 1 ? 'grouped' : ''}">
           ${checklistRows(t, (c) => `<li class="ck-item ${c.done ? 'done' : ''}" ${S.settings.ckGroup ? '' : 'data-drag="check"'} data-id="${esc(c.id)}">
-            ${S.settings.ckGroup ? '' : '<span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'}
             <button class="check small ${c.done ? 'on' : ''}" data-act="toggleCheck" data-id="${esc(c.id)}" aria-label="${c.done ? 'Uncheck' : 'Check'} item">${icon('check', 10)}</button>
             <div class="ck-main"><input value="${esc(c.text)}" data-input="checkText" data-id="${esc(c.id)}" aria-label="Checklist item">
               ${checkWhoHTML(c)}</div>
-            ${canDelCheck(t, c) ? `<button class="icon-btn" data-act="delCheck" data-id="${esc(c.id)}" aria-label="Delete item">${icon('close', 13)}</button>` : '<span class="ck-x-gap"></span>'}</li>`)}
+            ${S.settings.ckGroup ? '' : '<span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'}</li>`)}
         </ul>
         <form class="inline-add" data-submit="addCheck"><span>${icon('plus', 14)}</span><input name="text" placeholder="Add an item" data-focus="check-add" autocomplete="off" aria-label="Add a checklist item"></form>
       </section>

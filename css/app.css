@@ -636,7 +636,9 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .ck-group select { padding: 4px 8px; }
 .ck-head { font-size: calc(12px * var(--scale) * var(--type)); font-weight: 700; color: var(--muted); padding: 8px 4px 2px; }
 .ck-head small { font-weight: 400; }
-.ck-x-gap { width: 30px; flex: none; }
+.ck-item .grip { margin-left: auto; padding: 4px 6px; }
+.ck-item[data-drag] { cursor: grab; }
+.ck-item[data-drag] .ck-main input { cursor: text; }
 .ck-main input { width: 100%; }
 .ck-who { color: var(--muted); font-size: calc(11.5px * var(--scale) * var(--type)); padding: 0 6px 2px; }
 .ck-done { display: inline-flex; align-items: center; gap: 3px; color: var(--st-done); }
