@@ -473,8 +473,9 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .health-row { display: grid; gap: 8px; }
 .health-toggle { display: inline-flex; align-items: center; gap: 8px; justify-self: start; padding: 4px 10px 4px 6px; border-radius: 999px; border: 1px solid var(--line); }
 .health-toggle:hover { border-color: var(--line-strong); }
-.health-toggle i { width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px var(--line-strong); flex: none; }
-.health-toggle span { font-weight: 700; }
+.tl { display: inline-flex; gap: 4px; padding: 4px 6px; border-radius: 999px; background: #1b1f26; }
+.tl i { width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, var(--c) 28%, #2a2e36); flex: none; }
+.tl i.on { background: var(--c); box-shadow: 0 0 6px color-mix(in srgb, var(--c) 80%, transparent); }
 .health-toggle small { color: var(--muted); }
 .health-picker { min-width: 230px; display: grid; gap: 4px; }
 .health-opt { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; text-align: left; }

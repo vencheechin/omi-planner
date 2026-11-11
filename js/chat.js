@@ -78,7 +78,7 @@ async function messageLogDlg() {
   const d = showDialog({
     title: 'Message Log',
     wide: true,
-    html: `<p class="muted small">Every deleted or recalled message, from ${esc(source)}. Entries can't be changed or removed.</p>
+    html: `
       <div class="log-scroll"><table class="log-table"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Task</th><th>Message by</th><th>Message</th></tr></thead><tbody>
       ${rows.map((r) => `<tr><td>${esc(fmtDateTime(r.at))}</td><td>${esc(r.byName || r.by)}</td><td>${esc(actionText[r.action] || r.action)}</td><td>${esc(r.taskTitle || '')}</td><td>${esc(r.authorName || r.author || '')}</td><td>${esc(r.text || '')}${r.files?.length ? ` <small class="muted">(${esc(r.files.join(', '))})</small>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nothing deleted or recalled yet.</td></tr>'}
       </tbody></table></div>
@@ -298,7 +298,7 @@ function chatSettingsHTML() {
   return `<div class="task-fields two">
       <label class="field"><span>Default Language</span><select data-change="chatLang">${LANGUAGES.map(([c, n]) => `<option value="${c}" ${c === p.lang ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
     </div>
-    <label class="mini"><input type="checkbox" data-change="chatTranslate" ${p.translate ? 'checked' : ''}> Translate messages in other languages automatically (Google Translate)</label>
-    <p class="muted small">Translated messages say so, and you can always see the original. Message text is sent to Google only when it isn't already in your language.</p>
-    ${isAdmin() ? `<div class="row"><button class="btn ghost sm" data-act="openMsgLog">${icon('list', 14)} Message log</button><small class="muted">Deleted and recalled messages (admins only)</small></div>` : ''}`;
+    <label class="mini"><input type="checkbox" data-change="chatTranslate" ${p.translate ? 'checked' : ''}> Translate automatically (Google Translate)</label>
+    
+    ${isAdmin() ? `<div class="row"><button class="btn ghost sm" data-act="openMsgLog">${icon('list', 14)} Message log</button></div>` : ''}`;
 }

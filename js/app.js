@@ -212,9 +212,9 @@ function askPlanBucket(title) {
     const d = showDialog({
       title: 'Add to Your Planner?',
       html: `<form class="stack">
-        <p>“<b>${esc(title)}</b>” goes in the Time Box. Which plan and bucket should it go in?</p>
+        <p><b>${esc(title)}</b></p>
         ${planBucketFields(p.id, p.buckets[0].id)}
-        <label class="mini"><input type="checkbox" name="remember"> Use this every time (change it in Settings › Time boxing)</label>
+        <label class="mini"><input type="checkbox" name="remember"> Use this every time</label>
         <div class="dlg-foot"><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Add</button></div></form>`,
       onClose: () => resolve(answer),
     });
@@ -360,10 +360,10 @@ function sizeControls() {
 function settingsHTML() {
   const last = S.settings.lastBackup;
   return `<section class="set-sec"><h3>Cloud sync</h3>${cloudSettingsHTML()}</section>
-  <section class="set-sec"><details ${Team.dir ? 'open' : ''}><summary><b>Shared folder (OneDrive, Dropbox)</b> <span class="muted small">· computers only</span></summary>${teamSettingsHTML()}</details></section>
+  <section class="set-sec"><details ${Team.dir ? 'open' : ''}><summary><b>Shared folder (OneDrive, Dropbox)</b></summary>${teamSettingsHTML()}</details></section>
   <section class="set-sec"><h3>Time boxing</h3>${timeboxSettingsHTML()}</section>
   <section class="set-sec"><h3>People</h3>
-    <p class="muted small">Add a colleague's work email so tasks you assign reach them through the team folder.</p>
+    
     <ul class="people-list">${S.people.map((p) => `<li>${avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${p.id === S.meId ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="delPerson" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
     <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form></section>
   <section class="set-sec"><h3>Messages and Language</h3>${chatSettingsHTML()}</section>
@@ -372,10 +372,10 @@ function settingsHTML() {
     ${sizeControls()}</section>
   <section class="set-sec"><h3>Colour Style</h3>${styleSettingsHTML()}</section>
   <section class="set-sec"><h3>Import from Microsoft Planner</h3>
-    <p class="muted small">In Microsoft Planner, open a plan, choose ••• next to the plan name, then <b>Export plan to Excel</b>. Choose that file here (you can pick several). Each becomes a plan with its buckets, tasks, progress, priority, dates, labels, checklist, description and people.</p>
+    
     <div class="row"><button class="btn ghost sm" data-act="importPlanner">${icon('upload', 14)} Choose Excel file…</button></div></section>
   <section class="set-sec"><h3>Backup</h3>
-    <p class="muted small">Everything is stored in this browser on this device. A backup is a single file containing all plans, tasks and attachments. Import it to restore, or to move to another computer.</p>
+    
     <p class="small">Last backup: ${last ? esc(fmtDateTime(last)) : 'never'}<br><span id="storageUse" class="muted"></span></p>
     <div class="row"><button class="btn primary sm" data-act="exportBackup">${icon('download', 14)} Export backup</button><button class="btn ghost sm" data-act="importBackup">${icon('upload', 14)} Import backup</button></div></section>
   <section class="set-sec"><h3>Reset</h3><button class="btn danger sm" data-act="wipeAll">${icon('trash', 14)} Delete all data</button></section>`;
@@ -548,9 +548,8 @@ const actions = {
     const queue = timeboxQueue();
     openPop(anchor, () => `<form class="picker tb-tap" data-submit="tbPopAdd" data-date="${iso}" data-start="${start}">
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
-      ${queue.length ? `<p class="muted small">From your Time Box list, tap one to put it here:</p>
-      <div class="tb-tap-list">${queue.map((q) => `<button type="button" class="tb-tap-item" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}"><i></i><span>${healthDot(q)}${esc(q.title || 'Untitled task')}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`).join('')}</div>
-      <p class="muted small">Or add a new task:</p>` : `<p class="muted small">Your Time Box list is empty. Use “Add to Time Box” on a task to list it here, or add a new task:</p>`}
+      ${queue.length ? `
+      <div class="tb-tap-list">${queue.map((q) => `<button type="button" class="tb-tap-item" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}"><i></i><span>${healthDot(q)}${esc(q.title || 'Untitled task')}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`).join('')}</div><hr>` : ``}
       <textarea name="title" rows="2" required aria-label="Task name (several lines share one time box)"></textarea>
       <label class="field"><span>Time Box</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
       <input type="hidden" name="workType" value="${esc(block?.kind || '')}">

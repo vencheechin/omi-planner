@@ -265,11 +265,11 @@ function chatHTML(t) {
   const replying = ui.draft.replyTo && t.comments.find((c) => c.id === ui.draft.replyTo);
   const sel = ui.chatSelect;
   return `<section class="task-sec chat-sec">
-    <div class="sec-head"><h3>Conversation</h3><small class="muted">${count ? `${count} message${count === 1 ? '' : 's'}` : 'Messages, files and links, shared with everyone on this task'}</small></div>
-    <div class="chat-desc"><span>${icon('flag', 12)} Description</span><textarea rows="2" placeholder="What is this task about? Everyone on the task sees this at the top." data-input="notes" data-focus="task-notes" aria-label="Description">${esc(t.notes)}</textarea></div>
+    <div class="sec-head"><h3>Conversation</h3>${count ? `<small class="muted">${count} message${count === 1 ? '' : 's'}</small>` : ''}</div>
+    <div class="chat-desc"><span>${icon('flag', 12)} Description</span><textarea rows="2" placeholder="Description" data-input="notes" data-focus="task-notes" aria-label="Description">${esc(t.notes)}</textarea></div>
     <div class="chat-scroll" data-chat>
       ${t.attachments.length ? `<div class="chat-event"><span>Files added earlier</span></div><div class="msg-files earlier">${t.attachments.map(fileChip).join('')}</div>` : ''}
-      <ul class="chat">${rows || '<li class="chat-event"><span>No messages yet. Say hello, or attach a file.</span></li>'}</ul>
+      <ul class="chat">${rows || '<li class="chat-event"><span>No messages yet.</span></li>'}</ul>
     </div>
     ${sel ? `<div class="chat-selbar"><b>${sel.size} selected</b><span class="spacer"></span>
       <button class="btn ghost sm" data-act="cancelSelect">Cancel</button>
@@ -281,7 +281,7 @@ function chatHTML(t) {
       <button type="button" class="icon-btn chat-plus" data-act="chatPlus" aria-label="Attach: photos, camera, location, contact" title="Attach">${icon('plus', 20)}</button>
       <textarea name="text" rows="1" placeholder="Message" data-input="commentDraft" data-focus="comment" aria-label="Message">${esc(ui.draft.comment)}</textarea>
     </form>
-    <p class="muted small">Enter sends · Shift+Enter for a new line · right-click a message for more</p>`}
+    `}
   </section>`;
 }
 /** Sends the draft text with any staged files and links as one message. */
@@ -336,7 +336,7 @@ function labelPicker() {
       <button class="icon-btn" data-act="editLabel" data-i="${i}" aria-label="Rename ${esc(name)}" title="Rename">${icon('pencil', 14)}</button></div>`;
   };
   return `<div class="picker labels">
-    <h4>${t ? 'Labels' : `Labels in ${esc(plan.name)}`} <small class="muted">· drag to reorder</small></h4>
+    <h4>${t ? 'Labels' : `Labels in ${esc(plan.name)}`}</h4>
     <form class="label-search" data-submit="labelCreate">${icon('search', 14)}<input name="q" value="${esc(ui.labelQuery)}" placeholder="Search or create a label" data-input="labelSearch" data-focus="label-search" autocomplete="off" aria-label="Search or create a label"></form>
     <button class="label-create" data-act="createLabel" ${q && !exact ? '' : 'hidden'}>${icon('plus', 14)}<span>Create “<b>${esc(ui.labelQuery.trim())}</b>”</span></button>
     <div class="picker-scroll">${labelOrder(plan).map(row).join('')}</div></div>`;
@@ -357,7 +357,7 @@ function assignPicker(t) {
     const on = t.assignees.includes(id);
     return `<button class="person-row" data-act="toggleAssignee" data-id="${esc(t.id)}" data-person="${esc(id)}" data-name="${esc(`${p.name} ${p.email || ''}`.toLowerCase())}" aria-pressed="${on}" ${match(p) ? '' : 'hidden'}>${avatar(p, 26)}<span>${esc(p.name)}${id === S.meId ? ' (you)' : ''}${p.email ? `<small class="muted person-email">${esc(p.email)}</small>` : ''}</span>${on ? icon('check', 14) : ''}</button>`;
   }).join('')}</div>
-    <p class="muted small">Type an email to add someone new. Tasks reach a colleague when this email matches the one in their Planner.</p></div>`;
+    </div>`;
 }
 /** Finds a person by name or email, or adds one; an email-only entry gets a name from the address. */
 function personFromQuery(q) {

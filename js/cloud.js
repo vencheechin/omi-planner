@@ -138,7 +138,7 @@ const Cloud = {
     // An account that already has data in the cloud: ask before mixing in this device's plans.
     const existing = await this.req(`/rest/v1/records?select=id&scope=eq.${encodeURIComponent(this.scopeUser())}&limit=1`);
     if (existing?.length && !S.sync.cloud?.since) {
-      const choice = await choiceDlg('This account already has plans', '<p>Your account already has plans and tasks in the cloud, probably from another device.</p><p class="muted small">On a new phone or computer, use the cloud copy. Combine keeps what is on this device as well, which can leave duplicates of sample plans.</p>', [
+      const choice = await choiceDlg('This account already has plans', '<p>Your account already has plans and tasks in the cloud, probably from another device.</p>', [
         { v: 'cloud', label: 'Use the cloud copy here', primary: true },
         { v: 'merge', label: 'Combine with this device' },
       ]);
@@ -512,16 +512,16 @@ function cloudSettingsHTML() {
   const c = Cloud.cfg();
   const s = Cloud.session;
   if (!Cloud.configured()) {
-    return `<p class="muted small">Sync your plans to every device, phones included, and share tasks with your team. Planner keeps working offline and catches up when you're back online. It needs a free Supabase project: see cloud/README.md for the 10-minute setup.</p>
+    return `
       <div class="task-fields two">
         <label class="field"><span>Project URL</span><input data-change="cloudCfg" data-k="url" value="${esc(c.url)}" placeholder="https://xxxx.supabase.co" autocomplete="off"></label>
         <label class="field"><span>Anon (public) key</span><input data-change="cloudCfg" data-k="key" value="${esc(c.key)}" placeholder="eyJ…" autocomplete="off"></label>
       </div>`;
   }
   if (!s) {
-    return `<p class="muted small">Sign in with your work email. We'll email you a 6-digit code; no password needed.</p>
+    return `
       <form class="row" data-submit="cloudSendCode"><input name="email" type="email" required placeholder="you@company.com" value="${esc(ui.cloudEmail || person(S.meId)?.email || '')}" aria-label="Email" style="flex:1"><button class="btn primary sm">Email me a code</button></form>
-      ${ui.cloudEmail ? `<form class="row" data-submit="cloudVerify"><input name="code" inputmode="numeric" autocomplete="one-time-code" required placeholder="6-digit code" aria-label="Code" style="flex:1"><button class="btn primary sm">Sign in</button></form><p class="muted small">Code sent to ${esc(ui.cloudEmail)}. Check spam if it doesn't arrive.</p>` : ''}
+      ${ui.cloudEmail ? `<form class="row" data-submit="cloudVerify"><input name="code" inputmode="numeric" autocomplete="one-time-code" required placeholder="6-digit code" aria-label="Code" style="flex:1"><button class="btn primary sm">Sign in</button></form><p class="muted small">Code sent to ${esc(ui.cloudEmail)}.</p>` : ''}
       ${Cloud.error ? `<p class="danger-text small">${esc(Cloud.error)}</p>` : ''}
       <button class="btn ghost sm" data-act="cloudForget">Change project</button>`;
   }
@@ -534,10 +534,10 @@ function cloudSettingsHTML() {
         return `<li><span class="muted">${esc(m)}</span>${admin ? '<small class="role-tag">Admin</small>' : ''}${m === s.email ? '<small class="muted">you</small>' : ''}
           ${isAdmin() && m !== s.email ? `<button class="btn ghost xs" data-act="cloudSetRole" data-email="${esc(m)}" data-role="${admin ? 'member' : 'admin'}">${admin ? 'Remove admin' : 'Make admin'}</button><button class="icon-btn" data-act="cloudRemoveMember" data-email="${esc(m)}" aria-label="Remove ${esc(m)} from the team">${icon('close', 13)}</button>` : ''}</li>`;
       }).join('')}</ul>
-      <p class="muted small">Admins can delete any message for everyone, recall any message at any time, and read the message log.</p>
+      
       <form class="row" data-submit="cloudInvite"><input name="email" type="email" required placeholder="colleague@company.com" aria-label="Colleague's email" style="flex:1"><button class="btn ghost sm">${icon('plus', 14)} Add to team</button></form>
-      <p class="muted small">Teammates sign in with the email you add here. Tasks you assign to them appear in their Planner.</p>`
+      `
     : `<form class="row" data-submit="cloudCreateTeam"><input name="name" required placeholder="Team name, e.g. OMI" aria-label="Team name" style="flex:1"><button class="btn primary sm">Create team</button></form>
-      <p class="muted small">Or ask a colleague who already has a team to add ${esc(s.email)}.</p>`}
+      `}
     <div class="row"><button class="btn ghost sm" data-act="cloudSyncNow">Sync now</button><button class="btn ghost sm" data-act="cloudSignOut">Sign out</button></div>`;
 }

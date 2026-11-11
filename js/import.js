@@ -179,9 +179,9 @@ async function importPlannerFiles(files) {
         const buckets = new Set(p.tasks.map((t) => String(t.bucket || '').trim()).filter(Boolean));
         const existing = S.plans.find((x) => x.name.toLowerCase() === p.planName.toLowerCase());
         return `<div class="imp-file"><label class="field"><span>Plan Name</span><input name="plan${i}" value="${esc(p.planName)}" required autocomplete="off"></label>
-          <p class="muted small">${esc(p.file)}: ${p.tasks.length} task${p.tasks.length === 1 ? '' : 's'} in ${buckets.size || 1} bucket${buckets.size === 1 ? '' : 's'}.${existing ? ' A plan with this name already exists: tasks are added to it, and ones already imported are skipped.' : ''}</p></div>`;
+          <p class="muted small">${esc(p.file)}: ${p.tasks.length} task${p.tasks.length === 1 ? '' : 's'} in ${buckets.size || 1} bucket${buckets.size === 1 ? '' : 's'}.${existing ? ' Adds to your existing plan.' : ''}</p></div>`;
       }).join('')}
-      <label class="mini"><input type="checkbox" name="people" checked> Keep who each task is assigned to (new names are added to People; nothing is sent to anyone)</label>
+      <label class="mini"><input type="checkbox" name="people" checked> Keep who each task is assigned to</label>
       <div class="dlg-foot"><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Import</button></div>
     </form>`,
   });

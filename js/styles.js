@@ -106,5 +106,5 @@ function styleSettingsHTML() {
       <span class="style-txt"><b>${esc(st.name)}</b><small>${esc(st.note)}</small></span>
       <span class="style-pal">${st.palette.map(([c]) => `<i style="background:${c}"></i>`).join('')}</span>
       ${st.id === cur ? icon('check', 16) : ''}</button>`).join('')}</div>
-    <p class="muted small">The Time Box gives each task a colour from the style's palette (the small dots). You can still choose a colour for a task or block.</p>`;
+    `;
 }

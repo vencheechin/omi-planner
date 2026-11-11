@@ -43,9 +43,9 @@ function editWorkTypesDlg() {
   const d = showDialog({
     title: 'Edit Work Types',
     html: `<form method="dialog" class="stack" data-submit="saveWorkTypes">
-      <p class="muted small">Rename a type, add your own, or drag ⋮⋮ to change the order. Types name your Time Box blocks and tasks.</p>
+      
       <div class="wt-list">${workTypes().map(wtRowHTML).join('')}</div>
-      <div class="row wt-add"><input data-focus="wt-new" placeholder="Add your own, e.g. Family" aria-label="New type name" autocomplete="off"><button class="btn ghost sm" type="button" data-act="wtAddRow">${icon('plus', 14)} Add</button></div>
+      <div class="row wt-add"><input data-focus="wt-new" placeholder="New type" aria-label="New type name" autocomplete="off"><button class="btn ghost sm" type="button" data-act="wtAddRow">${icon('plus', 14)} Add</button></div>
       <div class="dlg-foot"><button class="btn ghost" type="button" data-act="resetWorkTypes">Reset</button><span class="spacer"></span><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Save</button></div>
     </form>`,
   });
@@ -264,7 +264,7 @@ async function scheduleTask(t, iso, start, dur = durOf(t)) {
   const issues = placementIssues(t, iso, start, dur);
   if (issues.length) {
     const alt = freeSlot(t, iso, start, dur);
-    const choice = await choiceDlg('Check this time slot', `<p><b>${esc(t.title || 'Untitled task')}</b>, ${esc(dayLabel(iso))} ${esc(fmtTime(start))}–${esc(fmtTime(start + dur))}</p><ul class="issue-list">${issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul><p class="muted small">Other blocks stay where they are.</p>`, [
+    const choice = await choiceDlg('Check this time slot', `<p><b>${esc(t.title || 'Untitled task')}</b>, ${esc(dayLabel(iso))} ${esc(fmtTime(start))}–${esc(fmtTime(start + dur))}</p><ul class="issue-list">${issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`, [
       ...(alt ? [{ v: 'alt', label: `Use ${dayLabel(alt.date)} ${fmtTime(alt.start)} instead`, primary: true }] : []),
       { v: 'anyway', label: 'Place it here anyway', primary: !alt },
       { v: 'cancel', label: 'Cancel' },
@@ -318,7 +318,7 @@ function moveUnfinishedDlg(scope) {
   };
   const body = () => {
     const plan = propose();
-    return `<p class="muted small">Only free time is used: nothing already planned moves, and no day goes over capacity. Untick anything you'd rather keep.</p>
+    return `
       <label class="mini"><input type="checkbox" data-role="tomorrow" ${state.fromTomorrow ? 'checked' : ''}> Start from the next working day</label>
       <ul class="move-list">${plan.map(({ t, slot }) => `<li><label><input type="checkbox" data-role="pick" data-id="${esc(t.id)}" ${state.checked.has(t.id) ? 'checked' : ''}>
         <span><b>${esc(t.title || 'Untitled task')}</b><small>${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))} · ${esc(fmtDur(durOf(t)))}</small></span></label>
@@ -368,7 +368,7 @@ function mioPickerHTML(iso) {
   const n = mioIds(iso).length;
   return `<div class="picker"><h4>3 Most Important Outcomes · ${esc(dayLabel(iso))} <small class="muted">${n} of ${MIO_MAX}</small></h4><div class="picker-scroll">
     ${mioCandidates(iso).map((t) => `<button class="person-row" data-act="pickMio" data-date="${iso}" data-id="${esc(t.id)}" aria-pressed="${isMio(t, iso)}">${healthDot(t)}<span>${esc(t.title || 'Untitled task')}</span>${t.slotDate === iso ? `<small class="muted">${esc(fmtTime(t.slotStart))}</small>` : ''}${isMio(t, iso) ? icon('check', 14) : ''}</button>`).join('') || '<p class="muted small">No open tasks yet.</p>'}
-    </div><p class="muted small">Choose up to ${MIO_MAX}. Tap again to remove.</p></div>`;
+    </div></div>`;
 }
 /** The "★ 3 Most Important Outcomes" bar shown on My Day and the Time Box day view. */
 function mioBarHTML(iso, bookable) {
@@ -393,7 +393,7 @@ function planTomorrowDlg() {
         ${open.length ? `<button class="btn ghost sm" data-role="move">Move unfinished work…</button>` : ''}</section>
       <section class="set-sec"><h3>3 Most Important Outcomes for ${esc(dayLabel(next))}</h3>
         <p class="muted small" data-role="count">Choose up to ${MIO_MAX}.</p>
-        <div class="omio-choices">${mioCandidates(next).map((t) => `<label class="omio-choice"><input type="checkbox" name="mio" value="${esc(t.id)}" ${chosen.has(t.id) ? 'checked' : ''}><span>${healthDot(t)} ${esc(t.title || 'Untitled task')}</span>${isScheduled(t) ? `<small class="muted">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}</label>`).join('') || '<p class="muted small">No open tasks yet. Add one first.</p>'}</div>
+        <div class="omio-choices">${mioCandidates(next).map((t) => `<label class="omio-choice"><input type="checkbox" name="mio" value="${esc(t.id)}" ${chosen.has(t.id) ? 'checked' : ''}><span>${healthDot(t)} ${esc(t.title || 'Untitled task')}</span>${isScheduled(t) ? `<small class="muted">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}</label>`).join('') || '<p class="muted small">No open tasks yet.</p>'}</div>
         <label class="mini"><input type="checkbox" data-role="book" checked> Book focus time for any that don't have a time that day</label></section>
       <div class="dlg-foot"><button class="btn ghost" data-role="cancel">Cancel</button><button class="btn primary" data-role="save">Save plan</button></div>`,
   });
@@ -473,7 +473,7 @@ function blockMenu(e, col) {
   const anchor = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false };
   openPop(anchor, () => `<form class="picker block-menu" data-submit="tbBlockSave" data-id="${b ? esc(b.id) : ''}">
     <h4>${b ? `Change “${esc(b.name)}”` : `New block at ${esc(fmtTime(min))}`}</h4>
-    <label class="field"><span>Name</span><input name="name" list="tb-block-names" value="${esc(b ? b.name : '')}" placeholder="Pick or type, e.g. Exercise" autocomplete="off" data-focus="block-name"></label>
+    <label class="field"><span>Name</span><input name="name" list="tb-block-names" value="${esc(b ? b.name : '')}" placeholder="Name" autocomplete="off" data-focus="block-name"></label>
     ${blockNamesList()}
     <div class="task-fields two">
       <label class="field"><span>Type</span><select name="kind">${workTypeOptions(b ? b.kind : 'focus')}</select></label>
@@ -481,10 +481,10 @@ function blockMenu(e, col) {
       <label class="field"><span>Starts</span><input name="start" type="time" step="300" value="${hm(start)}" required></label>
       <label class="field"><span>Ends</span><input name="end" type="time" step="300" value="${hm(end)}" required></label>
     </div>
-    <label class="mini"><input type="checkbox" name="protected" ${b?.protected ? 'checked' : ''}> Protected (warn before booking over it)</label>
+    <label class="mini"><input type="checkbox" name="protected" ${b?.protected ? 'checked' : ''}> Protected</label>
     <div class="row">${b ? `<button class="btn ghost sm danger-text" type="button" data-act="tbDelBlock" data-id="${esc(b.id)}">Delete</button>` : ''}<span class="spacer"></span>
       <button class="btn primary sm">${b ? 'Save' : 'Add block'}</button></div>
-    <p class="muted small">${b && b.cadence !== 'daily' ? 'Repeats ' + esc(CADENCES.find((c) => c.v === b.cadence)?.label.toLowerCase() || '') + '. ' : ''}Changes apply to every day this block appears.</p>
+    
   </form>`);
   $('[data-focus="block-name"]', ui.pop.el)?.focus();
 }
@@ -506,9 +506,9 @@ function saveBlockFromMenu(form, data) {
 function healthRowHTML(t) {
   const h = healthOf(t.health);
   return `<div class="health-row">
-      <button class="health-toggle" style="--c:${h ? h.color : 'transparent'}" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" title="Choose a colour">
-        <i aria-hidden="true"></i><span>Traffic Light</span>${h ? `<b>${esc(h.label)}</b><small>${esc(h.meaning)}</small>` : '<small>Not set</small>'}</button>
-      ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note" placeholder="${h.v === 'red' ? 'What help do you need, and from whom?' : 'What will get this back on track, and by when?'}">${esc(t.healthNote || '')}</textarea></label>` : ''}
+      <button class="health-toggle" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Traffic Light: ${esc(h ? `${h.label}, ${h.meaning}` : 'not set')}" title="Traffic Light">
+        <span class="tl" aria-hidden="true">${['red', 'yellow', 'green'].map((v) => `<i class="${t.health === v ? 'on' : ''}" style="--c:${healthOf(v).color}"></i>`).join('')}</span>${h ? `<small>${esc(h.meaning)}</small>` : ''}</button>
+      ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note">${esc(t.healthNote || '')}</textarea></label>` : ''}
     </div>`;
 }
 
@@ -537,7 +537,7 @@ function timeboxHTML(t) {
             <button class="btn ghost sm" data-act="openInTimebox" data-id="${esc(t.id)}">Open</button>
             <button class="btn ghost sm" data-act="removeFromTimebox" data-id="${esc(t.id)}">Remove</button>
             <select class="tb-colour" data-change="tbField" data-field="tbColor" aria-label="Colour in the Time Box">${tbColors(t.tbColor).map((c) => `<option value="${c.v}" ${c.v === (t.tbColor || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Colour: Automatic')}</option>`).join('')}</select>`
-          : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button><span class="muted small">It appears in the list on the right of the Time Box page.</span>`}
+          : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
         <span class="spacer"></span>
         <button class="btn ghost sm ${mio ? 'active' : ''}" data-act="toggleMio" data-id="${esc(t.id)}" data-date="${mio || targetDay}" title="3 Most Important Outcomes">★ ${mio ? `In 3MIO for ${esc(dayLabel(mio))}` : `Add to 3MIO for ${esc(dayLabel(targetDay))}`}</button>
       </div>
@@ -551,7 +551,7 @@ function timeboxHTML(t) {
         <label class="field"><span>Handling</span><select data-change="tbField" data-field="urgency">${URGENCY.map((u) => `<option value="${u.v}" ${u.v === (t.urgency || '') ? 'selected' : ''}>${esc(u.label)}</option>`).join('')}</select></label>
       </div>
       <div class="row">${t.urgency === 'routine'
-        ? `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}">Schedule for the biweekly review</button>${TB().blocks.some((b) => b.kind === 'review') ? '' : '<span class="muted small">Add a Biweekly Review block in Settings &gt; Time boxing first.</span>'}`
+        ? `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}">Schedule for the biweekly review</button>${TB().blocks.some((b) => b.kind === 'review') ? '' : ''}`
         : t.urgency === 'emergency'
           ? `<button class="btn primary sm" data-act="handleNow" data-id="${esc(t.id)}">Handle now (interrupts focus)</button>`
           : `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}">Schedule in the Decision Window</button>`}</div>
@@ -597,7 +597,7 @@ function takeOutOfBox(t) {
 function releaseBox(box) { boxItems(box).forEach((t) => { t.boxId = null; t.tbQueued = true; }); }
 /** Asks before squeezing a task into an existing block, which then becomes (or already is) a box. */
 async function dropOnBlock(t, target) {
-  const choice = await choiceDlg('Put them in one time box?', `<p>Squeeze <b>${esc(t.title || 'Untitled task')}</b> into ${isBox(target) ? `the time box <b>${esc(target.title)}</b>` : `one time box with <b>${esc(target.title || 'Untitled task')}</b>`}, ${esc(dayLabel(target.slotDate))} ${esc(fmtTime(target.slotStart))}–${esc(fmtTime(endOf(target)))}?</p><p class="muted small">The time box keeps its length. Each task stays separate and can be ticked off on its own.</p>`, [
+  const choice = await choiceDlg('Put them in one time box?', `<p>Squeeze <b>${esc(t.title || 'Untitled task')}</b> into ${isBox(target) ? `the time box <b>${esc(target.title)}</b>` : `one time box with <b>${esc(target.title || 'Untitled task')}</b>`}, ${esc(dayLabel(target.slotDate))} ${esc(fmtTime(target.slotStart))}–${esc(fmtTime(endOf(target)))}?</p>`, [
     { v: 'merge', label: isBox(target) ? 'Add to this time box' : 'Combine into one time box', primary: true },
     { v: 'cancel', label: 'Cancel' },
   ]);
@@ -638,7 +638,7 @@ function boxSectionHTML(box) {
       <button class="link-btn" data-open-task="${esc(t.id)}">${esc(t.title || 'Untitled task')}</button>
       <small class="muted">${esc(planById(t.planId)?.name || '')}</small>
       <button class="icon-btn" data-act="unbox" data-id="${esc(t.id)}" aria-label="Take ${esc(t.title)} out of the time box" title="Take out">${icon('close', 12)}</button></li>`).join('')}</ul>
-    <form class="inline-add" data-submit="boxAddItem" data-id="${esc(box.id)}"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a small task to this box" data-focus="box-add" autocomplete="off" aria-label="Add a small task"></form>
+    <form class="inline-add" data-submit="boxAddItem" data-id="${esc(box.id)}"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task" data-focus="box-add" autocomplete="off" aria-label="Add a small task"></form>
     ${others.length ? `<label class="field"><span>Or move in a task from the Time Box list</span><select data-change="boxAddExisting" data-id="${esc(box.id)}"><option value="">Choose a task…</option>${others.map((t) => `<option value="${esc(t.id)}">${esc(t.title || 'Untitled task')}</option>`).join('')}</select></label>` : ''}
   </section>`;
 }
@@ -816,22 +816,19 @@ function renderPlanner() {
       <input name="date" type="date" value="${anchor}" aria-label="Day">
       <input name="start" type="time" step="${SNAP_OF() * 60}" aria-label="Start time" title="Leave empty to use the next free slot">
       <button class="btn primary sm">${icon('plus', 14)} Add</button>
-      <span class="muted small">No time = next free slot</span>
+      
     </form>
     ${mode === 'day' ? mioBarHTML(anchor, true) : ''}
     ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span><button class="btn ghost sm" data-act="moveUnfinished" data-date="past">Move to free slots</button></div>` : ''}
-    <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}
-      <span class="muted">${matchMedia('(hover: none)').matches
-        ? (mode === 'month' ? 'Press and hold a task, then drag it onto a day · tap a day to open it' : 'Press and hold a block to move it · drag its bottom edge to resize · drop a task on a box to squeeze it in · tap empty time to add')
-        : (mode === 'month' ? 'Drag a task onto a day · click a day to open it' : 'Drag to move · drag the bottom edge to resize · drop a task on a box to squeeze it in · click empty time to add')}</span></div>
+    <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}</div>
     <div class="tb-main">
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
       <aside class="tb-side">
         <h3>Time Box <span class="count">${queue.length}</span></h3>
-        <p class="muted small">Tasks you added with “Add to Time Box”. Drag one onto the grid, or tick several and combine them into one box.</p>
-        ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '<p class="muted small">Tick one more to combine.</p>' : ''}
+        
+        ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
-          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id))).join('') || '<p class="muted small">Nothing waiting. Use “Add to Time Box” in a task’s ••• menu, or the box above.</p>'}
+          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id))).join('') || '<p class="muted small">Nothing waiting.</p>'}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>
@@ -845,7 +842,7 @@ const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
 function timeboxSettingsHTML() {
   const tb = TB();
   const dayName = (d) => new Date(2024, 0, 7 + d).toLocaleDateString(undefined, { weekday: 'short' });
-  return `<p class="muted small">Your weekday rhythm appears as planning blocks on the Time Box page. Time outside these blocks stays free for other commitments.</p>
+  return `
     <div class="f-chips">${WEEKDAYS.map((d) => `<button class="f-chip ${tb.workDays.includes(d) ? 'on' : ''}" aria-pressed="${tb.workDays.includes(d)}" data-act="tbToggleDay" data-d="${d}">${esc(dayName(d))}</button>`).join('')}</div>
     <div class="task-fields">
       <label class="field"><span>Day starts</span><input type="time" step="900" value="${hm(tb.dayStart)}" data-change="tbSetting" data-k="dayStart"></label>
@@ -875,7 +872,7 @@ function timeboxSettingsHTML() {
       <button class="icon-btn" data-act="tbDelBlock" data-id="${esc(b.id)}" aria-label="Remove ${esc(b.name)}">${icon('close', 13)}</button>
     </li>`).join('')}</ul>
     ${blockNamesList()}
-    <p class="muted small">Tip: right-click a block on the Time Box page to change it there.</p>
+    
     <div class="row"><button class="btn ghost sm" data-act="tbAddBlock">${icon('plus', 14)} Add block</button>
       <button class="btn ghost sm" data-act="editWorkTypes">${icon('pencil', 14)} Edit types</button>
       ${tb.blocks.some((b) => b.kind === 'review') ? '' : `<button class="btn ghost sm" data-act="tbAddReview">${icon('plus', 14)} Add biweekly review</button>`}

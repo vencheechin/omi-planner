@@ -339,7 +339,7 @@ function inboxHTML() {
   return `<div class="picker inbox"><div class="sec-head"><h4>Notifications</h4>${unreadCount() ? `<button class="btn ghost sm" data-act="markAllRead">Mark all read</button>` : ''}</div>
     <div class="picker-scroll">${items.length ? items.map((n) => `<button class="notice ${n.read ? '' : 'unread'}" data-act="openNotice" data-id="${esc(n.id)}">
       <span class="notice-dot notice-${esc(n.kind)}"></span><span><b>${esc(n.text)}</b>${n.note ? `<em>${esc(n.note)}</em>` : ''}<small>${esc(fmtDateTime(n.at))}</small></span></button>`).join('')
-      : `<p class="muted small">Nothing yet. You'll see a notice here when a teammate submits a task for checking, sends one back or assigns you one.</p>`}</div>
+      : `<p class="muted small">Nothing yet.</p>`}</div>
     ${'Notification' in window && Notification.permission === 'default' ? `<button class="btn ghost sm" data-act="enableNotifications">${icon('sun', 14)} Also show desktop notifications</button>` : ''}</div>`;
 }
 
@@ -490,9 +490,9 @@ function teamSettingsHTML() {
   const me = person(S.meId);
   const members = Object.keys(S.sync.files).length;
   if (!Team.supported) {
-    return `<p class="muted small">Team sharing needs Google Chrome or Microsoft Edge on a computer. Everything else in Planner works here.</p>`;
+    return `<p class="muted small">Needs Google Chrome or Microsoft Edge on a computer.</p>`;
   }
-  return `<p class="muted small">Share tasks with colleagues through a folder that OneDrive, Dropbox or Google Drive keeps in sync. Everyone chooses the same shared folder in their own Planner. You can keep working offline; changes sync when you're back online.</p>
+  return `
     <div class="task-fields two">
       <label class="field"><span>Your name</span><input value="${esc(me.name)}" data-change="personName" data-id="${esc(me.id)}"></label>
       <label class="field"><span>Your email</span><input type="email" value="${esc(me.email || '')}" placeholder="name@company.com" data-change="personEmail" data-id="${esc(me.id)}"></label>
@@ -594,7 +594,7 @@ function renderReport() {
   const count = (s) => rows.filter((r) => r.status === s).length;
   const opt = (v, label, cur) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
   return `<div class="page wide">
-    <header class="page-head row"><div><h1>Assignment report</h1><p class="muted">Every task assigned to someone, with when it was assigned, submitted for review and completed.</p></div>
+    <header class="page-head row"><div><h1>Assignment report</h1></div>
       <div class="spacer"></div><button class="btn primary sm" data-act="reportExport">${icon('download', 14)} Export to Excel (CSV)</button></header>
     <div class="report-filters">
       <label class="field"><span>Assigned by</span><select data-change="reportFilter" data-k="scope">${opt('me', 'Me', f.scope)}${opt('all', 'Anyone', f.scope)}</select></label>
@@ -616,7 +616,7 @@ function renderReport() {
         <td>${shortDate(r.assignedAt)}</td><td>${shortDate(r.submittedAt)}</td><td>${shortDate(r.completedAt)}</td><td>${r.days ?? '<span class="muted">–</span>'}</td>
         <td><span class="pill pill-${r.status}">${esc(STATUS_LABEL[r.status])}</span>${r.late ? ' <span class="pill pill-late">Late</span>' : ''}</td></tr>`).join('')}
     </tbody></table></div>`
-      : `<div class="empty"><h2>No assignments yet</h2><p>Assign a task to a colleague and it is tracked here from that moment. Tasks assigned before this feature existed have no history to show.</p></div>`}
+      : `<div class="empty"><h2>No assignments yet</h2></div>`}
   </div>`;
 }
 function reportCSV() {

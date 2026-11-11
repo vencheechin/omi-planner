@@ -191,7 +191,7 @@ function renderHub() {
   return `<div class="page">
     <header class="page-head"><h1>My plans</h1></header>
     ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
-      : `<div class="empty"><h2>No plans yet</h2><p>Create a plan to start organising tasks.</p><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
+      : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
   </div>`;
 }
 
@@ -302,7 +302,7 @@ function gridHTML(tasks, ctx) {
     </tr>`;
   };
   return `<div class="grid-wrap" data-scroll="grid-${esc(ctx.key)}">
-    <form class="grid-add" data-submit="gridAdd"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task and press Enter" data-focus="grid-add" autocomplete="off" aria-label="Add a task"></form>
+    <form class="grid-add" data-submit="gridAdd"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task" data-focus="grid-add" autocomplete="off" aria-label="Add a task"></form>
     <table class="grid"><thead><tr><th></th>${th('title', 'Task')}${th('assignee', 'Assigned to')}${th('start', 'Start')}${th('due', 'Due')}${ctx.crossPlan ? th('plan', 'Plan') : th('bucket', 'Bucket')}${th('progress', 'Progress')}${th('priority', 'Priority')}${th('health', 'Traffic light')}<th>Labels</th></tr></thead>
     <tbody>${rows.map(row).join('') || `<tr><td colspan="10" class="muted center">No tasks match.</td></tr>`}</tbody></table>
   </div>`;
@@ -367,7 +367,7 @@ function scheduleHTML(tasks, plan) {
     </div>
     <aside class="unscheduled">
       <h3>Unscheduled <span class="count">${unscheduled.length}</span></h3>
-      <p class="muted small">Drag a task onto a date.</p>
+      
       <div class="unscheduled-list" data-scroll="unsched-${plan ? esc(plan.id) : 'x'}">${unscheduled.map((t) => `<button class="unsched" data-open-task="${esc(t.id)}" data-drag="task" data-id="${esc(t.id)}">${esc(t.title || 'Untitled task')}</button>`).join('') || `<p class="muted small">Every open task has a date.</p>`}</div>
     </aside>
   </div>`;
@@ -381,7 +381,7 @@ const STATUS = [
   { key: 'done', label: 'Completed', color: 'var(--st-done)', test: isDone },
 ];
 function chartsHTML(tasks, plan) {
-  if (!tasks.length) return `<div class="empty"><h2>Nothing to chart yet</h2><p>Add some tasks, or clear the filter, to see progress here.</p></div>`;
+  if (!tasks.length) return `<div class="empty"><h2>Nothing to chart yet</h2></div>`;
   const counts = STATUS.map((s) => ({ ...s, n: tasks.filter(s.test).length }));
   const total = tasks.length;
   const pct = Math.round((counts[3].n / total) * 100);
@@ -499,7 +499,7 @@ function renderMyDay() {
       <a class="btn ghost sm" href="#/timebox" data-act="openTimeboxDay">${icon('clock', 14)} Plan today in Time Box</a></header>
     ${mioBarHTML(todayISO(), false)}
     <form class="grid-add" data-submit="dayAdd"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task for today" data-focus="day-add" autocomplete="off" aria-label="Add a task for today"></form>
-    ${tasks.length ? `<ul class="day-list">${tasks.map(row).join('')}</ul>` : `<div class="empty"><h2>Nothing planned for today</h2><p>Tasks due today and assigned to you show up here, and My Day clears itself each morning.</p></div>`}
+    ${tasks.length ? `<ul class="day-list">${tasks.map(row).join('')}</ul>` : `<div class="empty"><h2>Nothing planned for today</h2></div>`}
     ${suggest.length ? `<h2 class="sub-head">Suggestions</h2><ul class="day-list">${suggest.map((t) => `<li class="day-row">
       <button class="icon-btn" data-act="toggleMyDay" data-id="${esc(t.id)}" aria-label="Add to My Day" title="Add to My Day">${icon('plus', 14)}</button>
       <button class="day-title" data-open-task="${esc(t.id)}"><b>${esc(t.title || 'Untitled task')}</b><small>${esc(planById(t.planId)?.name || '')}${t.due ? ` · ${isLate(t) ? 'late, ' : ''}due ${fmtDate(t.due)}` : ''}</small></button></li>`).join('')}</ul>` : ''}
@@ -514,7 +514,7 @@ function renderSearch() {
     <header class="page-head"><h1>Results for “${esc(ui.search)}”</h1></header>
     ${plans.length ? `<h2 class="sub-head">Plans</h2><ul class="day-list">${plans.map((p) => `<li class="day-row"><a class="day-title" href="#/plan/${esc(p.id)}">${planTile(p, 24)} <b>${esc(p.name)}</b></a></li>`).join('')}</ul>` : ''}
     ${hits.length ? `<h2 class="sub-head">Tasks</h2><ul class="day-list">${hits.map((t) => `<li class="day-row"><button class="day-title" data-open-task="${esc(t.id)}"><b>${esc(t.title || 'Untitled task')}</b><small>${esc(planById(t.planId)?.name || '')} · ${esc(bucketName(t))}</small></button></li>`).join('')}</ul>` : ''}
-    ${!plans.length && !hits.length ? `<div class="empty"><h2>No matches</h2><p>Try a different word.</p></div>` : ''}
+    ${!plans.length && !hits.length ? `<div class="empty"><h2>No matches</h2></div>` : ''}
   </div>`;
 }
 
