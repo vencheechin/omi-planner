@@ -1886,7 +1886,7 @@ function route() {
   const [path, query] = location.hash.split('?');
   const [, a, b, c, d] = path.split('/');
   Usage.track(`page:${a || 'hub'}`);
-  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['my-tasks', 'report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
   // A link like #/hub?name=Sam&email=sam@company.com fills in your identity on a fresh copy, then opens Settings.

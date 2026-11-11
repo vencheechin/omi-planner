@@ -171,8 +171,7 @@ function renderTabbar() {
   const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
   bar.innerHTML = tab('#/halfplan', 'table', 'S-Team', r === 'halfplan')
     + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
-    + tab('#/my-tasks', 'user', 'My Tasks', r === 'my-tasks')
-    + tab('#/hub', 'home', 'My Planner', r === 'hub' || r === 'plan' || r === 'person')
+    + tab('#/hub', 'home', 'My Planner', r === 'hub' || r === 'plan' || r === 'person', dueSoonCount())
     + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
 }
 function renderSidebar() {
@@ -182,7 +181,6 @@ function renderSidebar() {
   const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
   const pinned = S.plans.filter((p) => p.pinned);
   const recent = S.plans.filter((p) => !p.pinned).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
-  const mine = S.tasks.filter((t) => t.assignees.includes(S.meId) && !isDone(t)).length;
 
   const toCheck = S.tasks.filter(isReviewer).length;
   const personLink = (pp) => {
@@ -193,7 +191,7 @@ function renderSidebar() {
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
-      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home')}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}
+      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
       ${S.personPlans.length ? `<h3>People</h3>${S.personPlans.map(personLink).join('')}` : ''}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
@@ -206,6 +204,20 @@ function renderSidebar() {
 /** Decision requests: the closest deadline first, then those without one (oldest request first). */
 const byDecisionDeadline = (a, b) => String(a.decision?.deadline || '9999').localeCompare(String(b.decision?.deadline || '9999')) || a.decisionReq.at - b.decisionReq.at;
 const decisionsForMe = () => S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending').sort(byDecisionDeadline);
+/** Your open tasks from every plan that are late, due today or due this week. */
+const DUE_SOON = [['late', 'Late'], ['today', 'Today'], ['tomorrow', 'This week'], ['week', 'This week']];
+const dueSoonTasks = () => S.tasks.filter((t) => t.assignees.includes(S.meId) && !isDone(t) && !t.box && DUE_SOON.some(([k]) => k === dueGroupOf(t.due)));
+/** Late or due today: the number on My Planner in the sidebar and tab bar. */
+const dueSoonCount = () => dueSoonTasks().filter((t) => ['late', 'today'].includes(dueGroupOf(t.due))).length;
+function dueSoonHTML() {
+  const tasks = dueSoonTasks().sort((a, b) => String(a.due).localeCompare(String(b.due)) || a.priority - b.priority);
+  const groups = [['Late', tasks.filter((t) => dueGroupOf(t.due) === 'late')], ['Today', tasks.filter((t) => dueGroupOf(t.due) === 'today')],
+    ['This week', tasks.filter((t) => ['tomorrow', 'week'].includes(dueGroupOf(t.due)))]];
+  return `<section class="due-hub"><h2>My Tasks: due soon <span class="count">${tasks.length}</span></h2>
+    ${tasks.length ? `<div class="due-cols">${groups.map(([label, list]) => `<div class="due-col ${label === 'Late' && list.length ? 'late' : ''}"><h3>${label} <small>${list.length}</small></h3>
+      ${list.map((t) => cardHTML(t, { showPlan: true })).join('') || '<p class="muted small">Nothing.</p>'}</div>`).join('')}</div>`
+    : '<p class="muted small">Nothing due this week.</p>'}</section>`;
+}
 /** Decision requests waiting for you, at the top of My Planner. */
 function decisionHubHTML() {
   const asks = decisionsForMe();
@@ -232,6 +244,7 @@ function renderHub() {
   return `<div class="page">
     <header class="page-head"><h1>My Planner</h1></header>
     ${decisionHubHTML()}
+    ${dueSoonHTML()}
     ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
       : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
   </div>`;
@@ -519,50 +532,6 @@ function renderPlan(plan) {
   </div>`;
 }
 
-function renderMyTasks() {
-  const fkey = 'my-tasks';
-  const tab = ui.planTab[fkey] || 'board';
-  const by = ui.groupBy[fkey] || 'due';
-  const mine = S.tasks.filter((t) => t.assignees.includes(S.meId));
-  const tasks = applyFilter(mine, filterOf(fkey));
-  const ctx = { key: fkey, showPlan: true, crossPlan: true };
-  const body = {
-    board: () => boardHTML(groupsFor(by, tasks, null), by, ctx), grid: () => gridHTML(tasks, ctx),
-    schedule: () => scheduleHTML(tasks, null), charts: () => chartsHTML(tasks, null),
-  }[tab]();
-  return `<div class="plan-page">
-    <header class="plan-head"><span class="head-icon">${icon('user', 20)}</span><h1>My Tasks</h1></header>
-    ${toolbar({ fkey, by, tab, tabs: TABS, options: ['due', 'progress', 'priority', 'plan', 'health', 'work'] })}
-    <div class="view">${body}</div>
-  </div>`;
-}
-
-function renderMyDay() {
-  const now = parseISO(todayISO()).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
-  const tasks = S.tasks.filter(inMyDay).sort(byOrder);
-  const suggest = S.tasks.filter((t) => !isDone(t) && !inMyDay(t) && (isLate(t) || (t.assignees.includes(S.meId) && t.due && dueGroupOf(t.due) === 'tomorrow'))).slice(0, 6);
-  const row = (t) => {
-    const plan = planById(t.planId);
-    const fromDue = t.due === todayISO() && t.assignees.includes(S.meId);
-    return `<li class="day-row ${isLate(t) ? 'is-late' : ''}">
-      <button class="check" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="Mark complete">${icon('check', 12)}</button>
-      <button class="day-title" data-open-task="${esc(t.id)}"><b>${isMio(t, todayISO()) ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}</b><small>${t.slotDate === todayISO() ? `${esc(fmtTime(t.slotStart))}–${esc(fmtTime(endOf(t)))} · ` : ''}${esc(plan?.name || '')}${t.due ? ` · due ${fmtDate(t.due)}` : ''}</small></button>
-      ${typeTag(t)}${priorityIcon(t.priority)}
-      ${fromDue ? '' : `<button class="icon-btn" data-act="toggleMyDay" data-id="${esc(t.id)}" aria-label="Remove from My Day" title="Remove from My Day">${icon('close', 14)}</button>`}
-    </li>`;
-  };
-  return `<div class="page narrow">
-    <header class="page-head row"><div><h1>My Day</h1><p class="muted">${esc(now)}</p></div><div class="spacer"></div>
-      <a class="btn ghost sm" href="#/timebox" data-act="openTimeboxDay">${icon('clock', 14)} Plan today in Time Box</a></header>
-    ${mioBarHTML(todayISO(), false)}
-    <form class="grid-add" data-submit="dayAdd"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task for today" data-focus="day-add" autocomplete="off" aria-label="Add a task for today"></form>
-    ${tasks.length ? `<ul class="day-list">${tasks.map(row).join('')}</ul>` : `<div class="empty"><h2>Nothing planned for today</h2></div>`}
-    ${suggest.length ? `<h2 class="sub-head">Suggestions</h2><ul class="day-list">${suggest.map((t) => `<li class="day-row">
-      <button class="icon-btn" data-act="toggleMyDay" data-id="${esc(t.id)}" aria-label="Add to My Day" title="Add to My Day">${icon('plus', 14)}</button>
-      <button class="day-title" data-open-task="${esc(t.id)}"><b>${esc(t.title || 'Untitled task')}</b><small>${esc(planById(t.planId)?.name || '')}${t.due ? ` · ${isLate(t) ? 'late, ' : ''}due ${fmtDate(t.due)}` : ''}</small></button></li>`).join('')}</ul>` : ''}
-  </div>`;
-}
-
 function renderSearch() {
   const q = ui.search.trim().toLowerCase();
   const hits = S.tasks.filter((t) => [t.title, t.notes, ...t.checklist.map((c) => c.text), ...t.comments.filter((c) => !c.deleted).map((c) => c.text)].some((s) => String(s).toLowerCase().includes(q))).slice(0, 100);
@@ -587,8 +556,6 @@ function renderMain() {
     return pp ? renderPersonPlan(pp) : renderHub();
   }
   if (r.view === 'report') return renderReport();
-  if (r.view === 'my-tasks') return renderMyTasks();
-  if (r.view === 'my-day') return renderMyDay();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan') return renderBrandPlan();
   return renderHub();

@@ -1041,6 +1041,13 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .tb-b-dur { display: block; font-size: calc(11.5px * var(--scale) * var(--type)); opacity: .8; font-weight: 400; }
 .tb-b-title .tb-b-dur { display: inline; }
 .chat-note { white-space: pre-wrap; padding: 8px 12px; border-radius: 10px; border-left: 3px solid var(--ochre); background: color-mix(in srgb, var(--ink) 6%, transparent); font-size: calc(13.5px * var(--scale) * var(--type)); }
+.due-hub { display: grid; gap: 10px; margin-bottom: 22px; }
+.due-hub h2 { font-size: calc(17px * var(--scale) * var(--type)); color: var(--heading); display: flex; align-items: center; gap: 8px; }
+.due-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.due-col { display: grid; gap: 8px; padding: 10px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.due-col h3 { font-size: calc(13.5px * var(--scale) * var(--type)); color: var(--muted); }
+.due-col.late h3 { color: var(--danger); }
+@media (max-width: 760px) { .due-cols { grid-template-columns: minmax(0, 1fr); } }
 .dr-hub { display: grid; gap: 10px; margin-bottom: 22px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--highlight) 10%, var(--surface)); }
 .dr-hub h2 { font-size: calc(17px * var(--scale) * var(--type)); color: var(--heading); display: flex; align-items: center; gap: 8px; }
 .dr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
