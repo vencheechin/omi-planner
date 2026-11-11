@@ -49,6 +49,14 @@ How it works:
 - Notifications appear while Planner is open. Chrome asks once for permission to the folder after
   each restart; click the status at the top right to reconnect.
 
+## Import from Microsoft Planner
+
+In Microsoft Planner, open a plan, choose **•••** next to the plan name, then **Export plan to
+Excel**. In this app choose **Import from Microsoft Planner** (under New plan, or in Settings) and
+pick the file; you can pick several at once. Each becomes a plan with its buckets, tasks, progress,
+priority, start and due dates, labels, checklist, description and people. Importing the same file
+again skips tasks already here. Comments and attachments aren't in Microsoft's export.
+
 ## Time Box
 
 Open **Time Box** in the sidebar and choose **Day**, **Week** or **Month**. Day and Week look like

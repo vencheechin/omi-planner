@@ -471,6 +471,20 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .meta.omio { color: var(--ochre); font-weight: 700; }
 .health-pick { display: flex; flex-wrap: wrap; gap: 6px; }
 .health-row { display: grid; gap: 8px; }
+.health-toggle { display: inline-flex; align-items: center; gap: 8px; justify-self: start; padding: 4px 10px 4px 6px; border-radius: 999px; border: 1px solid var(--line); }
+.health-toggle:hover { border-color: var(--line-strong); }
+.health-toggle i { width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px var(--line-strong); flex: none; }
+.health-toggle span { font-weight: 700; }
+.health-toggle small { color: var(--muted); }
+.health-picker { min-width: 230px; display: grid; gap: 4px; }
+.health-opt { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; text-align: left; }
+.health-opt:hover, .health-opt.on { background: color-mix(in srgb, var(--c, var(--ink)) 14%, transparent); }
+.health-opt i { width: 26px; height: 26px; border-radius: 50%; background: var(--c); flex: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 35%, transparent); }
+.health-opt.clear i { background: none; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.health-opt span { display: grid; flex: 1; }
+.health-opt small { color: var(--muted); }
+.import-plan { width: 100%; justify-content: center; margin-top: 6px; }
+.imp-file { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
 .health-sel { display: inline-flex; align-items: center; gap: 8px; justify-self: start; }
 .health-sel > span { font-size: calc(12px * var(--scale) * var(--type)); color: var(--ink-2); font-weight: 700; }
 .health-sel > i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); border: 1px solid var(--line-strong); flex: none; }

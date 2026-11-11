@@ -159,6 +159,7 @@ function renderSidebar() {
   $('#sidebar').innerHTML = `
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
+    <button class="btn ghost sm import-plan" data-act="importPlanner" title="Import a plan exported from Microsoft Planner to Excel">${icon('upload', 14)} Import from Microsoft Planner</button>
     <nav aria-label="Main">
       ${link('hub', 'My plans', 'home')}${link('my-day', 'My Day', 'sun', day)}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}
       ${S.personPlans.length ? `<h3>People</h3>${S.personPlans.map(personLink).join('')}` : ''}

@@ -337,6 +337,9 @@ function settingsHTML() {
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
+  <section class="set-sec"><h3>Import from Microsoft Planner</h3>
+    <p class="muted small">In Microsoft Planner, open a plan, choose ••• next to the plan name, then <b>Export plan to Excel</b>. Choose that file here (you can pick several). Each becomes a plan with its buckets, tasks, progress, priority, dates, labels, checklist, description and people.</p>
+    <div class="row"><button class="btn ghost sm" data-act="importPlanner">${icon('upload', 14)} Choose Excel file…</button></div></section>
   <section class="set-sec"><h3>Backup</h3>
     <p class="muted small">Everything is stored in this browser on this device. A backup is a single file containing all plans, tasks and attachments. Import it to restore, or to move to another computer.</p>
     <p class="small">Last backup: ${last ? esc(fmtDateTime(last)) : 'never'}<br><span id="storageUse" class="muted"></span></p>
@@ -764,6 +767,16 @@ const actions = {
     refreshSettings();
   },
   dismissBackup: () => { ui.backupDismissed = true; render(); },
+  importPlanner: () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+    input.onchange = () => { if (input.files.length) importPlannerFiles([...input.files]); };
+    input.click();
+  },
+  healthMenu: (el) => openPop(el, () => healthPickerHTML(taskById(el.dataset.id))),
+  pickHealth: (el) => { closePop(); setHealth(taskById(el.dataset.id), el.dataset.v, true); },
   importBackup: () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -800,6 +813,7 @@ const actions = {
 
 // ---------- Form submits ----------
 const submits = {
+  importPlanner: (form, data) => importPlanner(form, data),
   tbBlockSave: (form, data) => saveBlockFromMenu(form, data),
   saveWorkTypes: (form) => saveWorkTypes(form),
   quickAdd: (form, data) => {

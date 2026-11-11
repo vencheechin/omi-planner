@@ -156,7 +156,7 @@ function normalizeState(raw) {
       estimate: Number.isFinite(t.estimate) && t.estimate > 0 ? t.estimate : null,
       slotDate: /^\d{4}-\d{2}-\d{2}$/.test(t.slotDate || '') && Number.isFinite(t.slotStart) ? t.slotDate : null,
       slotStart: /^\d{4}-\d{2}-\d{2}$/.test(t.slotDate || '') && Number.isFinite(t.slotStart) ? t.slotStart : null,
-      workType: ['focus', 'decision', 'collab', 'planning', 'review'].includes(t.workType) ? t.workType : '',
+      workType: typeof t.workType === 'string' && /^[\w-]{0,40}$/.test(t.workType) ? t.workType : '',
       health: ['green', 'yellow', 'red'].includes(t.health) ? t.health : '',
       healthNote: String(t.healthNote || ''),
       decision: t.decision && typeof t.decision === 'object' ? t.decision : null,

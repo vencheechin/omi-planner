@@ -505,13 +505,17 @@ function saveBlockFromMenu(form, data) {
 function healthRowHTML(t) {
   const h = healthOf(t.health);
   return `<div class="health-row">
-      <label class="health-sel" style="--c:${h ? h.color : 'transparent'}"><span>Traffic Light</span><i aria-hidden="true"></i>
-        <select data-change="healthSel" data-id="${esc(t.id)}" aria-label="Traffic Light">
-          <option value="" ${h ? '' : 'selected'}>Not set</option>
-          ${HEALTH.map((x) => `<option value="${x.v}" ${t.health === x.v ? 'selected' : ''}>${esc(x.label)} – ${esc(x.meaning)}</option>`).join('')}
-        </select></label>
+      <button class="health-toggle" style="--c:${h ? h.color : 'transparent'}" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" title="Choose a colour">
+        <i aria-hidden="true"></i><span>Traffic Light</span>${h ? `<b>${esc(h.label)}</b><small>${esc(h.meaning)}</small>` : '<small>Not set</small>'}</button>
       ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note" placeholder="${h.v === 'red' ? 'What help do you need, and from whom?' : 'What will get this back on track, and by when?'}">${esc(t.healthNote || '')}</textarea></label>` : ''}
     </div>`;
+}
+
+/** The colours shown when you click "Traffic Light". */
+function healthPickerHTML(t) {
+  return `<div class="picker health-picker"><h4>Traffic Light</h4>
+    ${HEALTH.map((x) => `<button class="health-opt ${t.health === x.v ? 'on' : ''}" style="--c:${x.color}" data-act="pickHealth" data-id="${esc(t.id)}" data-v="${x.v}" aria-pressed="${t.health === x.v}"><i></i><span><b>${esc(x.label)}</b><small>${esc(x.meaning)}</small></span>${t.health === x.v ? icon('check', 15) : ''}</button>`).join('')}
+    ${t.health ? `<button class="health-opt clear" data-act="pickHealth" data-id="${esc(t.id)}" data-v=""><i></i><span>Clear</span></button>` : ''}</div>`;
 }
 
 /** The Time Box and Decision Request sections of the task panel. */
