@@ -551,7 +551,7 @@ function workflowHTML(t) {
     action = `<div class="review-box"><p>Waiting for <b>${esc(nameOf(reviewer))}</b> to check. Submitted ${esc(fmtDateTime(t.review.at))}.</p>
       <div class="row"><button class="btn ghost sm" data-act="withdrawReview" data-id="${esc(t.id)}">Withdraw</button></div></div>`;
   } else if (needsReview(t) && !isDone(t)) {
-    action = `<div class="review-box"><p>When you've finished, submit it to <b>${esc(nameOf(reviewer))}</b>. Only they can mark it complete.</p>
+    action = `<div class="review-box">
       <div class="row"><button class="btn primary sm" data-act="submitReview" data-id="${esc(t.id)}">Submit for checking</button></div></div>`;
   }
   return lines.length || action ? `<div class="workflow">${lines.join('')}${action}</div>` : '';
