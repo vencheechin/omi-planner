@@ -196,7 +196,7 @@ function renderHub() {
 
 // ---------- Cards and boards ----------
 function cardPreview(t) {
-  const images = t.attachments.filter((a) => a.thumb);
+  const images = allFiles(t).filter((a) => a.thumb);
   const mode = t.preview === 'auto' ? (images.length ? 'attachment' : t.checklist.length ? 'checklist' : t.notes ? 'notes' : 'none') : t.preview;
   if (mode === 'attachment' && images.length) return `<img class="card-img" src="${esc(images[0].thumb)}" alt="">`;
   if (mode === 'checklist' && t.checklist.length) {
@@ -214,8 +214,8 @@ function cardHTML(t, { showPlan } = {}) {
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
     t.repeat ? `<span class="meta" title="Repeats">${icon('repeat', 13)}</span>` : '',
     t.checklist.length ? `<span class="meta" title="Checklist">${icon('list', 13)}${doneItems}/${t.checklist.length}</span>` : '',
-    t.attachments.length ? `<span class="meta" title="Attachments">${icon('clip', 13)}${t.attachments.length}</span>` : '',
-    t.comments.some((c) => !c.deleted) ? `<span class="meta" title="Comments">${icon('chat', 13)}${t.comments.filter((c) => !c.deleted).length}</span>` : '',
+    allFiles(t).length ? `<span class="meta" title="Files and links">${icon('clip', 13)}${allFiles(t).length}</span>` : '',
+    t.comments.some((c) => !c.deleted) ? `<span class="meta" title="Messages">${icon('chat', 13)}${t.comments.filter((c) => !c.deleted).length}</span>` : '',
   ].join('');
   return `<article class="card ${isDone(t) ? 'done' : ''}" data-open-task="${esc(t.id)}" data-drag="task" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title || 'Untitled task')}">
     ${t.labels.length ? `<div class="card-labels">${orderedLabels(plan, t.labels).map((l) => labelChip(plan, l)).join('')}</div>` : ''}

@@ -152,6 +152,7 @@ function renderTask() {
         <button class="check big ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 14)}</button>
         <input value="${esc(t.title)}" placeholder="Task name" data-input="title" data-focus="task-title" aria-label="Task name">
       </div>
+      ${healthRowHTML(t)}
       <div class="assign-row">
         <div class="avatars">${t.assignees.map((a) => avatar(person(a), 28)).join('')}</div>
         <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? 'Change' : 'Assign'}</button>
@@ -164,14 +165,12 @@ function renderTask() {
         ${field('Start date', `<input type="date" value="${t.start || ''}" data-change="taskField" data-field="start">`)}
         ${field('Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}">`)}
         ${field('Repeat', `<select data-change="taskField" data-field="repeat">${options(REPEATS, t.repeat)}</select>`)}
+        ${field('Work type', `<select data-change="tbField" data-field="workType">${options(WORK_TYPES.map((w) => ({ v: w.v, label: w.label })), t.workType || '')}</select>`)}
+        ${field('Show on card', `<select data-change="taskField" data-field="preview">${options([{ v: 'auto', label: 'Automatic' }, { v: 'notes', label: 'Description' }, { v: 'checklist', label: 'Checklist' }, { v: 'attachment', label: 'Picture' }, { v: 'none', label: 'Nothing' }], t.preview)}</select>`)}
       </div>
       ${timeboxHTML(t)}
       <section class="task-sec">
-        <div class="sec-head"><h3>Notes</h3><label class="mini"><input type="radio" name="preview" data-change="taskField" data-field="preview" value="notes" ${t.preview === 'notes' ? 'checked' : ''}> Show on card</label></div>
-        <textarea rows="3" placeholder="Add notes" data-input="notes" data-focus="task-notes" aria-label="Notes">${esc(t.notes)}</textarea>
-      </section>
-      <section class="task-sec">
-        <div class="sec-head"><h3>Checklist${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3><label class="mini"><input type="radio" name="preview" data-change="taskField" data-field="preview" value="checklist" ${t.preview === 'checklist' ? 'checked' : ''}> Show on card</label></div>
+        <div class="sec-head"><h3>Checklist${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3></div>
         <ul class="checklist">
           ${t.checklist.map((c) => `<li class="ck-item ${c.done ? 'done' : ''}" data-drag="check" data-id="${esc(c.id)}">
             <button class="check small ${c.done ? 'on' : ''}" data-act="toggleCheck" data-id="${esc(c.id)}" aria-label="${c.done ? 'Uncheck' : 'Check'} item">${icon('check', 10)}</button>
@@ -180,38 +179,106 @@ function renderTask() {
         </ul>
         <form class="inline-add" data-submit="addCheck"><span>${icon('plus', 14)}</span><input name="text" placeholder="Add an item" data-focus="check-add" autocomplete="off" aria-label="Add a checklist item"></form>
       </section>
-      <section class="task-sec">
-        <div class="sec-head"><h3>Attachments</h3>
-          <div class="row">
-            <label class="mini"><input type="radio" name="preview" data-change="taskField" data-field="preview" value="attachment" ${t.preview === 'attachment' ? 'checked' : ''}> Show on card</label>
-            <button class="btn ghost sm" data-act="addFile">${icon('clip', 13)} File</button>
-            <button class="btn ghost sm" data-act="addLink">${icon('link', 13)} Link</button>
-          </div></div>
-        <ul class="attach-list" data-dropfiles>
-          ${t.attachments.map((a) => `<li>
-            ${a.thumb ? `<img src="${esc(a.thumb)}" alt="">` : `<span class="file-ic">${icon(a.kind === 'link' ? 'link' : 'clip', 15)}</span>`}
-            ${a.kind === 'link'
-              ? (safeUrl(a.url) ? `<a href="${esc(safeUrl(a.url))}" target="_blank" rel="noopener noreferrer">${esc(a.name)}</a>` : `<span>${esc(a.name)}</span>`)
-              : `<button class="link-btn" data-act="openFile" data-id="${esc(a.id)}">${esc(a.name)}</button><small>${fmtSize(a.size || 0)}</small>`}
-            <button class="icon-btn" data-act="delAttachment" data-id="${esc(a.id)}" aria-label="Remove ${esc(a.name)}">${icon('close', 13)}</button></li>`).join('')}
-        </ul>
-        ${t.attachments.length ? '' : `<p class="muted small">Drop files here. They stay on this device.</p>`}
-      </section>
-      <section class="task-sec">
-        <div class="sec-head"><h3>Comments</h3></div>
-        <form class="comment-add" data-submit="addComment">
-          <textarea rows="2" name="text" placeholder="Add a comment" data-input="commentDraft" data-focus="comment" aria-label="Add a comment">${esc(ui.draft.comment)}</textarea>
-          <button class="btn primary sm">Post</button>
-        </form>
-        <ul class="comments">
-          ${t.comments.filter((c) => !c.deleted).reverse().map((c) => `<li>${avatar(person(c.author), 28)}<div><p class="c-meta"><b>${esc(person(c.author)?.name || 'Unknown')}</b> <small>${fmtDateTime(c.at)}</small><button class="icon-btn" data-act="delComment" data-id="${esc(c.id)}" aria-label="Delete comment">${icon('close', 12)}</button></p><p class="c-text">${esc(c.text)}</p></div></li>`).join('')}
-        </ul>
-      </section>
-      ${activityHTML(t)}
+      ${chatHTML(t)}
     </div>`;
+  const chat = $('[data-chat]', d);
+  const atBottom = !chat || chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
   if (!d.firstElementChild) d.innerHTML = '<div class="panel"></div>';
   d.firstElementChild.innerHTML = panel;
   if (!d.open) d.showModal();
+  const next = $('[data-chat]', d);
+  if (next && (atBottom || ui.chatToBottom)) next.scrollTop = next.scrollHeight;
+  ui.chatToBottom = false;
+}
+
+// ---------- Conversation (WhatsApp-style) ----------
+const chatDay = (ms) => { const iso = toISO(new Date(ms)); return iso === todayISO() ? 'Today' : iso === addDays(todayISO(), -1) ? 'Yesterday' : parseISO(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: iso.slice(0, 4) === todayISO().slice(0, 4) ? undefined : 'numeric' }); };
+const chatTime = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+function fileChip(a) {
+  if (a.kind === 'link') {
+    const url = safeUrl(a.url);
+    return `<a class="chat-file link" ${url ? `href="${esc(url)}" target="_blank" rel="noopener noreferrer"` : ''}>${icon('link', 14)}<span>${esc(a.name)}</span></a>`;
+  }
+  if (a.thumb) return `<button class="chat-img" data-act="openFile" data-id="${esc(a.id)}" title="${esc(a.name)}"><img src="${esc(a.thumb)}" alt="${esc(a.name)}"></button>`;
+  return `<button class="chat-file" data-act="openFile" data-id="${esc(a.id)}">${icon('clip', 14)}<span>${esc(a.name)}</span><small>${fmtSize(a.size || 0)}</small></button>`;
+}
+/** The task's description, its messages (with files) and its activity, as one conversation. */
+function chatHTML(t) {
+  const items = [
+    ...t.comments.filter((c) => !c.deleted).map((c) => ({ at: c.at, c })),
+    ...t.history.map((e) => ({ at: e.at, e })),
+  ].sort((x, y) => x.at - y.at);
+  let lastDay = '';
+  let lastAuthor = null;
+  const rows = items.map((it) => {
+    let out = '';
+    const day = chatDay(it.at);
+    if (day !== lastDay) { out += `<li class="chat-day"><span>${esc(day)}</span></li>`; lastDay = day; lastAuthor = null; }
+    if (it.e) {
+      const e = it.e;
+      lastAuthor = null;
+      return `${out}<li class="chat-event"><span><b>${esc(e.by === S.meId ? 'You' : person(e.by)?.name || 'Someone')}</b> ${esc((EVENT_TEXT[e.type] || (() => e.type))(e))}${e.note ? `: “${esc(e.note)}”` : ''} · ${esc(chatTime(e.at))}</span></li>`;
+    }
+    const c = it.c;
+    const who = person(c.author);
+    const mine = c.author === S.meId;
+    const showName = !mine && c.author !== lastAuthor;
+    lastAuthor = c.author;
+    return `${out}<li class="msg ${mine ? 'mine' : 'theirs'} ${showName ? 'first' : ''}">
+      ${!mine ? (showName ? avatar(who, 28) : '<span class="avatar-gap"></span>') : ''}
+      <div class="bubble">
+        ${showName ? `<b class="msg-name" style="--nc:${esc(who?.color || '#b5894d')}">${esc(who?.name || 'Someone')}</b>` : ''}
+        ${(c.files || []).length ? `<div class="msg-files">${c.files.map(fileChip).join('')}</div>` : ''}
+        ${c.text ? `<p class="msg-text">${esc(c.text)}</p>` : ''}
+        <span class="msg-time">${esc(chatTime(c.at))}</span>
+        ${mine ? `<button class="msg-del icon-btn" data-act="delComment" data-id="${esc(c.id)}" aria-label="Delete message" title="Delete">${icon('close', 11)}</button>` : ''}
+      </div></li>`;
+  }).join('');
+  const staged = [...(ui.draft.files || []).map((f, i) => ({ i, name: f.name, kind: 'file' })), ...(ui.draft.links || []).map((l, i) => ({ i, name: l.name, kind: 'link' }))];
+  const count = t.comments.filter((c) => !c.deleted).length;
+  return `<section class="task-sec chat-sec">
+    <div class="sec-head"><h3>Conversation</h3><small class="muted">${count ? `${count} message${count === 1 ? '' : 's'}` : 'Messages, files and links, shared with everyone on this task'}</small></div>
+    <div class="chat-desc"><span>${icon('flag', 12)} Description</span><textarea rows="2" placeholder="What is this task about? Everyone on the task sees this at the top." data-input="notes" data-focus="task-notes" aria-label="Description">${esc(t.notes)}</textarea></div>
+    <div class="chat-scroll" data-chat>
+      ${t.attachments.length ? `<div class="chat-event"><span>Files added earlier</span></div><div class="msg-files earlier">${t.attachments.map(fileChip).join('')}</div>` : ''}
+      <ul class="chat">${rows || '<li class="chat-event"><span>No messages yet. Say hello, or attach a file.</span></li>'}</ul>
+    </div>
+    ${staged.length ? `<div class="chat-staged">${staged.map((x) => `<span class="staged">${icon(x.kind === 'link' ? 'link' : 'clip', 12)}${esc(x.name)}<button class="chip-x" data-act="unstage" data-kind="${x.kind}" data-i="${x.i}" aria-label="Remove ${esc(x.name)}">${icon('close', 10)}</button></span>`).join('')}</div>` : ''}
+    <form class="chat-compose" data-submit="sendMessage">
+      <button type="button" class="icon-btn" data-act="chatAttach" aria-label="Attach files" title="Attach files">${icon('clip', 17)}</button>
+      <button type="button" class="icon-btn" data-act="chatLink" aria-label="Add a link" title="Add a link">${icon('link', 17)}</button>
+      <textarea name="text" rows="1" placeholder="Message" data-input="commentDraft" data-focus="comment" aria-label="Message">${esc(ui.draft.comment)}</textarea>
+      <button class="btn primary sm chat-send" aria-label="Send">Send</button>
+    </form>
+    <p class="muted small">Enter sends · Shift+Enter for a new line · drop files anywhere here</p>
+  </section>`;
+}
+/** Sends the draft text with any staged files and links as one message. */
+async function sendMessage(t) {
+  const text = (ui.draft.comment || '').trim();
+  const files = ui.draft.files || [];
+  const links = ui.draft.links || [];
+  if (!text && !files.length && !links.length) return;
+  const stored = [];
+  for (const file of files) {
+    if (file.size > 50 * 1048576) { toast(`${file.name} is over the 50 MB limit.`, { error: true }); continue; }
+    try {
+      const id = uid();
+      await Store.putFile(id, file);
+      stored.push({ id, kind: 'file', name: file.name, size: file.size, type: file.type, thumb: await makeThumb(file) });
+    } catch (err) { toast(err.message || `Could not store ${file.name}.`, { error: true }); }
+  }
+  links.forEach((l) => stored.push({ id: uid(), kind: 'link', name: l.name, url: l.url }));
+  t.comments.push({ id: uid(), author: S.meId, text, at: Date.now(), ...(stored.length ? { files: stored } : {}) });
+  ui.draft = { comment: '', files: [], links: [] };
+  ui.focus = 'comment';
+  ui.chatToBottom = true;
+  commit();
+}
+function stageFiles(files) {
+  ui.draft.files = [...(ui.draft.files || []), ...files];
+  renderTask();
+  $('[data-focus="comment"]')?.focus();
 }
 
 // ---------- Pickers ----------

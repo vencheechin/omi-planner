@@ -395,45 +395,51 @@ const estimateOptions = (cur) => {
   const list = [...new Set([...estimateList(), ...(cur ? [cur] : [])])].sort((a, b) => a - b);
   return `<option value="" ${cur ? '' : 'selected'}>No estimate</option>${list.map((m) => `<option value="${m}" ${m === cur ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}`;
 };
-function setHealth(t, v) {
+function setHealth(t, v, exact = false) {
   const prev = t.health;
-  t.health = t.health === v ? '' : v;
+  t.health = exact ? v : t.health === v ? '' : v;
   if (t.health && t.health !== prev && t.health !== 'green') addEvent(t, 'health', { value: t.health, note: t.healthNote || '' });
   commit();
   if (t.health === 'yellow' || t.health === 'red') setTimeout(() => $('[data-focus="health-note"]')?.focus(), 0);
 }
 
-/** The Time box, Traffic light and Decision sections of the task panel. */
+/** The Traffic Light row under the task name: a dropdown, plus a recovery or support note when not Green. */
+function healthRowHTML(t) {
+  const h = healthOf(t.health);
+  return `<div class="health-row">
+      <label class="health-sel" style="--c:${h ? h.color : 'transparent'}"><span>Traffic Light</span><i aria-hidden="true"></i>
+        <select data-change="healthSel" data-id="${esc(t.id)}" aria-label="Traffic Light">
+          <option value="" ${h ? '' : 'selected'}>Not set</option>
+          ${HEALTH.map((x) => `<option value="${x.v}" ${t.health === x.v ? 'selected' : ''}>${esc(x.label)} – ${esc(x.meaning)}</option>`).join('')}
+        </select></label>
+      ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note" placeholder="${h.v === 'red' ? 'What help do you need, and from whom?' : 'What will get this back on track, and by when?'}">${esc(t.healthNote || '')}</textarea></label>` : ''}
+    </div>`;
+}
+
+/** The Time Box and Decision Request sections of the task panel. */
 function timeboxHTML(t) {
   const mio = mioDateOf(t);
   const targetDay = t.slotDate && t.slotDate >= todayISO() ? t.slotDate : todayISO();
   const h = healthOf(t.health);
   const dec = t.decision || {};
   const decField = (k, label, rows = 2) => `<label class="field"><span>${label}</span><textarea rows="${rows}" data-input="decisionField" data-k="${k}" data-focus="dec-${k}">${esc(dec[k] || '')}</textarea></label>`;
+  const inBox = !!(t.boxId && boxOf(t));
+  const inTimebox = isScheduled(t) || inBox || t.tbQueued;
+  const where = isScheduled(t) ? `${dayLabel(t.slotDate)} ${fmtTime(t.slotStart)}–${fmtTime(endOf(t))}${blockAt(t.slotDate, t.slotStart) ? ` · ${blockAt(t.slotDate, t.slotStart).name}` : ''}`
+    : inBox ? `in “${boxOf(t).title}”${isScheduled(boxOf(t)) ? `, ${slotText(boxOf(t))}` : ''}` : 'waiting in the Time Box list';
   return `<section class="task-sec tb-sec">
-      <div class="sec-head"><h3>Time box</h3>
-        <button class="btn ghost sm ${mio ? 'active' : ''}" data-act="toggleMio" data-id="${esc(t.id)}" data-date="${mio || targetDay}" title="3 Most Important Outcomes">★ ${mio ? `In 3MIO for ${esc(dayLabel(mio))}` : `Add to 3MIO for ${esc(dayLabel(targetDay))}`}</button></div>
-      <div class="task-fields">
-        <label class="field"><span>Work type</span><select data-change="tbField" data-field="workType">${WORK_TYPES.map((w) => `<option value="${w.v}" ${w.v === (t.workType || '') ? 'selected' : ''}>${esc(w.label)}</option>`).join('')}</select></label>
-        <label class="field"><span>Estimate</span><select data-change="tbField" data-field="estimate">${estimateOptions(t.estimate)}</select></label>
-        ${t.workType === 'decision' ? '' : `<label class="field"><span>Interruptions</span><select data-change="tbField" data-field="urgency"><option value="" ${t.urgency !== 'emergency' ? 'selected' : ''}>Normal</option><option value="emergency" ${t.urgency === 'emergency' ? 'selected' : ''}>Emergency: may interrupt focus</option></select></label>`}
-        <label class="field"><span>Day</span><input type="date" value="${t.slotDate || ''}" data-change="tbField" data-field="slotDate"></label>
-        <label class="field"><span>Start time</span><input type="time" step="${SNAP_OF() * 60}" value="${Number.isFinite(t.slotStart) ? hm(t.slotStart) : ''}" data-change="tbField" data-field="slotStart"></label>
-        <label class="field"><span>Colour</span><select data-change="tbField" data-field="tbColor">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (t.tbColor || '') ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>
-        <div class="field"><span>&nbsp;</span><div class="row">
-          <button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}">Next free slot</button>
-          ${isScheduled(t) ? `<button class="btn ghost sm" data-act="unschedule" data-id="${esc(t.id)}">Clear</button>` : ''}</div></div>
+      <div class="tb-row">
+        ${inTimebox
+          ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>
+            <button class="btn ghost sm" data-act="openInTimebox" data-id="${esc(t.id)}">Open</button>
+            <button class="btn ghost sm" data-act="removeFromTimebox" data-id="${esc(t.id)}">Remove</button>
+            <select class="tb-colour" data-change="tbField" data-field="tbColor" aria-label="Colour in the Time Box">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (t.tbColor || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Colour')}</option>`).join('')}</select>`
+          : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button><span class="muted small">It appears in the list on the right of the Time Box page.</span>`}
+        <span class="spacer"></span>
+        <button class="btn ghost sm ${mio ? 'active' : ''}" data-act="toggleMio" data-id="${esc(t.id)}" data-date="${mio || targetDay}" title="3 Most Important Outcomes">★ ${mio ? `In 3MIO for ${esc(dayLabel(mio))}` : `Add to 3MIO for ${esc(dayLabel(targetDay))}`}</button>
       </div>
-      ${t.boxId && boxOf(t) ? `<p class="small">In the time box <button class="link-btn" data-open-task="${esc(t.boxId)}">${esc(boxOf(t).title)}</button>${isScheduled(boxOf(t)) ? `, ${esc(slotText(boxOf(t)))}` : ''}. <button class="btn ghost xs" data-act="unbox" data-id="${esc(t.id)}">Take out</button></p>` : ''}
-      ${isScheduled(t) ? `<p class="muted small">${esc(dayLabel(t.slotDate))}, ${esc(fmtTime(t.slotStart))}–${esc(fmtTime(endOf(t)))}${blockAt(t.slotDate, t.slotStart) ? ` · in ${esc(blockAt(t.slotDate, t.slotStart).name)}` : ''}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps another block</span>' : ''}${intrudes(t) ? ' · <span class="danger-text">in protected focus time</span>' : ''}</p>` : ''}
     </section>
     ${isBox(t) ? boxSectionHTML(t) : ''}
-    <section class="task-sec">
-      <div class="sec-head"><h3>Traffic light</h3></div>
-      <div class="health-pick" role="radiogroup" aria-label="Traffic light status">${HEALTH.map((x) => `<button role="radio" aria-checked="${t.health === x.v}" class="health-btn ${t.health === x.v ? 'on' : ''}" style="--c:${x.color}" data-act="setHealth" data-id="${esc(t.id)}" data-v="${x.v}" title="${esc(x.meaning)}"><i></i>${esc(x.label)}</button>`).join('')}
-        <span class="muted small">${h ? esc(h.meaning) : 'Green = On Track · Yellow = At Risk · Red = Off Track, requires support'}</span></div>
-      ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support needed' : 'Recovery plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note" placeholder="${h.v === 'red' ? 'What help do you need, and from whom?' : 'What will get this back on track, and by when?'}">${esc(t.healthNote || '')}</textarea></label>` : ''}
-    </section>
     ${t.workType === 'decision' ? `<section class="task-sec decision-sec">
       <div class="sec-head"><h3>Decision request</h3></div>
       ${decField('issue', 'Issue')}${decField('recommendation', 'Recommendation')}${decField('impact', 'Impact')}${decField('needed', 'Decision needed')}

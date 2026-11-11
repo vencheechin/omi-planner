@@ -284,7 +284,8 @@ const Store = {
   // Blobs are removed here rather than on delete, so Undo and copied tasks keep working.
   async collectGarbage() {
     if (!this.db) return;
-    const used = new Set(S.tasks.flatMap((t) => t.attachments.filter((a) => a.kind === 'file').map((a) => a.id)));
+    // Files in deleted messages are kept too, so Undo and teammates' copies still work.
+    const used = new Set(S.tasks.flatMap((t) => [...t.attachments, ...t.comments.flatMap((c) => c.files || [])].filter((a) => a.kind === 'file').map((a) => a.id)));
     const keys = await this.tx('files', 'readonly', (s) => s.getAllKeys());
     const stale = (keys || []).filter((k) => !used.has(k));
     if (stale.length) await this.tx('files', 'readwrite', (s) => { stale.forEach((k) => s.delete(k)); });
@@ -315,6 +316,8 @@ function freeLabelSlot(plan) {
   const free = LABELS.map((_, i) => i).filter((i) => !plan.labels[i]);
   return free.find((i) => !used.has(i)) ?? free[0] ?? -1;
 }
+/** Every file and link on a task: older ones on the task itself, newer ones inside conversation messages. */
+const allFiles = (t) => [...(t.attachments || []), ...(t.comments || []).filter((c) => !c.deleted).flatMap((c) => c.files || [])];
 const personalPlan = () => S.plans.find((p) => p.personal) || S.plans[0];
 
 // ---------- Task mutations (callers save and re-render) ----------
@@ -409,7 +412,7 @@ function dataURLToBlob(url) {
 }
 async function exportBackup() {
   const files = {};
-  for (const a of S.tasks.flatMap((t) => t.attachments)) {
+  for (const a of S.tasks.flatMap((t) => [...t.attachments, ...t.comments.flatMap((c) => c.files || [])])) {
     if (a.kind !== 'file' || files[a.id]) continue;
     const blob = await Store.getFile(a.id);
     if (blob) files[a.id] = await blobToDataURL(blob);

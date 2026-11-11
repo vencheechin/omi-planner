@@ -444,7 +444,7 @@ const Team = {
   async filesDir() { return this.dir.getDirectoryHandle('files', { create: true }); },
   /** Copies attachments of shared tasks into the folder, once each. */
   async pushFiles() {
-    const ids = S.tasks.filter((t) => t.shared).flatMap((t) => t.attachments.filter((a) => a.kind === 'file').map((a) => a.id)).filter((id) => !this.sentFiles.has(id));
+    const ids = S.tasks.filter((t) => t.shared).flatMap((t) => allFiles(t).filter((a) => a.kind === 'file').map((a) => a.id)).filter((id) => !this.sentFiles.has(id));
     if (!ids.length) return;
     const dir = await this.filesDir();
     for (const id of ids) {
@@ -459,7 +459,7 @@ const Team = {
   },
   /** Fetches attachments teammates added, when they aren't on this device yet. */
   async pullFiles() {
-    const ids = S.tasks.filter((t) => t.shared).flatMap((t) => t.attachments.filter((a) => a.kind === 'file').map((a) => a.id)).filter((id) => !this.haveFiles.has(id));
+    const ids = S.tasks.filter((t) => t.shared).flatMap((t) => allFiles(t).filter((a) => a.kind === 'file').map((a) => a.id)).filter((id) => !this.haveFiles.has(id));
     if (!ids.length) return;
     const dir = await this.filesDir();
     for (const id of ids) {

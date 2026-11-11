@@ -174,6 +174,10 @@ function taskMenuItems(t, anchor) {
       : t.boxId && boxOf(t) ? { label: 'Take out of time box', icon: 'clock', run: () => { takeOutOfBox(t); commit(); } }
         : t.tbQueued ? { label: 'Remove from Time Box', icon: 'clock', run: () => { t.tbQueued = false; commit(); } }
           : { label: 'Add to Time Box', icon: 'clock', run: () => { t.tbQueued = true; commit(); toast('Added to Time Box. It’s waiting in the list on the right of the Time Box page.'); } },
+    {
+      label: t.assignees.length ? `Assigned to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Assign to someone', icon: 'user', sub: true,
+      run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },
+    },
     { label: 'Label', icon: 'tag', sub: true, run: () => openLabels(anchor, { taskId: t.id, planId: t.planId }) },
     { label: 'Copy task', icon: 'copy', run: () => copyTaskDialog(t) },
     { label: 'Copy link to task', icon: 'link', run: () => copyTaskLink(t) },
@@ -513,6 +517,45 @@ const actions = {
   },
   mioMenu: (el) => openPop(el, () => mioPickerHTML(el.dataset.date)),
   pickMio: (el) => { toggleMio(el.dataset.date, el.dataset.id); refreshPop(); },
+  assignTimebox: (el) => { taskById(el.dataset.id).tbQueued = true; commit(); toast('Added to the Time Box list. Drag it onto a time from the Time Box page.'); },
+  removeFromTimebox: (el) => {
+    const t = taskById(el.dataset.id);
+    const before = JSON.stringify(S);
+    if (t.boxId && boxOf(t)) takeOutOfBox(t);
+    t.slotDate = null;
+    t.slotStart = null;
+    t.tbQueued = false;
+    commit();
+    toast('Removed from the Time Box.', { undo: () => { S = JSON.parse(before); commit(); } });
+  },
+  openInTimebox: (el) => {
+    const t = taskById(el.dataset.id);
+    const slotted = isScheduled(t) ? t : t.boxId && boxOf(t) && isScheduled(boxOf(t)) ? boxOf(t) : null;
+    if (slotted) { ui.dayView = 'day'; ui.dayDate = slotted.slotDate; }
+    ui.openTask = null;
+    renderTask();
+    location.hash = '#/timebox';
+  },
+  chatAttach: () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = () => stageFiles([...input.files]);
+    input.click();
+  },
+  chatLink: async () => {
+    let url = await promptDlg('Add a link', 'Web address', 'https://', 'Add');
+    if (!url) return;
+    if (!/^[a-z]+:/i.test(url)) url = `https://${url}`;
+    if (!safeUrl(url)) { toast('Only http, https and mailto links can be added.', { error: true }); return; }
+    ui.draft.links = [...(ui.draft.links || []), { url, name: url.replace(/^https?:\/\//, '') }];
+    renderTask();
+  },
+  unstage: (el) => {
+    const key = el.dataset.kind === 'link' ? 'links' : 'files';
+    ui.draft[key] = (ui.draft[key] || []).filter((_, i) => i !== Number(el.dataset.i));
+    renderTask();
+  },
   toggleMio: (el) => {
     const t = taskById(el.dataset.id);
     toggleMio(mioDateOf(t) || el.dataset.date, t.id);
@@ -678,7 +721,7 @@ const actions = {
     commit();
   },
   openFile: async (el) => {
-    const a = openTaskObj().attachments.find((x) => x.id === el.dataset.id);
+    const a = allFiles(openTaskObj()).find((x) => x.id === el.dataset.id);
     const blob = await Store.getFile(a.id);
     if (blob) download(a.name, blob);
     else toast('This file is not on this device.', { error: true });
@@ -773,6 +816,7 @@ const submits = {
     ui.focus = 'check-add';
     commit();
   },
+  sendMessage: () => { sendMessage(openTaskObj()); },
   addComment: (form, data) => {
     const text = data.get('text').trim();
     if (!text) return;
@@ -947,6 +991,7 @@ const changes = {
     if (isScheduled(t) && dur) scheduleTask(t, t.slotDate, t.slotStart, dur); else { t.estimate = dur; commit(); }
   },
   boxAddExisting: (el) => { if (!el.value) return; putInBox(taskById(el.dataset.id), taskById(el.value)); commit(); },
+  healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
     const t = openTaskObj();
     const f = el.dataset.field;
@@ -1326,7 +1371,8 @@ document.addEventListener('click', (e) => {
 }, true);
 function openTask(id) {
   ui.openTask = id;
-  ui.draft.comment = '';
+  ui.draft = { comment: '', files: [], links: [] };
+  ui.chatToBottom = true;
   renderTask();
   $('#taskDialog .task-scroll').scrollTop = 0;
 }
@@ -1357,7 +1403,7 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Enter' && e.target.matches('article[data-open-task]')) { e.preventDefault(); openTask(e.target.dataset.openTask); return; }
   if (e.key === 'Enter' && e.target.matches('.col-title-input, .plan-title, .people-list input')) e.target.blur();
-  if (e.key === 'Enter' && e.target.closest('.comment-add') && (e.metaKey || e.ctrlKey)) e.target.form.requestSubmit();
+  if (e.key === 'Enter' && e.target.closest('.chat-compose') && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
   if (e.key === '/' && !typing && !topDialog()) { e.preventDefault(); $('#search').focus(); }
 });
 function bindShell() {
@@ -1370,7 +1416,7 @@ function bindShell() {
   d.addEventListener('click', (e) => { if (e.target === d) actions.closeTask(); });
   ['dragover', 'drop'].forEach((type) => d.addEventListener(type, (e) => {
     e.preventDefault();
-    if (type === 'drop' && e.dataTransfer.files.length) attachFiles(openTaskObj(), [...e.dataTransfer.files]);
+    if (type === 'drop' && e.dataTransfer.files.length) stageFiles([...e.dataTransfer.files]);
   }));
   $('#search').addEventListener('input', (e) => { ui.search = e.target.value; renderMainOnly(); });
   window.addEventListener('hashchange', route);
