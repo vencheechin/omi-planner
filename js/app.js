@@ -169,10 +169,9 @@ function colourPicker(anchor, plan) {
 // ---------- Task menu (card "…" and the task panel) ----------
 function taskMenuItems(t, anchor) {
   return [
-    isScheduled(t) ? { label: 'Move to next free slot', icon: 'clock', run: () => bookNextFree(t) }
-      : t.boxId && boxOf(t) ? { label: 'Take out of time box', icon: 'clock', run: () => { takeOutOfBox(t); commit(); } }
-        : t.tbQueued ? { label: 'Remove from Time Box', icon: 'clock', run: () => { t.tbQueued = false; commit(); } }
-          : { label: 'Add to Time Box', icon: 'clock', run: () => { t.tbQueued = true; commit(); toast('Added to Time Box. It’s waiting in the list on the right of the Time Box page.'); } },
+    ...(isScheduled(t) || (t.boxId && boxOf(t)) || t.tbQueued
+      ? [{ label: 'Remove from Time Box', icon: 'clock', run: () => actions.removeFromTimebox({ dataset: { id: t.id } }) }]
+      : [{ label: 'Add to Time Box', icon: 'clock', run: () => { t.tbQueued = true; commit(); toast('Added to Time Box. It’s waiting in the list on the right of the Time Box page.'); } }]),
     {
       label: t.assignees.length ? `Assigned to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Assign to someone', icon: 'user', sub: true,
       run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },

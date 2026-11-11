@@ -551,10 +551,7 @@ function tbRowHTML(t) {
     : inBox ? `in “${boxOf(t).title}”${isScheduled(boxOf(t)) ? `, ${slotText(boxOf(t))}` : ''}` : 'waiting in the Time Box list';
   return `<div class="tb-row">
         ${inTimebox
-          ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>
-            <button class="btn ghost sm" data-act="openInTimebox" data-id="${esc(t.id)}">Open</button>
-            <button class="btn ghost sm" data-act="removeFromTimebox" data-id="${esc(t.id)}">Remove</button>
-            ${colourButtonHTML('task', t.id, t.tbColor, autoColor(t), 'Automatic')}`
+          ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
       </div>`;
 }
