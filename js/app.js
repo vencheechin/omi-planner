@@ -338,6 +338,7 @@ function settingsHTML() {
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
+  <section class="set-sec"><h3>Colour Style</h3>${styleSettingsHTML()}</section>
   <section class="set-sec"><h3>Import from Microsoft Planner</h3>
     <p class="muted small">In Microsoft Planner, open a plan, choose ••• next to the plan name, then <b>Export plan to Excel</b>. Choose that file here (you can pick several). Each becomes a plan with its buckets, tasks, progress, priority, dates, labels, checklist, description and people.</p>
     <div class="row"><button class="btn ghost sm" data-act="importPlanner">${icon('upload', 14)} Choose Excel file…</button></div></section>
@@ -362,6 +363,7 @@ function applyTheme() {
   if (v === 'system') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', v);
   try { localStorage.setItem('planner-theme', v); } catch { /* theme just falls back to system */ }
+  applyStyle();
   applySizes();
 }
 
@@ -787,6 +789,7 @@ const actions = {
     d.classList.add('settings');
     refreshSettings();
   },
+  setStyle: (el) => { S.settings.style = el.dataset.v; applyStyle(); Store.save(); render(); refreshSettings(); toast(`Colour style: ${styleOf(el.dataset.v).name}.`); },
   setTheme: (el) => { S.settings.theme = el.dataset.v; applyTheme(); Store.save(); refreshSettings(); },
   delPerson: async (el) => {
     const id = el.dataset.id;

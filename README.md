@@ -62,6 +62,13 @@ Each task has a WhatsApp-style conversation. Enter sends; Shift+Enter adds a new
 - Set your **Default Language** in Settings. Messages in other languages are translated with
   Google Translate and marked "Translated from …", with **Show original**.
 
+## Colour Style
+
+Settings > Colour Style: **OMI Corporate Colour** (the OMI style guide, default), **Coastal Blue**,
+**Eucalyptus**, **Desert Clay** or **Graphite**. Each works in Light and Dark and has its own palette
+of 8 colours; the Time Box gives each task one of them automatically (neighbouring tasks never
+share a colour). You can still pick a colour for a task or block.
+
 ## Import from Microsoft Planner
 
 In Microsoft Planner, open a plan, choose **•••** next to the plan name, then **Export plan to

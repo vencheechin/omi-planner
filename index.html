@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="css/app.css">
   <script>
     try {
+      var styleCss = localStorage.getItem('planner-style-css');
+      if (styleCss) { var st = document.createElement('style'); st.id = 'style-tokens'; st.textContent = styleCss; document.head.appendChild(st); }
       var theme = localStorage.getItem('planner-theme');
       if (theme && theme !== 'system') document.documentElement.setAttribute('data-theme', theme);
       var sizes = JSON.parse(localStorage.getItem('planner-sizes') || 'null');
@@ -42,6 +44,7 @@
   <script src="js/cloud.js"></script>
   <script src="js/import.js"></script>
   <script src="js/chat.js"></script>
+  <script src="js/styles.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

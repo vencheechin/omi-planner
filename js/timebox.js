@@ -476,7 +476,7 @@ function blockMenu(e, col) {
     ${blockNamesList()}
     <div class="task-fields two">
       <label class="field"><span>Type</span><select name="kind">${workTypeOptions(b ? b.kind : 'focus')}</select></label>
-      <label class="field"><span>Colour</span><select name="color">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (b?.color || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Type colour')}</option>`).join('')}</select></label>
+      <label class="field"><span>Colour</span><select name="color">${tbColors(b?.color).map((c) => `<option value="${c.v}" ${c.v === (b?.color || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Type colour')}</option>`).join('')}</select></label>
       <label class="field"><span>Starts</span><input name="start" type="time" step="300" value="${hm(start)}" required></label>
       <label class="field"><span>Ends</span><input name="end" type="time" step="300" value="${hm(end)}" required></label>
     </div>
@@ -535,7 +535,7 @@ function timeboxHTML(t) {
           ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>
             <button class="btn ghost sm" data-act="openInTimebox" data-id="${esc(t.id)}">Open</button>
             <button class="btn ghost sm" data-act="removeFromTimebox" data-id="${esc(t.id)}">Remove</button>
-            <select class="tb-colour" data-change="tbField" data-field="tbColor" aria-label="Colour in the Time Box">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (t.tbColor || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Colour')}</option>`).join('')}</select>`
+            <select class="tb-colour" data-change="tbField" data-field="tbColor" aria-label="Colour in the Time Box">${tbColors(t.tbColor).map((c) => `<option value="${c.v}" ${c.v === (t.tbColor || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Colour: Automatic')}</option>`).join('')}</select>`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button><span class="muted small">It appears in the list on the right of the Time Box page.</span>`}
         <span class="spacer"></span>
         <button class="btn ghost sm ${mio ? 'active' : ''}" data-act="toggleMio" data-id="${esc(t.id)}" data-date="${mio || targetDay}" title="3 Most Important Outcomes">★ ${mio ? `In 3MIO for ${esc(dayLabel(mio))}` : `Add to 3MIO for ${esc(dayLabel(targetDay))}`}</button>
@@ -650,7 +650,7 @@ const TB_COLORS = [
   { v: '', label: 'By work type' }, { v: '#e8b896', label: 'Peach' }, { v: '#a9cf8f', label: 'Green' }, { v: '#9fc5e3', label: 'Blue' },
   { v: '#c8b5dc', label: 'Lavender' }, { v: '#df9f6c', label: 'Orange' }, { v: '#d9705e', label: 'Red' }, { v: '#e6cd78', label: 'Yellow' }, { v: '#bdb6a6', label: 'Grey' },
 ];
-const fillOf = (t) => t.tbColor || workTypeOf(t.workType).color;
+const fillOf = (t) => t.tbColor || autoColor(t);
 const rowLabel = (min) => { const h = Math.floor(min / 60); const m = min % 60; return `${((h + 11) % 12) + 1}${m ? `.${pad(m)}` : ''}`; };
 /** Lays out overlapping blocks side by side. */
 function laneLayout(tasks) {
@@ -860,7 +860,7 @@ function timeboxSettingsHTML() {
       <i class="dot" style="background:${b.color || workTypeOf(b.kind).color}"></i>
       <input value="${esc(b.name)}" list="tb-block-names" data-change="tbBlock" data-id="${esc(b.id)}" data-k="name" aria-label="Block name">
       <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="kind" aria-label="Type">${workTypeOptions(b.kind, true)}</select>
-      <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="color" aria-label="Colour">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (b.color || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Type colour')}</option>`).join('')}</select>
+      <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="color" aria-label="Colour">${tbColors(b.color).map((c) => `<option value="${c.v}" ${c.v === (b.color || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Type colour')}</option>`).join('')}</select>
       <input type="time" step="900" value="${hm(b.start)}" data-change="tbBlock" data-id="${esc(b.id)}" data-k="start" aria-label="Starts">
       <input type="time" step="900" value="${hm(b.end)}" data-change="tbBlock" data-id="${esc(b.id)}" data-k="end" aria-label="Ends">
       <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="cadence" aria-label="Repeats">${CADENCES.map((c) => `<option value="${c.v}" ${c.v === b.cadence ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select>
