@@ -608,6 +608,8 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .wt-add { gap: 8px; }
 .wt-add input { flex: 1; }
 .tb-tap { width: min(360px, calc(100vw - 24px)); display: grid; gap: 6px; }
+.tb-tap h4 { text-transform: none; }
+.tb-tap-add { justify-content: center; text-align: center; }
 .tb-tap-list { display: grid; gap: 4px; max-height: 40vh; overflow: auto; }
 .tb-tap-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; text-align: left; background: color-mix(in srgb, var(--ink) 5%, transparent); min-height: 40px; }
 .tb-tap-item:hover { background: color-mix(in srgb, var(--c) 22%, transparent); }

@@ -517,10 +517,10 @@ const actions = {
       ${queue.length ? `<p class="muted small">From your Time Box list, tap one to put it here:</p>
       <div class="tb-tap-list">${queue.map((q) => `<button type="button" class="tb-tap-item" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}"><i></i><span>${healthDot(q)}${esc(q.title || 'Untitled task')}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`).join('')}</div>
       <p class="muted small">Or add a new task:</p>` : `<p class="muted small">Your Time Box list is empty. Use “Add to Time Box” on a task to list it here, or add a new task:</p>`}
-      <textarea name="title" rows="${queue.length ? 2 : 3}" placeholder="Task name. Or several small tasks, one per line, to share this time box." required aria-label="Task name, or several, one per line"></textarea>
-      <div class="task-fields two"><label class="field"><span>Estimate</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
-      <label class="field"><span>Work type</span><select name="workType">${workTypeOptions(block?.kind || '', true)}</select></label></div>
-      <button class="btn primary sm">Add to ${esc(fmtTime(start))}</button></form>`);
+      <textarea name="title" rows="2" required aria-label="Task name (several lines share one time box)"></textarea>
+      <label class="field"><span>Time Box</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
+      <input type="hidden" name="workType" value="${esc(block?.kind || '')}">
+      <button class="btn primary sm tb-tap-add">Add</button></form>`);
     // With a list to pick from, don't pop the phone keyboard up over it.
     if (!queue.length) $('textarea', ui.pop.el).focus();
   },
