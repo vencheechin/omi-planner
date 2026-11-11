@@ -46,7 +46,7 @@ function renderBrandPlan() {
   };
   return `<div class="page bp-page">
     <header class="bp-head">
-      <div><h1>H${h.half} ${h.year} Plan</h1></div>
+      <div><h1>S-Team Plan <span class="bp-sub">H${h.half} ${h.year}</span></h1></div>
       <div class="spacer"></div>
       <div class="seg">${[1, 2].map((n) => `<button class="${h.half === n ? 'on' : ''}" data-act="bpHalf" data-v="${n}">H${n}</button>`).join('')}</div>
       <div class="row bp-year"><button class="icon-btn" data-act="bpYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><b>${h.year}</b><button class="icon-btn" data-act="bpYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>

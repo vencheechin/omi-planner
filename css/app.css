@@ -986,6 +986,7 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .bp-page { display: grid; gap: 14px; max-width: 1400px; }
 .bp-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .bp-head h1 { font-size: calc(26px * var(--scale) * var(--type)); color: var(--heading); }
+.bp-sub { color: var(--muted); font-weight: 400; }
 .bp-year { gap: 2px; } .bp-year b { min-width: 44px; text-align: center; }
 .bp-scroll { overflow-x: auto; border-radius: 12px; background: var(--surface); box-shadow: 0 0 0 0.5px var(--line); }
 .bp-table { width: 100%; border-collapse: collapse; min-width: 900px; table-layout: fixed; }

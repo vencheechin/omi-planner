@@ -193,7 +193,7 @@ function renderSidebar() {
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
-      ${link('hub', 'My plans', 'home')}${link('my-day', 'My Day', 'sun', day)}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}${link('halfplan', 'H1 / H2 Plan', 'table')}
+      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My plans', 'home')}${link('my-day', 'My Day', 'sun', day)}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}
       ${S.personPlans.length ? `<h3>People</h3>${S.personPlans.map(personLink).join('')}` : ''}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
