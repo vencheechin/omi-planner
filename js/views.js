@@ -210,6 +210,7 @@ function cardHTML(t, { showPlan } = {}) {
   const plan = planById(t.planId);
   const doneItems = t.checklist.filter((c) => c.done).length;
   const meta = [
+    S.inbox.some((n) => n.taskId === t.id && !n.read) ? `<span class="meta alert" title="New notifications on this task">${icon('bell', 13)}${S.inbox.filter((n) => n.taskId === t.id && !n.read).length}</span>` : '',
     t.review ? `<span class="meta checking" title="Submitted for checking ${esc(fmtDateTime(t.review.at))}">Checking</span>` : '',
     timeboxMeta(t), progressIcon(t), priorityIcon(t.priority),
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
@@ -228,6 +229,19 @@ function cardHTML(t, { showPlan } = {}) {
   </article>`;
 }
 
+/**
+ * In your own planner, tasks other people assigned to you get a bucket per person ("Assigned by Ven"),
+ * so they're easy to find. The tasks stay in the plan they were made in.
+ */
+function assignedToMeGroups(plan) {
+  if (!plan.personal) return [];
+  const mine = S.tasks.filter((t) => t.planId !== plan.id && t.assignees.includes(S.meId) && t.assignedBy && t.assignedBy !== S.meId && !t.boxId);
+  const by = [...new Set(mine.map((t) => t.assignedBy))];
+  return by.map((id) => ({
+    key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true,
+    tasks: applyFilter(mine.filter((t) => t.assignedBy === id), filterOf(plan.id)).sort(byOrder),
+  }));
+}
 function boardHTML(groups, by, ctx) {
   const col = (g) => {
     const key = `${ctx.key}:${g.key}`;
@@ -431,7 +445,7 @@ function renderPlan(plan) {
   const tasks = applyFilter(tasksOf(plan.id), filterOf(fkey));
   const ctx = { key: plan.id, planId: plan.id };
   const body = {
-    board: () => boardHTML(groupsFor(by, tasks, plan), by, ctx), grid: () => gridHTML(tasks, ctx),
+    board: () => boardHTML([...groupsFor(by, tasks, plan), ...(by === 'bucket' ? assignedToMeGroups(plan) : [])], by, { ...ctx, showPlan: true }), grid: () => gridHTML(tasks, ctx),
     schedule: () => scheduleHTML(tasks, plan), charts: () => chartsHTML(tasks, plan),
   }[tab]();
   return `<div class="plan-page">

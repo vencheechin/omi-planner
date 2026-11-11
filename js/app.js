@@ -786,7 +786,23 @@ const actions = {
     refreshPop();
     commit();
   },
-  toggleCheck: (el) => { const c = openTaskObj().checklist.find((x) => x.id === el.dataset.id); c.done = !c.done; commit(); },
+  toggleCheck: (el) => {
+    const t = openTaskObj();
+    const c = t.checklist.find((x) => x.id === el.dataset.id);
+    c.done = !c.done;
+    c.doneBy = c.done ? S.meId : null;
+    c.doneAt = c.done ? Date.now() : null;
+    // On a task shared with others, the tick goes in the history so everyone sees who did it and when.
+    if (t.assignees.some((a) => a !== S.meId) || (t.assignedBy && t.assignedBy !== S.meId)) addEvent(t, 'check', { text: c.text, done: c.done, item: c.id });
+    commit();
+  },
+  toggleCheckAlerts: () => {
+    const t = openTaskObj();
+    const on = (t.checkAlerts || []).includes(S.meId);
+    t.checkAlerts = on ? (t.checkAlerts || []).filter((id) => id !== S.meId) : [...(t.checkAlerts || []), S.meId];
+    commit();
+    toast(on ? 'You won’t be notified when items are ticked.' : 'You’ll be notified when someone ticks an item on this task.');
+  },
   delCheck: (el) => { const t = openTaskObj(); t.checklist = t.checklist.filter((c) => c.id !== el.dataset.id); commit(); },
   // Comments are marked deleted rather than removed, so the deletion syncs to teammates.
   delComment: (el) => { const c = openTaskObj().comments.find((x) => x.id === el.dataset.id); if (c) c.deleted = true; commit(); },
@@ -916,7 +932,7 @@ const submits = {
   addCheck: (form, data) => {
     const text = data.get('text').trim();
     if (!text) return;
-    openTaskObj().checklist.push({ id: uid(), text, done: false });
+    openTaskObj().checklist.push({ id: uid(), text, done: false, by: S.meId, at: Date.now() });
     ui.focus = 'check-add';
     commit();
   },
@@ -1306,7 +1322,8 @@ function dragMove(x, y) {
       return;
     }
     const col = under?.closest('.col[data-group]');
-    if (!col || col.dataset.locked) { s.ph.remove(); return; }
+    // Tasks shown in an "Assigned by …" bucket belong to another plan, so they stay put.
+    if (!col || col.dataset.locked || (String(s.fromGroup || '').startsWith('from:') && col.dataset.group !== s.fromGroup)) { s.ph.remove(); s.target = null; return; }
     const body = $('.col-body', col);
     const cards = $$('.card:not(.drag-src)', body);
     const before = cards.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
@@ -1491,6 +1508,10 @@ function openTask(id) {
   ui.draft = { comment: '', files: [], links: [], contacts: [], replyTo: null };
   ui.chatSelect = null;
   ui.chatToBottom = true;
+  // Opening a task reads its notifications.
+  let read = false;
+  S.inbox.forEach((n) => { if (n.taskId === id && !n.read) { n.read = true; read = true; } });
+  if (read) { Store.save(); updateBell(); }
   renderTask();
   $('#taskDialog .task-scroll').scrollTop = 0;
 }

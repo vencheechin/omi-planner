@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder'];
 const FILE_APP = 'planner-team';
@@ -36,6 +36,7 @@ const EVENT_TEXT = {
   assigned: (e) => `assigned to ${nameOf(e.to)}`, unassigned: (e) => `removed ${nameOf(e.to)}`, submitted: () => 'submitted for checking',
   returned: () => 'sent back for more work', withdrawn: () => 'withdrew from checking', completed: () => 'approved and completed', reopened: () => 'reopened',
   health: (e) => `marked it ${healthText(e.value) || e.value}`,
+  check: (e) => `${e.done ? 'ticked' : 'unticked'} “${e.text}”`,
 };
 const nameOf = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
 
@@ -253,6 +254,7 @@ function newEvents(t, known) {
     else if (e.type === 'assigned' && e.to === S.meId) out.push({ kind: 'assigned', text: `${who} assigned you “${t.title}”` });
     else if (e.type === 'returned' && t.assignees.includes(S.meId)) out.push({ kind: 'returned', text: `${who} sent back “${t.title}”`, note: e.note });
     else if (e.type === 'completed' && t.assignees.includes(S.meId)) out.push({ kind: 'completed', text: `${who} approved “${t.title}”` });
+    else if (e.type === 'check' && e.done && (t.checkAlerts || []).includes(S.meId)) out.push({ kind: 'check', text: `${who} ticked “${e.text}” on “${t.title}”` });
     else if (e.type === 'health' && reviewerOf(t) === S.meId) out.push({ kind: e.value === 'red' ? 'returned' : 'review', text: `${who} marked “${t.title}” ${healthText(e.value) || e.value}`, note: e.note });
   }
   for (const c of t.comments) {

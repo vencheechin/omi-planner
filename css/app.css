@@ -621,6 +621,15 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .style-pal { grid-area: pal; display: flex; gap: 4px; }
 .style-pal i { width: 12px; height: 12px; border-radius: 50%; }
 .style-card > .icon { grid-area: chk; color: var(--highlight); }
+.ck-item .grip { cursor: grab; color: var(--muted); font-size: 11px; letter-spacing: -2px; padding: 4px 2px; user-select: none; touch-action: none; }
+.ck-main { flex: 1; min-width: 0; display: grid; }
+.ck-main input { width: 100%; }
+.ck-who { color: var(--muted); font-size: calc(11.5px * var(--scale) * var(--type)); padding: 0 6px 2px; }
+.ck-done { display: inline-flex; align-items: center; gap: 3px; color: var(--st-done); }
+.ck-alert.active { color: var(--highlight); border-color: var(--highlight); }
+.meta.alert { color: var(--highlight); font-weight: 700; }
+.col[data-group^="from:"] { background: color-mix(in srgb, var(--highlight) 7%, var(--surface-2)); }
+@media (hover: none) { .ck-item .grip { padding: 8px 6px; font-size: 13px; } }
 .tb-tap h4 { text-transform: none; }
 .tb-tap-add { justify-content: center; text-align: center; }
 .tb-tap-list { display: grid; gap: 4px; max-height: 40vh; overflow: auto; }
