@@ -213,17 +213,16 @@ function askPlanBucket(title) {
       title: 'Add to Your Planner?',
       html: `<form class="stack">
         <p><b>${esc(title)}</b></p>
-        ${planBucketFields(p.id, p.buckets[0].id)}
+        <label class="field"><span>Bucket</span><select name="bucket">${p.buckets.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')}</select></label>
         <label class="mini"><input type="checkbox" name="remember"> Use this every time</label>
         <div class="dlg-foot"><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Add</button></div></form>`,
       onClose: () => resolve(answer),
     });
     const form = $('form', d);
-    bindPlanBucket(form);
     $('[data-role="no"]', d).onclick = () => d.close();
     form.onsubmit = (e) => {
       e.preventDefault();
-      answer = { planId: form.elements.plan.value, bucketId: form.elements.bucket.value };
+      answer = { planId: p.id, bucketId: form.elements.bucket.value };
       if (form.elements.remember.checked) TB().addTo = { ...answer };
       d.close();
     };
