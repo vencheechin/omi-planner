@@ -369,6 +369,9 @@ function settingsHTML() {
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
+  <section class="set-sec"><h3>Planner</h3>
+    <label class="field"><span>Planner Name</span><input value="${esc(plannerName())}" data-change="plannerName" autocomplete="off"></label>
+    <button class="btn ghost sm" data-act="runSetup">Focus sessions</button></section>
   <section class="set-sec"><h3>Font</h3>
     <div class="seg">${[['', 'Garamond (OMI)'], ['system', 'System (Apple)']].map(([v, l]) => `<button class="${(S.settings.font || '') === v ? 'on' : ''}" data-act="setFont" data-v="${v}">${l}</button>`).join('')}</div></section>
   <section class="set-sec"><h3>Button Usage</h3><div class="row"><button class="btn ghost sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>
@@ -856,6 +859,7 @@ const actions = {
     if (kind === 'task') { taskById(id).tbColor = v; commit(); }
     else { TB().blocks.find((x) => x.id === id).color = v || null; commit(); refreshSettings(); }
   },
+  runSetup: () => { $$('dialog[open]').forEach((d) => { if (d.id !== 'taskDialog') d.close(); }); setupDlg(); },
   teamDevice: () => Team.connectDevice(),
   openUsage: () => usageDlg(),
   exportUsage: (el) => {
@@ -1148,6 +1152,7 @@ const changes = {
   chatLang: (el) => { chatPrefs().lang = el.value; commit(); refreshSettings(); toast(`Messages will be shown in ${langName(el.value)}.`); },
   chatTranslate: (el) => { chatPrefs().translate = el.checked; commit(); },
   msgPick: (el) => { const s = ui.chatSelect || new Set(); if (el.checked) s.add(el.dataset.id); else s.delete(el.dataset.id); ui.chatSelect = s; renderTask(); },
+  plannerName: (el) => { S.settings.plannerName = el.value.trim().slice(0, 60); commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
     const t = openTaskObj();
@@ -1653,7 +1658,7 @@ function route() {
     if (params.get('name')) me.name = params.get('name').trim();
     Store.save();
     history.replaceState(null, '', path);
-    setTimeout(() => actions.openSettings(), 0);
+    if (S.settings.onboarded !== false) setTimeout(() => actions.openSettings(), 0);
   }
   ui.search = '';
   ui.navOpen = false;
@@ -1689,6 +1694,7 @@ function route() {
   bindShell();
   applyTheme();
   route();
+  if (S.settings.onboarded === false) setTimeout(setupDlg, 60);
   if (new URLSearchParams(location.search).get('test') === '1') setTimeout(() => { if (!Team.dir && person(S.meId)?.email) Team.connectDevice({ quiet: true }); }, 400);
   updateStatus();
   Store.collectGarbage().catch(console.error);

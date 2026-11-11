@@ -142,7 +142,7 @@ function applyGroup(t, by, from, to) {
 /** A plan someone else shared with you shows their name, e.g. "Getting started (Ven)". */
 const planLabel = (p) => (p.owner && p.owner !== S.meId && person(p.owner) ? `${p.name} (${person(p.owner).name})` : p.name);
 /** "Ven's Planner" once you've set your name in Settings; plain "Planner" until then. */
-const plannerName = () => { const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n}${/s$/i.test(n) ? "'" : "'s"} Planner` : 'Planner'; };
+const plannerName = () => { if (S.settings.plannerName) return S.settings.plannerName; const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n}${/s$/i.test(n) ? "'" : "'s"} Planner` : 'Planner'; };
 /** Phones: a tab bar at the bottom, like iOS. */
 function renderTabbar() {
   const bar = $('#tabbar');

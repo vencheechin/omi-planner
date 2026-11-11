@@ -106,13 +106,8 @@ function defaultTimebox() {
     blocks: [
       { id: uid(), name: 'Focus', kind: 'focus', start: 8 * 60 + 30, end: 12 * 60 + 30, cadence: 'daily', protected: true,
         note: 'Strategy, culture, finances, planning, proposals, leadership, growth and long-term decisions. Protected from interruptions, except emergencies.' },
-      { id: uid(), name: 'Decision Window', kind: 'decision', start: 13 * 60 + 30, end: 14 * 60, cadence: 'daily', protected: false,
-        note: 'Review written decision requests and handle same-day decisions.' },
-      { id: uid(), name: 'Collaboration', kind: 'collab', start: 14 * 60, end: 17 * 60, cadence: 'daily', protected: false,
-        note: 'Operational work, meetings and team discussions.' },
-      { id: uid(), name: 'Tomorrow Planning', kind: 'planning', start: 17 * 60, end: 17 * 60 + 30, cadence: 'daily', protected: false,
-        note: "Review the day and choose tomorrow's 3 Most Important Outcomes." },
     ],
+    focusOnly: true,
   };
 }
 /** Repairs saved rhythm settings so a bad or partial value can't break the planner. */
@@ -129,7 +124,9 @@ function normalizeTimebox(tb) {
     addTo: tb.addTo && typeof tb.addTo.planId === 'string' && typeof tb.addTo.bucketId === 'string' ? { planId: tb.addTo.planId, bucketId: tb.addTo.bucketId } : null,
     workTypes,
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
-    blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start).map((b) => ({
+    focusOnly: true,
+    blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start)
+      .filter((b) => tb.focusOnly || !['Decision Window', 'Collaboration', 'Tomorrow Planning', "Tomorrow's Planning"].includes(b.name)).map((b) => ({
       id: String(b.id || uid()), name: b.name === 'CEO Focus' ? 'Focus' : String(b.name || 'Block'), kind: kinds.has(b.kind) ? b.kind : '', color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '',
       start: b.start, end: b.end, cadence: CADENCES.some((c) => c.v === b.cadence) ? b.cadence : 'daily', anchor: b.anchor || null,
       protected: !!b.protected, note: String(b.note || ''),
@@ -455,6 +452,50 @@ function setHealth(t, v, exact = false) {
   if (t.health && t.health !== prev && t.health !== 'green') addEvent(t, 'health', { value: t.health, note: t.healthNote || '' });
   commit();
   if (t.health === 'yellow' || t.health === 'red') setTimeout(() => $('[data-focus="health-note"]')?.focus(), 0);
+}
+
+/** First run: name the planner and say when you focus best (1 to 5 sessions). */
+function setupDlg() {
+  const focus = TB().blocks.filter((b) => b.kind === 'focus' && b.cadence === 'daily').sort((a, b) => a.start - b.start);
+  const sessions = (focus.length ? focus : [{ start: 8 * 60 + 30, end: 12 * 60 + 30 }]).slice(0, 5);
+  const row = (s) => `<div class="focus-row"><input type="time" step="300" name="from" value="${hm(s.start)}" aria-label="From" required><span>to</span><input type="time" step="300" name="to" value="${hm(s.end)}" aria-label="To" required><button type="button" class="icon-btn" data-role="del" aria-label="Remove session">${icon('close', 13)}</button></div>`;
+  const d = showDialog({
+    title: 'Welcome',
+    html: `<form class="stack setup">
+      <label class="field"><span>Name Your Planner</span><input name="name" value="${esc(S.settings.plannerName || plannerName())}" required autocomplete="off"></label>
+      <div class="field"><span>When Do You Focus Best?</span><div class="focus-list">${sessions.map(row).join('')}</div>
+        <button type="button" class="btn ghost sm" data-role="add">${icon('plus', 14)} Add session</button></div>
+      <div class="dlg-foot"><button class="btn primary">Start</button></div></form>`,
+    onClose: () => { if (S.settings.onboarded === false) { S.settings.onboarded = true; commit(); } },
+  });
+  const form = $('form', d);
+  const list = $('.focus-list', d);
+  const sync = () => { const n = list.children.length; $('[data-role="add"]', d).hidden = n >= 5; $$('[data-role="del"]', list).forEach((b) => { b.hidden = n <= 1; }); };
+  sync();
+  $('[data-role="add"]', d).onclick = () => {
+    if (list.children.length >= 5) return;
+    const last = list.lastElementChild ? parseHM(list.lastElementChild.querySelector('[name=to]').value) : 8 * 60 + 30;
+    const start = Math.min(last + 60, 22 * 60);
+    list.insertAdjacentHTML('beforeend', row({ start, end: Math.min(start + 120, 23 * 60 + 55) }));
+    sync();
+  };
+  list.onclick = (e) => { const b = e.target.closest('[data-role="del"]'); if (b && list.children.length > 1) { b.closest('.focus-row').remove(); sync(); } };
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const rows = $$('.focus-row', list).map((r) => ({ start: parseHM(r.querySelector('[name=from]').value), end: parseHM(r.querySelector('[name=to]').value) }));
+    if (rows.some((r) => r.start === null || r.end === null || r.end <= r.start)) { toast('Each session has to end after it starts.', { error: true }); return; }
+    const tb = TB();
+    tb.blocks = [...tb.blocks.filter((b) => !(b.kind === 'focus' && b.cadence === 'daily')),
+      ...rows.sort((a, b) => a.start - b.start).map((r) => ({ id: uid(), name: 'Focus', kind: 'focus', color: '', start: r.start, end: r.end, cadence: 'daily', anchor: null, protected: true, note: '' }))];
+    tb.dayStart = Math.min(tb.dayStart, ...rows.map((r) => r.start));
+    tb.dayEnd = Math.max(tb.dayEnd, ...rows.map((r) => r.end));
+    S.settings.plannerName = form.elements.name.value.trim().slice(0, 60);
+    S.settings.onboarded = true;
+    d.close();
+    commit();
+    refreshSettings();
+  };
+  $('[name=name]', form).select();
 }
 
 /** Suggestions for a block's name: your types and the names already in use. You can also type anything. */

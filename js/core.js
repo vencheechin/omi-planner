@@ -188,7 +188,7 @@ function normalizeState(raw) {
 
 function seedState() {
   const me = { id: uid(), name: 'Me', color: PERSON_COLORS[0] };
-  S = { v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { theme: 'system', lastBackup: null, timebox: defaultTimebox(), chat: defaultChatPrefs() }, sync: freshSync(), personPlans: [], inbox: [], days: {}, msgLog: [] };
+  S = { v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { theme: 'system', lastBackup: null, timebox: defaultTimebox(), chat: defaultChatPrefs(), onboarded: false }, sync: freshSync(), personPlans: [], inbox: [], days: {}, msgLog: [] };
   const personal = makePlan('Personal tasks', PLAN_COLORS[2], { personal: true, lastOpened: 1 });
   personal.buckets[0].name = 'Tasks';
   const t = todayISO();
