@@ -169,10 +169,10 @@ function renderTabbar() {
   if (!bar) return;
   const r = ui.route.view;
   const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
-  bar.innerHTML = tab('#/my-day', 'sun', 'My Day', r === 'my-day', S.tasks.filter(inMyDay).length)
+  bar.innerHTML = tab('#/halfplan', 'table', 'S-Team', r === 'halfplan')
     + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
     + tab('#/my-tasks', 'user', 'My Tasks', r === 'my-tasks')
-    + tab('#/hub', 'home', 'Plans', r === 'hub' || r === 'plan' || r === 'person')
+    + tab('#/hub', 'home', 'My Planner', r === 'hub' || r === 'plan' || r === 'person')
     + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
 }
 function renderSidebar() {
@@ -183,7 +183,7 @@ function renderSidebar() {
   const pinned = S.plans.filter((p) => p.pinned);
   const recent = S.plans.filter((p) => !p.pinned).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
   const mine = S.tasks.filter((t) => t.assignees.includes(S.meId) && !isDone(t)).length;
-  const day = S.tasks.filter(inMyDay).length;
+
   const toCheck = S.tasks.filter(isReviewer).length;
   const personLink = (pp) => {
     const waiting = personPlanTasks(pp).filter((t) => t.review).length;
@@ -193,7 +193,7 @@ function renderSidebar() {
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
-      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My plans', 'home')}${link('my-day', 'My Day', 'sun', day)}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}
+      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home')}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}
       ${S.personPlans.length ? `<h3>People</h3>${S.personPlans.map(personLink).join('')}` : ''}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
@@ -221,7 +221,7 @@ function renderHub() {
     </article>`;
   };
   return `<div class="page">
-    <header class="page-head"><h1>My plans</h1></header>
+    <header class="page-head"><h1>My Planner</h1></header>
     ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
       : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
   </div>`;

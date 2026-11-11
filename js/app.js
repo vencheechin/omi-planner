@@ -168,9 +168,7 @@ function colourPicker(anchor, plan) {
 
 // ---------- Task menu (card "…" and the task panel) ----------
 function taskMenuItems(t, anchor) {
-  const inDay = t.myDay === todayISO();
   return [
-    { label: inDay ? 'Remove from My Day' : 'Add to My Day', icon: 'sun', run: () => { t.myDay = inDay ? null : todayISO(); commit(); } },
     isScheduled(t) ? { label: 'Move to next free slot', icon: 'clock', run: () => bookNextFree(t) }
       : t.boxId && boxOf(t) ? { label: 'Take out of time box', icon: 'clock', run: () => { takeOutOfBox(t); commit(); } }
         : t.tbQueued ? { label: 'Remove from Time Box', icon: 'clock', run: () => { t.tbQueued = false; commit(); } }
@@ -1808,7 +1806,7 @@ function route() {
   const [path, query] = location.hash.split('?');
   const [, a, b, c, d] = path.split('/');
   Usage.track(`page:${a || 'hub'}`);
-  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['my-tasks', 'my-day', 'report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['my-tasks', 'report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
   // A link like #/hub?name=Sam&email=sam@company.com fills in your identity on a fresh copy, then opens Settings.

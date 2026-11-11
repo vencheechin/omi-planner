@@ -139,7 +139,6 @@ function renderTask() {
     <header class="task-head">
       <span class="crumb">${planTile(plan, 18)} ${esc(plan.name)}</span>
       <div class="spacer"></div>
-      <button class="btn ghost sm ${t.myDay === todayISO() ? 'active' : ''}" data-act="toggleMyDay" data-id="${esc(t.id)}">${icon('sun', 14)} My Day</button>
       <button class="icon-btn" data-act="taskMenu" aria-label="Task options">${icon('more')}</button>
       <button class="icon-btn" data-act="closeTask" aria-label="Close task">${icon('close')}</button>
     </header>
