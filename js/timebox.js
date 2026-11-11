@@ -507,7 +507,7 @@ function healthRowHTML(t) {
   const h = healthOf(t.health);
   return `<div class="health-row">
       <button class="health-toggle" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Traffic Light: ${esc(h ? `${h.label}, ${h.meaning}` : 'not set')}" title="Traffic Light">
-        <span class="tl" aria-hidden="true">${['red', 'yellow', 'green'].map((v) => `<i class="${t.health === v ? 'on' : ''}" style="--c:${healthOf(v).color}"></i>`).join('')}</span>${h ? `<small>${esc(h.meaning)}</small>` : ''}</button>
+        <span class="tl ${h ? 'set' : ''}" aria-hidden="true">${['red', 'yellow', 'green'].map((v) => `<i class="tl-${v} ${t.health === v ? 'on' : ''}"></i>`).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : ''}</button>
       ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note">${esc(t.healthNote || '')}</textarea></label>` : ''}
     </div>`;
 }

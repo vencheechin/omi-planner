@@ -473,9 +473,17 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .health-row { display: grid; gap: 8px; }
 .health-toggle { display: inline-flex; align-items: center; gap: 8px; justify-self: start; padding: 4px 10px 4px 6px; border-radius: 999px; border: 1px solid var(--line); }
 .health-toggle:hover { border-color: var(--line-strong); }
-.tl { display: inline-flex; gap: 4px; padding: 4px 6px; border-radius: 999px; background: #1b1f26; }
-.tl i { width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, var(--c) 28%, #2a2e36); flex: none; }
-.tl i.on { background: var(--c); box-shadow: 0 0 6px color-mix(in srgb, var(--c) 80%, transparent); }
+/* Traffic light: bright signal colours, so it reads at a glance on any background. */
+.tl { --r: #ff3b30; --y: #ffcc00; --g: #30d158; display: inline-flex; gap: 5px; padding: 5px 7px; border-radius: 999px; background: #0b0d10; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 1px 3px rgba(0, 0, 0, .35); }
+.tl i { width: 16px; height: 16px; border-radius: 50%; flex: none; opacity: .55; }
+.tl .tl-red { background: var(--r); } .tl .tl-yellow { background: var(--y); } .tl .tl-green { background: var(--g); }
+.tl.set i { opacity: .32; }
+.tl i.on { opacity: 1; box-shadow: 0 0 10px 1px currentColor, inset 0 -2px 3px rgba(0, 0, 0, .25), inset 0 2px 3px rgba(255, 255, 255, .45); }
+.tl .tl-red.on { color: var(--r); } .tl .tl-yellow.on { color: var(--y); } .tl .tl-green.on { color: var(--g); }
+.tl-text { font-weight: 700; }
+.tl-text.tl-red { color: #e5483c; } .tl-text.tl-yellow { color: #c99a1e; } .tl-text.tl-green { color: #2fa84f; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .tl-text.tl-red { color: #ff6b61; } :root:where(:not([data-theme="light"])) .tl-text.tl-yellow { color: #ffd23f; } :root:where(:not([data-theme="light"])) .tl-text.tl-green { color: #4cd964; } }
+:root[data-theme="dark"] .tl-text.tl-red { color: #ff6b61; } :root[data-theme="dark"] .tl-text.tl-yellow { color: #ffd23f; } :root[data-theme="dark"] .tl-text.tl-green { color: #4cd964; }
 .health-toggle small { color: var(--muted); }
 .health-picker { min-width: 230px; display: grid; gap: 4px; }
 .health-opt { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; text-align: left; }
