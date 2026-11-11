@@ -559,7 +559,7 @@ const actions = {
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
       ${queue.length ? `
       <div class="tb-tap-list">${queue.map((q) => `<button type="button" class="tb-tap-item" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}"><i></i><span>${healthDot(q)}${esc(q.title || 'Untitled task')}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`).join('')}</div><hr>` : ``}
-      <textarea name="title" rows="2" required aria-label="Task name (several lines share one time box)"></textarea>
+      <textarea name="title" rows="1" required aria-label="Task name (several lines share one time box)"></textarea>
       <label class="field"><span>Time Box</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
       <input type="hidden" name="workType" value="${esc(block?.kind || '')}">
       <button class="btn primary sm tb-tap-add">Add</button></form>`);
