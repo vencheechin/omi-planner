@@ -49,6 +49,13 @@ How it works:
 - Notifications appear while Planner is open. Chrome asks once for permission to the folder after
   each restart; click the status at the top right to reconnect.
 
+## Trying two people on one device
+
+Add `?profile=<name>` to the link to keep a separate Planner in the same browser, and `test=1` to
+join a test folder inside the browser, so two tabs (for example one for you and one for a
+colleague) share assigned tasks, ticks and notifications. Use browser tabs, not Home Screen icons
+(each Home Screen app has its own storage).
+
 ## Conversation
 
 Each task has a WhatsApp-style conversation. Enter sends; Shift+Enter adds a new line.

@@ -204,6 +204,29 @@ const Cloud = {
       Store.save();
     } catch { /* kept for the next sync (or until setup.sql has the message_log table) */ } finally { this.flushing = false; }
   },
+  /** Sends this person's button counts (one row per button). */
+  async flushUsage() {
+    const u = S.usage;
+    if (!this.session || !u?.dirty) return;
+    const rows = Object.entries(u.counts).map(([action, c]) => ({ email: this.session.email, team_id: this.team?.id || null, action, uses: c.n, first_used: new Date(c.first).toISOString(), last_used: new Date(c.last || c.first).toISOString() }));
+    try {
+      await this.req('/rest/v1/button_usage?on_conflict=email,action', { method: 'POST', body: rows, headers: { Prefer: 'return=minimal,resolution=merge-duplicates' } });
+      u.dirty = false;
+    } catch { /* tried again next sync */ }
+  },
+  async readUsage() {
+    const rows = await this.req(`/rest/v1/button_usage?select=action,uses,first_used,last_used&team_id=eq.${this.team.id}`) || [];
+    const counts = {};
+    let since = Date.now();
+    for (const r of rows) {
+      const c = (counts[r.action] = counts[r.action] || { n: 0, first: Date.now(), last: 0 });
+      c.n += r.uses;
+      c.first = Math.min(c.first, Date.parse(r.first_used));
+      c.last = Math.max(c.last, Date.parse(r.last_used));
+      since = Math.min(since, c.first);
+    }
+    return { counts, since };
+  },
   async readLog() {
     const rows = await this.req(`/rest/v1/message_log?select=*&team_id=eq.${this.team.id}&order=logged_at.desc&limit=2000`) || [];
     return rows.map((r) => ({
@@ -241,6 +264,7 @@ const Cloud = {
     try {
       await this.loadTeam();
       await this.flushLog();
+      await this.flushUsage();
       // A device's first sync reads the cloud before writing, and lets your saved profile and
       // preferences win over a fresh install's defaults, which would otherwise look newer.
       const first = !S.sync.cloud?.since;

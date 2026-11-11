@@ -22,8 +22,8 @@ const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)
 const newer = (a, b) => !b || a[0] > b[0] || (a[0] === b[0] && String(a[1]) > String(b[1]));
 const deviceId = (() => {
   try {
-    let d = localStorage.getItem('planner-device');
-    if (!d) { d = uid(); localStorage.setItem('planner-device', d); }
+    let d = localStorage.getItem(lsKey('planner-device'));
+    if (!d) { d = uid(); localStorage.setItem(lsKey('planner-device'), d); }
     return d;
   } catch { return 'this-device'; }
 })();
@@ -350,9 +350,10 @@ const Team = {
   fileName() { return `${S.meId}-${deviceId}.json`; },
 
   async init() {
-    if (!this.supported || !Store.db) return;
+    if (!Store.db) return;
     try { this.dir = await Store.tx('kv', 'readonly', (s) => s.get('teamDir')); } catch { this.dir = null; }
-    if (!this.dir) return;
+    if (this.dir && this.dir.virtual) { this.dir = new DeviceDir(); this.start(); return; }
+    if (!this.dir || !this.supported) { this.dir = null; return; }
     const perm = await this.dir.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
     if (perm === 'granted') this.start(); else this.setState('permission');
   },
@@ -371,6 +372,19 @@ const Team = {
     commit();
     this.start();
     toast(`Connected to “${dir.name}”. Teammates who choose the same folder will see shared tasks.`);
+  },
+  /** Connects to the test folder inside this browser (two people on one device). */
+  async connectDevice({ quiet = false } = {}) {
+    const me = person(S.meId);
+    if (!me.email) { if (!quiet) toast('Add your email in Settings first.', { error: true }); return; }
+    await Store.tx('kv', 'readwrite', (s) => s.put({ virtual: 'device' }, 'teamDir'));
+    this.dir = new DeviceDir();
+    S.sync.folderName = this.dir.name;
+    if (!S.sync.connectedAt) S.sync.connectedAt = Date.now();
+    S.tasks.forEach((t) => { if (t.assignees.some((a) => a !== S.meId) || (t.assignedBy && t.assignedBy !== S.meId)) t.shared = true; });
+    commit();
+    this.start();
+    if (!quiet) toast('Connected to the test folder on this device.');
   },
   async reconnect() {
     if (!this.dir) return;
@@ -489,8 +503,8 @@ const Team = {
 function teamSettingsHTML() {
   const me = person(S.meId);
   const members = Object.keys(S.sync.files).length;
-  if (!Team.supported) {
-    return `<p class="muted small">Needs Google Chrome or Microsoft Edge on a computer.</p>`;
+  if (!Team.supported && !Team.dir) {
+    return `<div class="row"><button class="btn ghost sm" data-act="teamDevice">Test folder on this device</button></div>`;
   }
   return `
     <div class="task-fields two">
@@ -501,7 +515,7 @@ function teamSettingsHTML() {
       ? `<p class="small">Folder: <b>${esc(S.sync.folderName || Team.dir.name)}</b> · ${members} teammate file${members === 1 ? '' : 's'} found<br><span class="muted">Last synced: ${S.sync.lastSync ? esc(fmtDateTime(S.sync.lastSync)) : 'not yet'}${Team.error ? ` · ${esc(Team.error)}` : ''}</span></p>
         <div class="row">${Team.state === 'permission' ? `<button class="btn primary sm" data-act="teamReconnect">Reconnect</button>` : `<button class="btn primary sm" data-act="teamSyncNow">Sync now</button>`}
         <button class="btn ghost sm" data-act="teamDisconnect">Disconnect</button></div>`
-      : `<button class="btn primary sm" data-act="teamConnect">Choose shared folder…</button>`}
+      : `<button class="btn primary sm" data-act="teamConnect">Choose shared folder…</button><button class="btn ghost sm" data-act="teamDevice">Test folder on this device</button>`}
     ${'Notification' in window && Notification.permission === 'default' ? `<button class="btn ghost sm" data-act="enableNotifications">Turn on desktop notifications</button>` : ''}`;
 }
 

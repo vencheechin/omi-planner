@@ -236,7 +236,7 @@ function contactPickerHTML() {
    when it isn't already in your language, and only while you're online. Results are cached on
    this device. */
 const Translate = {
-  cache: (() => { try { return JSON.parse(localStorage.getItem('planner-tr') || '{}'); } catch { return {}; } })(),
+  cache: (() => { try { return JSON.parse(localStorage.getItem(lsKey('planner-tr')) || '{}'); } catch { return {}; } })(),
   pending: new Set(),
   failed: new Set(),
   timer: null,
@@ -245,7 +245,7 @@ const Translate = {
   save() {
     const keys = Object.keys(this.cache);
     if (keys.length > 3000) keys.slice(0, keys.length - 3000).forEach((k) => delete this.cache[k]);
-    try { localStorage.setItem('planner-tr', JSON.stringify(this.cache)); } catch { /* storage full or blocked: keep in memory */ }
+    try { localStorage.setItem(lsKey('planner-tr'), JSON.stringify(this.cache)); } catch { /* storage full or blocked: keep in memory */ }
   },
   want(c) {
     const p = chatPrefs();

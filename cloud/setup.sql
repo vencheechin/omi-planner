@@ -117,6 +117,25 @@ create policy log_write on public.message_log for insert
 create policy log_read on public.message_log for select
   using ((team_id is not null and public.is_admin(team_id)) or (team_id is null and scope = 'u:' || auth.uid()::text));
 
+-- How often each person uses each button, to decide what to show or hide. One row per person and button.
+create table if not exists public.button_usage (
+  email text not null default public.my_email(),
+  team_id uuid references public.teams(id) on delete set null,
+  action text not null,
+  uses integer not null default 0,
+  first_used timestamptz, last_used timestamptz,
+  primary key (email, action)
+);
+alter table public.button_usage enable row level security;
+drop policy if exists usage_write on public.button_usage;
+drop policy if exists usage_update on public.button_usage;
+drop policy if exists usage_read on public.button_usage;
+create policy usage_write on public.button_usage for insert with check (email = public.my_email() and (team_id is null or public.is_member(team_id)));
+create policy usage_update on public.button_usage for update using (email = public.my_email()) with check (email = public.my_email() and (team_id is null or public.is_member(team_id)));
+-- Your own rows, and (for admins) the team's.
+create policy usage_read on public.button_usage for select using (email = public.my_email() or (team_id is not null and public.is_admin(team_id)));
+grant select, insert, update on public.button_usage to authenticated;
+
 -- Whether a change that deletes or recalls a message is allowed: admins always; the author may
 -- recall their own message within 5 minutes; anything goes in your own private rows.
 create or replace function public.message_change_allowed(scope text, cur jsonb, nxt jsonb) returns boolean

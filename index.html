@@ -12,11 +12,15 @@
   <link rel="stylesheet" href="css/app.css">
   <script>
     try {
-      var styleCss = localStorage.getItem('planner-style-css');
+      var prof = (new URLSearchParams(location.search).get('profile') || '').toLowerCase();
+      var k = function (n) { return /^[a-z0-9-]{1,24}$/.test(prof) ? n + ':' + prof : n; };
+      var font = localStorage.getItem(k('planner-font'));
+      if (font) document.documentElement.setAttribute('data-font', font);
+      var styleCss = localStorage.getItem(k('planner-style-css'));
       if (styleCss) { var st = document.createElement('style'); st.id = 'style-tokens'; st.textContent = styleCss; document.head.appendChild(st); }
-      var theme = localStorage.getItem('planner-theme');
+      var theme = localStorage.getItem(k('planner-theme'));
       if (theme && theme !== 'system') document.documentElement.setAttribute('data-theme', theme);
-      var sizes = JSON.parse(localStorage.getItem('planner-sizes') || 'null');
+      var sizes = JSON.parse(localStorage.getItem(k('planner-sizes')) || 'null');
       if (sizes) {
         document.documentElement.style.setProperty('--scale', sizes.text);
         document.documentElement.style.setProperty('--bucket-fs', sizes.bucket + 'px');
@@ -30,6 +34,7 @@
     <div id="shell">
       <header id="topbar"></header>
       <main id="main"></main>
+      <nav id="tabbar" aria-label="Sections"></nav>
     </div>
   </div>
   <dialog id="taskDialog" aria-label="Task details"></dialog>
@@ -45,6 +50,8 @@
   <script src="js/import.js"></script>
   <script src="js/chat.js"></script>
   <script src="js/styles.js"></script>
+  <script src="js/devicefolder.js"></script>
+  <script src="js/usage.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

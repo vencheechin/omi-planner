@@ -175,6 +175,7 @@ function normalizeState(raw) {
     v: 1, people, meId, plans, tasks,
     settings: (() => { const st = { theme: 'system', lastBackup: null, ...(raw.settings || {}) }; st.timebox = normalizeTimebox(st.timebox); st.chat = normalizeChatPrefs(st.chat); return st; })(),
     msgLog: Array.isArray(raw.msgLog) ? raw.msgLog.filter((e) => e && e.id).slice(-2000) : [],
+    usage: raw.usage && typeof raw.usage === 'object' && raw.usage.counts ? raw.usage : { since: Date.now(), counts: {} },
     // Each day keeps up to three Most Important Outcomes; a single one saved earlier becomes the first.
     days: Object.fromEntries(Object.entries(raw.days && typeof raw.days === 'object' ? raw.days : {})
       .filter(([d, v]) => /^\d{4}-\d{2}-\d{2}$/.test(d) && v && typeof v === 'object')
@@ -211,7 +212,10 @@ function seedState() {
 }
 
 // ---------- Persistence: IndexedDB, with localStorage as a fallback ----------
-const LS_KEY = 'planner-offline-state';
+/** ?profile=ray in the link keeps a separate Planner (its own data and settings) in the same browser. */
+const PROFILE = (() => { try { const p = new URLSearchParams(location.search).get('profile'); return p && /^[a-z0-9-]{1,24}$/i.test(p) ? p.toLowerCase() : ''; } catch { return ''; } })();
+const lsKey = (k) => (PROFILE ? `${k}:${PROFILE}` : k);
+const LS_KEY = lsKey('planner-offline-state');
 const Store = {
   db: null, timer: null, status: 'saved', failed: false, channel: null, tabId: uid(), onExternalChange: null, onStatus: null,
 
@@ -219,7 +223,7 @@ const Store = {
     return new Promise((resolve) => {
       if (!window.indexedDB) return resolve(null);
       let req;
-      try { req = indexedDB.open('planner-offline', 1); } catch { return resolve(null); }
+      try { req = indexedDB.open(PROFILE ? `planner-offline-${PROFILE}` : 'planner-offline', 1); } catch { return resolve(null); }
       req.onupgradeneeded = () => { req.result.createObjectStore('kv'); req.result.createObjectStore('files'); };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
@@ -244,7 +248,7 @@ const Store = {
     S = raw ? normalizeState(raw) : seedState();
     if (!raw) await this.flush();
     try {
-      this.channel = new BroadcastChannel('planner-offline');
+      this.channel = new BroadcastChannel(PROFILE ? `planner-offline-${PROFILE}` : 'planner-offline');
       this.channel.onmessage = async (e) => {
         if (e.data === this.tabId) return;
         S = normalizeState(await this.read());

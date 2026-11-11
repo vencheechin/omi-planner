@@ -71,7 +71,7 @@ function applyStyle() {
   let tag = document.getElementById('style-tokens');
   if (!tag) { tag = document.createElement('style'); tag.id = 'style-tokens'; document.head.append(tag); }
   tag.textContent = css;
-  try { localStorage.setItem('planner-style-css', css); } catch { /* the style is applied after load instead */ }
+  try { localStorage.setItem(lsKey('planner-style-css'), css); } catch { /* the style is applied after load instead */ }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = st.swatch[0];
 }

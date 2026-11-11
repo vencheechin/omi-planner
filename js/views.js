@@ -143,7 +143,20 @@ function applyGroup(t, by, from, to) {
 const planLabel = (p) => (p.owner && p.owner !== S.meId && person(p.owner) ? `${p.name} (${person(p.owner).name})` : p.name);
 /** "Ven's Planner" once you've set your name in Settings; plain "Planner" until then. */
 const plannerName = () => { const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n}${/s$/i.test(n) ? "'" : "'s"} Planner` : 'Planner'; };
+/** Phones: a tab bar at the bottom, like iOS. */
+function renderTabbar() {
+  const bar = $('#tabbar');
+  if (!bar) return;
+  const r = ui.route.view;
+  const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
+  bar.innerHTML = tab('#/my-day', 'sun', 'My Day', r === 'my-day', S.tasks.filter(inMyDay).length)
+    + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
+    + tab('#/my-tasks', 'user', 'My Tasks', r === 'my-tasks')
+    + tab('#/hub', 'home', 'Plans', r === 'hub' || r === 'plan' || r === 'person')
+    + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
+}
 function renderSidebar() {
+  renderTabbar();
   const r = ui.route;
   const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view ? 'active' : ''}" href="#/${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
   const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
@@ -159,7 +172,6 @@ function renderSidebar() {
   $('#sidebar').innerHTML = `
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
-    <button class="btn ghost sm import-plan" data-act="importPlanner" title="Import a plan exported from Microsoft Planner to Excel">${icon('upload', 14)} Import from Microsoft Planner</button>
     <nav aria-label="Main">
       ${link('hub', 'My plans', 'home')}${link('my-day', 'My Day', 'sun', day)}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('my-tasks', 'My Tasks', 'user', mine)}${link('report', 'Assignments', 'chart', toCheck)}
       ${S.personPlans.length ? `<h3>People</h3>${S.personPlans.map(personLink).join('')}` : ''}

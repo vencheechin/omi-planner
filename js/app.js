@@ -345,7 +345,7 @@ function applySizes() {
   const bucket = clampNum(S.settings.bucketSize, 12, 32, SIZE_DEFAULTS.bucketSize);
   document.documentElement.style.setProperty('--scale', text);
   document.documentElement.style.setProperty('--bucket-fs', `${bucket}px`);
-  try { localStorage.setItem('planner-sizes', JSON.stringify({ text, bucket })); } catch { /* sizes still apply this session */ }
+  try { localStorage.setItem(lsKey('planner-sizes'), JSON.stringify({ text, bucket })); } catch { /* sizes still apply this session */ }
 }
 function sizeControls() {
   const text = clampNum(S.settings.textScale, 0.8, 1.5, SIZE_DEFAULTS.textScale);
@@ -370,6 +370,9 @@ function settingsHTML() {
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
+  <section class="set-sec"><h3>Font</h3>
+    <div class="seg">${[['', 'Garamond (OMI)'], ['system', 'System (Apple)']].map(([v, l]) => `<button class="${(S.settings.font || '') === v ? 'on' : ''}" data-act="setFont" data-v="${v}">${l}</button>`).join('')}</div></section>
+  <section class="set-sec"><h3>Button Usage</h3><div class="row"><button class="btn ghost sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>
   <section class="set-sec"><h3>Colour Style</h3>${styleSettingsHTML()}</section>
   <section class="set-sec"><h3>Import from Microsoft Planner</h3>
     
@@ -394,9 +397,15 @@ function applyTheme() {
   const v = S.settings.theme;
   if (v === 'system') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', v);
-  try { localStorage.setItem('planner-theme', v); } catch { /* theme just falls back to system */ }
+  try { localStorage.setItem(lsKey('planner-theme'), v); } catch { /* theme just falls back to system */ }
   applyStyle();
+  applyFont();
   applySizes();
+}
+function applyFont() {
+  const f = S.settings.font === 'system' ? 'system' : '';
+  if (f) document.documentElement.setAttribute('data-font', f); else document.documentElement.removeAttribute('data-font');
+  try { if (f) localStorage.setItem(lsKey('planner-font'), f); else localStorage.removeItem(lsKey('planner-font')); } catch { /* applied after load instead */ }
 }
 
 // ---------- Click actions ----------
@@ -404,7 +413,7 @@ const actions = {
   newPlan: createPlan,
   closeDialog: (el) => el.closest('dialog').close(),
   openNav: () => { ui.navOpen = !ui.navOpen; renderSidebar(); },
-  menuPick: (el) => { const it = ui.menuItems[+el.dataset.i]; closePop(); it.run(); },
+  menuPick: (el) => { const it = ui.menuItems[+el.dataset.i]; Usage.track(`menu:${it.label.replace(/\s*\(.*\)$/, '').replace(/…$/, '')}`); closePop(); it.run(); },
   togglePin: (el) => { const p = planById(el.dataset.id); p.pinned = !p.pinned; commit(); },
   setTab: (el) => { ui.planTab[viewKey()] = el.dataset.tab; render(); },
   groupMenu: (el) => openMenu(el, el.dataset.options.split(',').map((k) => ({
@@ -837,6 +846,19 @@ const actions = {
     refreshSettings();
   },
   tbForgetAddTo: () => { TB().addTo = null; commit(); refreshSettings(); toast('You’ll be asked each time.'); },
+  teamDevice: () => Team.connectDevice(),
+  openUsage: () => usageDlg(),
+  exportUsage: (el) => {
+    const rows = el.closest('dialog')._rows || [];
+    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = [['Button', 'Uses', 'Last used'].map(cell).join(','), ...rows.map((r) => [r.label, r.n, r.last ? fmtDateTime(r.last) : ''].map(cell).join(','))].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv' }));
+    a.download = `Button usage ${todayISO()}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+  setFont: (el) => { S.settings.font = el.dataset.v; applyFont(); Store.save(); refreshSettings(); },
   setStyle: (el) => { S.settings.style = el.dataset.v; applyStyle(); Store.save(); render(); refreshSettings(); toast(`Colour style: ${styleOf(el.dataset.v).name}.`); },
   setTheme: (el) => { S.settings.theme = el.dataset.v; applyTheme(); Store.save(); refreshSettings(); },
   delPerson: async (el) => {
@@ -1498,8 +1520,8 @@ document.addEventListener('click', (e) => {
   // Radios can't be unticked natively; clicking the active "Show on card" goes back to automatic.
   if (e.target.matches('[data-field="preview"]') && openTaskObj()?.preview === e.target.value) { setField(openTaskObj(), 'preview', 'auto'); return; }
   const el = e.target.closest('[data-act], [data-open-task]');
-  if (el?.dataset.act) { e.preventDefault(); actions[el.dataset.act](el, e); return; }
-  if (el) { openTask(el.dataset.openTask); return; }
+  if (el?.dataset.act) { e.preventDefault(); Usage.track(el.dataset.act); actions[el.dataset.act](el, e); return; }
+  if (el) { Usage.track('openTask'); openTask(el.dataset.openTask); return; }
   if (ui.navOpen && !e.target.closest('#sidebar')) { ui.navOpen = false; renderSidebar(); }
 }, true);
 function openTask(id) {
@@ -1518,6 +1540,7 @@ document.addEventListener('submit', (e) => {
   const form = e.target.closest('[data-submit]');
   if (!form) return;
   e.preventDefault();
+  Usage.track(`form:${form.dataset.submit}`);
   submits[form.dataset.submit](form, new FormData(form));
   if (form.isConnected) form.reset();
 });
@@ -1548,7 +1571,7 @@ document.addEventListener('change', (e) => {
 }, true);
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-change]');
-  if (el) changes[el.dataset.change](el);
+  if (el) { Usage.track(el.dataset.change === 'taskField' || el.dataset.change === 'tbField' ? `${el.dataset.change}:${el.dataset.field}` : el.dataset.change); changes[el.dataset.change](el); }
 });
 document.addEventListener('input', (e) => {
   const el = e.target.closest('[data-input]');
@@ -1589,6 +1612,7 @@ function bindShell() {
   window.addEventListener('pagehide', () => { if (Store.timer) Store.flush(); });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { if (Store.timer) Store.flush(); return; }
+    if (Team.dir) Team.sync();
     if (!topDialog()) render(); // pick up a new day's Late / Today / My Day
   });
   let tip;
@@ -1607,6 +1631,7 @@ function bindShell() {
 function route() {
   const [path, query] = location.hash.split('?');
   const [, a, b, c, d] = path.split('/');
+  Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['my-tasks', 'my-day', 'report', 'timebox'].includes(a) ? { view: a } : { view: 'hub' };
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
@@ -1654,6 +1679,7 @@ function route() {
   bindShell();
   applyTheme();
   route();
+  if (new URLSearchParams(location.search).get('test') === '1') setTimeout(() => { if (!Team.dir && person(S.meId)?.email) Team.connectDevice({ quiet: true }); }, 400);
   updateStatus();
   Store.collectGarbage().catch(console.error);
   if (!S.sync.ready) { trackChanges(); Store.save(); }
