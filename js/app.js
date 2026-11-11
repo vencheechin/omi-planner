@@ -1018,6 +1018,31 @@ const actions = {
     $('[name=text]', list)?.focus();
   },
   bpCellClear: (el) => { const f = el.closest('form'); delete bpRowOf(f.dataset.g, f.dataset.r).cells[f.dataset.m]; closePop(); commit(); },
+  stSubmit: (el) => {
+    const p = stPlans().find((x) => x.id === el.dataset.id);
+    const set = (to) => { p.approval = { status: 'submitted', by: S.meId, to, at: Date.now() }; commit(); toast(`Sent to ${person(to)?.name || 'them'} for approval.`); };
+    const ids = stApprovers();
+    if (ids.length === 1) return set(ids[0]);
+    openMenu(el, ids.map((id) => ({ label: person(id)?.name || 'Someone', icon: 'user', run: () => set(id) })));
+  },
+  stApprove: (el) => { const p = stPlans().find((x) => x.id === el.dataset.id); p.approval = { ...p.approval, status: 'approved', decidedAt: Date.now(), note: '', last: 'approved' }; commit(); toast('Approved. The plan is now locked.'); },
+  stReturn: async (el) => {
+    const p = stPlans().find((x) => x.id === el.dataset.id);
+    const note = await promptDlg('Return for changes', 'What needs changing?', '', 'Return');
+    if (!note) return;
+    p.approval = { ...p.approval, status: 'draft', last: 'returned', decidedAt: Date.now(), note };
+    commit();
+  },
+  stRequestChange: async (el) => {
+    const p = stPlans().find((x) => x.id === el.dataset.id);
+    const note = await promptDlg('Request a change', 'What do you want to change, and why?', '', 'Send');
+    if (!note) return;
+    p.approval = { ...p.approval, status: 'change-requested', by: S.meId, at: Date.now(), note };
+    commit();
+    toast('Change request sent.');
+  },
+  stAllowChange: (el) => { const p = stPlans().find((x) => x.id === el.dataset.id); p.approval = { ...p.approval, status: 'draft', last: 'allowed', decidedAt: Date.now(), note: '' }; commit(); toast('Changes allowed. They\u2019ll resubmit when done.'); },
+  stDeclineChange: (el) => { const p = stPlans().find((x) => x.id === el.dataset.id); p.approval = { ...p.approval, status: 'approved', last: 'approved', decidedAt: Date.now(), note: '' }; commit(); toast('Change request declined.'); },
   teamDevice: () => Team.connectDevice(),
   openUsage: () => usageDlg(),
   exportUsage: (el) => {
@@ -1497,6 +1522,11 @@ function dragMove(x, y) {
   const under = document.elementFromPoint(x, y);
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   s.target = null;
+  if (s.type === 'bpitem') {
+    const cell = under?.closest('.bp-cell');
+    if (cell) { cell.classList.add('drop'); s.target = { g: cell.dataset.g, r: cell.dataset.r, m: cell.dataset.m }; }
+    return;
+  }
   if (s.type === 'resize') {
     const col = s.source.closest('[data-tb-date]');
     const t = taskById(s.id);
@@ -1621,6 +1651,20 @@ function dragEnd(drop) {
   document.body.classList.remove('dragging');
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   if (s.type === 'worktype') return;
+  if (s.type === 'bpitem') {
+    const [g, r, m, n] = String(s.id).split('|');
+    const t = s.target;
+    if (!drop || !t || (t.r === r && t.m === m)) { render(); return; }
+    const from = bpRowOf(g, r);
+    const to = bpRowOf(t.g, t.r);
+    const items = cellItems(from?.cells[m]);
+    const [item] = items.splice(Number(n), 1);
+    if (!item || !to) { render(); return; }
+    if (items.length) from.cells[m] = { items }; else delete from.cells[m];
+    to.cells[t.m] = { items: [...cellItems(to.cells[t.m]), item] };
+    commit();
+    return;
+  }
   if (s.type === 'bucketorder') {
     // The list's new order becomes the board's bucket order.
     const plan = currentPlan();
@@ -1943,6 +1987,7 @@ function route() {
   bindShell();
   applyTheme();
   route();
+  if (!S.settings.sampleGone) { removeSamplePlan(); S.settings.sampleGone = true; Store.save(); }
   if (!S.settings.bucketsV1) {
     const p = S.plans.find((x) => x.personal);
     if (p) {

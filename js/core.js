@@ -192,28 +192,24 @@ function normalizeState(raw) {
   };
 }
 
+/** Titles of the old sample plan's tasks: a "Getting started" plan holding only these is removed once. */
+const SAMPLE_TITLES = ['Drag this card to another bucket', 'Open a task to add a checklist, notes and files', 'Use Schedule to plan your dates',
+  'Rename yourself in Settings', 'Make a backup', 'Turn off the Wi-Fi and keep working'];
+function removeSamplePlan() {
+  const gs = S.plans.find((p) => p.name === 'Getting started' && !p.personal);
+  if (!gs) return false;
+  const tasks = S.tasks.filter((t) => t.planId === gs.id);
+  // Keep it if anything real was added: a task of your own, a shared task, or messages.
+  if (tasks.some((t) => !SAMPLE_TITLES.includes(t.title) || t.shared || t.comments.some((c) => !c.deleted))) return false;
+  S.tasks = S.tasks.filter((t) => t.planId !== gs.id);
+  S.plans = S.plans.filter((p) => p !== gs);
+  return true;
+}
 function seedState() {
   const me = { id: uid(), name: 'Me', color: PERSON_COLORS[0] };
   S = { v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { theme: 'system', lastBackup: null, timebox: defaultTimebox(), chat: defaultChatPrefs(), onboarded: false }, sync: freshSync(), personPlans: [], inbox: [], days: {}, msgLog: [] };
   const personal = makePlan('Personal tasks', PLAN_COLORS[2], { personal: true, lastOpened: 1 });
-  const t = todayISO();
-  const plan = makePlan('Getting started', PLAN_COLORS[0], { pinned: true });
-  plan.buckets = [{ id: uid(), name: 'To do' }];
-  plan.labels[4] = 'Tip';
-  plan.labels[3] = 'Offline';
-  const [todo, doing, done] = [plan.buckets[0], { id: uid(), name: 'In progress' }, { id: uid(), name: 'Done' }];
-  plan.buckets.push(doing, done);
-  S.plans.push(plan, personal);
-  const add = (bucket, title, f) => S.tasks.push(makeTask({ planId: plan.id, bucketId: bucket.id, title, order: S.tasks.length, ...f }));
-  add(todo, 'Drag this card to another bucket', { labels: [4], assignees: [me.id], due: t, notes: 'Hold and drag a card to move it. Grouping changes what a drag does: in "Group by Priority", dragging changes the priority.' });
-  add(todo, 'Open a task to add a checklist, notes and files', {
-    labels: [4], priority: 3, due: addDays(t, 2), preview: 'checklist',
-    checklist: [{ id: uid(), text: 'Click this card', done: true }, { id: uid(), text: 'Add a checklist item', done: false }, { id: uid(), text: 'Attach a file', done: false }],
-  });
-  add(todo, 'Use Schedule to plan your dates', { labels: [4], start: t, due: addDays(t, 4), priority: 1 });
-  add(doing, 'Rename yourself in Settings', { assignees: [me.id], progress: 50, notes: 'Open Settings from the gear icon, top right. You can add other people there too.' });
-  add(doing, 'Make a backup', { labels: [3], priority: 3, progress: 50, notes: 'Your plans live only on this device. Settings > Export backup saves a file you can keep or move to another computer.' });
-  add(done, 'Turn off the Wi-Fi and keep working', { labels: [3], progress: 100, completedAt: Date.now() });
+  S.plans.push(personal);
   return S;
 }
 

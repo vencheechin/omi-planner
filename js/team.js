@@ -342,7 +342,7 @@ function openNotice(id) {
   const t = taskById(n.taskId);
   closePop();
   commit();
-  if (t) { location.hash = `#/plan/${t.planId}/task/${t.id}`; }
+  if (t) { location.hash = `#/plan/${t.planId}/task/${t.id}`; } else if (n.route) { if (n.stPlanId) ui.stPlanId = n.stPlanId; location.hash = n.route; }
 }
 const unreadCount = () => S.inbox.filter((n) => !n.read).length;
 function inboxHTML() {

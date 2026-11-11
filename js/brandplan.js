@@ -30,9 +30,13 @@ function stCanSee(p) {
   const d = p.kind === 'dept' && deptById(p.dept);
   return !!d && (d.dic === S.meId || (d.members || []).includes(S.meId));
 }
+/** Submitted, approved or waiting on a change request: locked for everyone but admins. */
+const stLocked = (p) => ['submitted', 'approved', 'change-requested'].includes(p?.approval?.status);
 function stCanEdit(p) {
   if (!p) return false;
-  if (stAdmin() || p.owner === S.meId) return true;
+  if (stAdmin()) return true;
+  if (stLocked(p)) return false;
+  if (p.owner === S.meId) return true;
   const d = p.kind === 'dept' && deptById(p.dept);
   return !!d && d.dic === S.meId;
 }
@@ -58,6 +62,7 @@ function normalizeStPlan(p) {
   return {
     id: String(p.id), kind: p.kind === 'personal' ? 'personal' : 'dept', dept: p.dept || null, owner: p.owner || null, name: String(p.name || ''),
     viewers: Array.isArray(p.viewers) ? p.viewers.filter((x) => typeof x === 'string') : [], deleted: !!p.deleted,
+    approval: p.approval && typeof p.approval === 'object' ? p.approval : null,
     ...normalizeBrandPlan(p),
   };
 }
@@ -184,15 +189,16 @@ function renderBrandPlan() {
     const items = cellItems(r.cells[k]);
     const one = items.length === 1 ? items[0] : null;
     const label = items.map((i) => `${i.text}${i.pic ? ` (${i.pic})` : ''}${i.status ? `, ${i.status}` : ''}`).join('; ') || 'empty';
+    const drag = (n) => (ro ? '' : `data-drag="bpitem" data-id="${esc(`${g.id}|${r.id}|${k}|${n}`)}"`);
     const body = one
-      ? `${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}`
-      : items.length ? `<ul class="bp-list">${items.map((i) => `<li class="${i.status ? `bp-li-${i.status}` : ''}"><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
+      ? `<div class="bp-one" ${drag(0)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}</div>`
+      : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''}" ${drag(n)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
     return `<td class="bp-cell ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''}" ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${r.brand}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
   };
   return `<div class="page bp-page">
     <header class="bp-head">
       <div><h1>${esc(stName(p))} <span class="bp-sub">${esc(bpPeriodLabel(h, months))}</span></h1>
-        ${ro ? `<p class="small muted">${icon('lock', 11)} View only</p>` : ''}</div>
+        ${ro ? `<p class="small muted">${icon('lock', 11)} ${stLocked(p) && !stAdmin() ? 'Locked' : 'View only'}</p>` : ''}${approvalBarHTML(p)}</div>
       <div class="spacer"></div>
       <select class="st-switch" data-change="stSwitch" aria-label="Which S-Team Plan">${stVisible().map((x) => `<option value="${esc(x.id)}" ${x.id === p.id ? 'selected' : ''}>${esc(stName(x))}</option>`).join('')}</select>
       <button class="icon-btn" data-act="stNew" aria-label="New S-Team Plan" title="New S-Team Plan">${icon('plus', 17)}</button>
@@ -245,12 +251,12 @@ const bpReadItems = (form) => $$('.bp-item', form).map((row) => ({
 })).filter((i) => i.text || i.pic || i.status || i.progress);
 // ---------- Sharing: each plan is its own record (one field per group, plus order, period and who) ----------
 const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted });
-const stRecord = (p) => ({ meta: stMeta(p), order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])) });
+const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function stFields(p) {
   const f = new Set(p.groups.map((g) => `g:${g.id}`));
   [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:')) f.add(k); });
-  return ['meta', 'order', 'cfg', ...f];
+  return ['meta', 'approval', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
 const orgRecord = () => ({ depts: org().depts, admins: org().admins });
@@ -282,7 +288,9 @@ function applyStPlan(id, d) {
   let changed = false;
   let order = null;
   for (const [f, rv] of Object.entries(v)) {
-    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if (f === 'approval') { const before = b.approval?.status; b.approval = d.approval && typeof d.approval === 'object' ? d.approval : null; stApprovalNotice(b, before); }
+    else
     if (f === 'meta') { if (d.meta && typeof d.meta === 'object') { const m = normalizeStPlan({ id, ...d.meta, groups: [] }); Object.assign(b, { name: m.name, kind: m.kind, dept: m.dept, owner: m.owner, viewers: m.viewers, deleted: m.deleted }); } }
     else if (f === 'order') order = Array.isArray(d.order) ? d.order : null;
     else if (f === 'cfg') b.cfg = d.cfg && typeof d.cfg === 'object' ? { start: Number(d.cfg.start) || 4, h1: Number(d.cfg.h1) || 6, h2: Number(d.cfg.h2) || 6 } : null;
@@ -302,6 +310,56 @@ function applyStPlan(id, d) {
   if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:')) sh[f] = fieldHash(rec[f]); }); }
   return changed;
 }
+// ---------- Approval: DIC submits, CEO approves; changes after approval need the CEO's OK ----------
+/** Who can approve: the team's admins (or, without cloud sync, the admins set in Settings › Admin). */
+function stApprovers() {
+  let ids = [];
+  if (typeof Cloud !== 'undefined' && Cloud.team) ids = (Cloud.team.admins || []).map((e) => S.people.find((p) => p.email === e)?.id).filter(Boolean);
+  else ids = [...(org().admins || [])];
+  ids = ids.filter((id) => id !== S.meId && person(id));
+  return ids.length ? ids : S.people.filter((p) => p.id !== S.meId).map((p) => p.id);
+}
+const STATUS_TEXT = { submitted: 'Waiting for approval', approved: 'Approved', 'change-requested': 'Change requested' };
+/** The status badge and the buttons for whoever's turn it is. */
+function approvalBarHTML(p) {
+  const a = p.approval || {};
+  const me = S.meId;
+  const name = (id) => (id === me ? 'you' : person(id)?.name || 'someone');
+  const owner = p.owner === me || (p.kind === 'dept' && deptById(p.dept)?.dic === me);
+  const btn = (act, label, primary) => `<button class="btn ${primary ? 'primary' : 'ghost'} sm" data-act="${act}" data-id="${esc(p.id)}">${label}</button>`;
+  let badge = '';
+  let actions = '';
+  if (a.status === 'submitted') {
+    badge = `${STATUS_TEXT.submitted} · ${esc(name(a.to))}`;
+    if (a.to === me) actions = btn('stApprove', `${icon('check', 13)} Approve`, true) + btn('stReturn', 'Return');
+  } else if (a.status === 'approved') {
+    badge = `Approved by ${esc(name(a.to))} · ${esc(fmtDate(toISO(new Date(a.decidedAt || a.at))))}`;
+    if (owner) actions = btn('stRequestChange', 'Request change');
+  } else if (a.status === 'change-requested') {
+    badge = `${STATUS_TEXT['change-requested']} · ${esc(name(a.to))}`;
+    if (a.to === me) actions = btn('stAllowChange', 'Allow changes', true) + btn('stDeclineChange', 'Decline');
+  } else {
+    if (a.last === 'returned') badge = `Returned by ${esc(name(a.to))}`;
+    else if (a.last === 'allowed') badge = `Changes allowed by ${esc(name(a.to))}`;
+    if (owner || stAdmin()) actions = btn('stSubmit', 'Submit for approval', true);
+  }
+  return badge || actions ? `<div class="st-approval">${badge ? `<span class="st-badge st-${esc(a.status === 'draft' && a.last === 'returned' ? 'returned' : a.status || 'draft')}">${badge}</span>` : ''}${a.note ? `<small class="muted">“${esc(a.note)}”</small>` : ''}${actions}</div>` : '';
+}
+/** A notification when a plan's approval changes on someone else's device. */
+function stApprovalNotice(p, before) {
+  const a = p.approval;
+  if (!a || a.status === before) return;
+  const who = person(a.status === 'submitted' || a.status === 'change-requested' ? a.by : a.to)?.name || 'Someone';
+  const plan = stName(p);
+  let text = '';
+  if (a.status === 'submitted' && a.to === S.meId) text = `${who} submitted ${plan} for approval`;
+  else if (a.status === 'change-requested' && a.to === S.meId) text = `${who} asked to change ${plan}`;
+  else if (a.by === S.meId && a.status === 'approved') text = before === 'change-requested' ? `${who} declined your change request for ${plan}` : `${who} approved ${plan}`;
+  else if (a.by === S.meId && a.last === 'returned') text = `${who} returned ${plan}`;
+  else if (a.by === S.meId && a.last === 'allowed') text = `${who} allowed changes to ${plan}`;
+  if (text) notify({ id: uid(), at: Date.now(), read: false, kind: a.status === 'approved' || a.last === 'allowed' ? 'completed' : 'review', text, note: a.note || '', taskId: null, route: '#/halfplan', stPlanId: p.id });
+}
+
 /** Marks plans for upload again (their access may have changed). */
 const stTouchAll = () => { S.sync.dirty = S.sync.dirty || {}; stPlans().forEach((p) => { S.sync.dirty[`st:${p.id}`] = 1; }); };
 
