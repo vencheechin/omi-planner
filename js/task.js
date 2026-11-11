@@ -159,15 +159,14 @@ function renderTask() {
         ${t.decisionReq ? '' : `<button class="add-chip" data-act="decisionSend" data-id="${esc(t.id)}">${icon('flag', 13)} Decision Request</button>`}
       </div>
       ${workflowHTML(t)}
-      <div class="task-fields">
+      <div class="task-fields two">
         ${field('Priority', `<select data-change="taskField" data-field="priority">${options(PRIORITY, t.priority)}</select>`)}
         ${field(dueLocked(t) ? `Due date ${icon('lock', 11)}` : 'Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}" ${dueLocked(t) ? `disabled title="Set by ${esc(person(t.assignedBy)?.name || 'the assigner')}"` : ''}>`)}
-        ${field('Repeat', `<select data-change="taskField" data-field="repeat">${options(REPEATS, t.repeat)}</select>`)}
       </div>
       ${remindersHTML(t)}
       ${timeboxHTML(t)}
       <section class="task-sec">
-        <div class="sec-head"><h3>Checklist${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
+        <div class="sec-head"><h3>Task${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
           ${t.assignees.some((a) => a !== S.meId) ? `<button class="btn ghost xs ck-alert ${(t.checkAlerts || []).includes(S.meId) ? 'active' : ''}" data-act="toggleCheckAlerts" aria-pressed="${(t.checkAlerts || []).includes(S.meId)}" title="Get a notification when someone ticks an item on this task">${icon('bell', 13)} ${(t.checkAlerts || []).includes(S.meId) ? 'Notifying me when ticked' : 'Notify me when ticked'}</button>` : ''}</div>
         ${t.checklist.length > 1 ? `<label class="mini ck-group">Group <select data-change="ckGroup" aria-label="Group checklist"><option value="">None</option><option value="added" ${S.settings.ckGroup === 'added' ? 'selected' : ''}>Date added</option><option value="done" ${S.settings.ckGroup === 'done' ? 'selected' : ''}>Date completed</option></select></label>` : ''}
         <ul class="checklist ${S.settings.ckGroup && t.checklist.length > 1 ? 'grouped' : ''}">
@@ -177,7 +176,7 @@ function renderTask() {
               ${checkWhoHTML(c)}</div>
             ${S.settings.ckGroup ? '' : '<span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'}</li>`)}
         </ul>
-        <form class="inline-add" data-submit="addCheck"><span>${icon('plus', 14)}</span><input name="text" placeholder="Add an item" data-focus="check-add" autocomplete="off" aria-label="Add a checklist item"></form>
+        <form class="inline-add" data-submit="addCheck"><span>${icon('plus', 14)}</span><input name="text" data-focus="check-add" autocomplete="off" aria-label="Add a checklist item"></form>
       </section>
       ${chatHTML(t)}
     </div>`;
