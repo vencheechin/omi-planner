@@ -1,0 +1,8 @@
+# Internal OMI documents: kept on this computer, never published
+OMI Branding Style Guide*.md
+*.pdf
+
+# Mac-only launcher for running Planner locally
+Start Planner.command
+
+.DS_Store

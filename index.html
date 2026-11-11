@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#233246">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Planner">
+  <title>Planner</title>
+  <link rel="icon" href="icons/omi-logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script>
+    try {
+      var theme = localStorage.getItem('planner-theme');
+      if (theme && theme !== 'system') document.documentElement.setAttribute('data-theme', theme);
+      var sizes = JSON.parse(localStorage.getItem('planner-sizes') || 'null');
+      if (sizes) {
+        document.documentElement.style.setProperty('--scale', sizes.text);
+        document.documentElement.style.setProperty('--bucket-fs', sizes.bucket + 'px');
+      }
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar" aria-label="Navigation"></aside>
+    <div id="shell">
+      <header id="topbar"></header>
+      <main id="main"></main>
+    </div>
+  </div>
+  <dialog id="taskDialog" aria-label="Task details"></dialog>
+  <div id="toasts" aria-live="polite"></div>
+  <noscript>Planner needs JavaScript to run.</noscript>
+  <script src="js/core.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/task.js"></script>
+  <script src="js/team.js"></script>
+  <script src="js/timebox.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/cloud.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
