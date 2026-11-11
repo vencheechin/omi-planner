@@ -511,14 +511,20 @@ const actions = {
     const iso = el.dataset.tbDate;
     const block = blockAt(iso, start);
     const anchor = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false };
-    openPop(anchor, () => `<form class="picker" data-submit="tbPopAdd" data-date="${iso}" data-start="${start}">
+    const queue = timeboxQueue();
+    openPop(anchor, () => `<form class="picker tb-tap" data-submit="tbPopAdd" data-date="${iso}" data-start="${start}">
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
-      <textarea name="title" rows="3" placeholder="Task name. Or several small tasks, one per line, to share this time box." required aria-label="Task name, or several, one per line"></textarea>
+      ${queue.length ? `<p class="muted small">From your Time Box list, tap one to put it here:</p>
+      <div class="tb-tap-list">${queue.map((q) => `<button type="button" class="tb-tap-item" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}"><i></i><span>${healthDot(q)}${esc(q.title || 'Untitled task')}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`).join('')}</div>
+      <p class="muted small">Or add a new task:</p>` : `<p class="muted small">Your Time Box list is empty. Use “Add to Time Box” on a task to list it here, or add a new task:</p>`}
+      <textarea name="title" rows="${queue.length ? 2 : 3}" placeholder="Task name. Or several small tasks, one per line, to share this time box." required aria-label="Task name, or several, one per line"></textarea>
       <div class="task-fields two"><label class="field"><span>Estimate</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
       <label class="field"><span>Work type</span><select name="workType">${workTypeOptions(block?.kind || '', true)}</select></label></div>
       <button class="btn primary sm">Add to ${esc(fmtTime(start))}</button></form>`);
-    $('textarea', ui.pop.el).focus();
+    // With a list to pick from, don't pop the phone keyboard up over it.
+    if (!queue.length) $('textarea', ui.pop.el).focus();
   },
+  tbPlaceQueued: (el) => { const t = taskById(el.dataset.id); closePop(); if (t) scheduleTask(t, el.dataset.date, Number(el.dataset.start)); },
   mioMenu: (el) => openPop(el, () => mioPickerHTML(el.dataset.date)),
   pickMio: (el) => { toggleMio(el.dataset.date, el.dataset.id); refreshPop(); },
   assignTimebox: (el) => { taskById(el.dataset.id).tbQueued = true; commit(); toast('Added to the Time Box list. Drag it onto a time from the Time Box page.'); },
