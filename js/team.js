@@ -300,6 +300,7 @@ function buildTeamFile() {
     delete o.tbColor;
     delete o.reminders;
     delete o.remFired;
+    delete o.myOrder;
     return o;
   });
   const planIds = new Set(tasks.map((t) => t.planId));

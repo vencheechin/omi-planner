@@ -61,7 +61,7 @@ function groupsFor(by, tasks, plan) {
   const sorted = [...tasks].sort(byOrder);
   const pick = (test) => sorted.filter(test);
   switch (by) {
-    case 'bucket': return plan.buckets.map((b) => ({ key: b.id, label: b.name, bucket: true, tasks: pick((t) => t.bucketId === b.id) }));
+    case 'bucket': return plan.buckets.map((b) => ({ key: b.id, label: b.name, bucket: true, color: b.color || '', tasks: pick((t) => t.bucketId === b.id) }));
     case 'assignee': {
       const ids = [...new Set([...(plan ? plan.members : [S.meId]), ...tasks.flatMap((t) => t.assignees)])];
       return [
@@ -265,9 +265,16 @@ function assignedToMeGroups(plan) {
   const mine = S.tasks.filter((t) => t.planId !== plan.id && t.assignees.includes(S.meId) && t.assignedBy && t.assignedBy !== S.meId && !t.boxId);
   const by = [...new Set(mine.map((t) => t.assignedBy))];
   return by.map((id) => ({
-    key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true,
-    tasks: applyFilter(mine.filter((t) => t.assignedBy === id), filterOf(plan.id)).sort(byOrder),
+    key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true, movable: true, noAdd: true,
+    color: plan.fromColor?.[`from:${id}`] || '',
+    tasks: applyFilter(mine.filter((t) => t.assignedBy === id), filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)),
   }));
+}
+/** Your own planner's columns: its buckets with the "Assigned by" buckets placed where you put them. */
+function placeFromGroups(plan, real, from) {
+  const cols = [...real];
+  from.forEach((g) => { const at = plan.fromPos?.[g.key]; cols.splice(Number.isInteger(at) ? Math.min(at, cols.length) : cols.length, 0, g); });
+  return cols;
 }
 function boardHTML(groups, by, ctx) {
   const col = (g) => {
@@ -280,10 +287,13 @@ function boardHTML(groups, by, ctx) {
       ? `<input class="col-title-input" value="${esc(g.label)}" data-change="bucketName" data-bucket="${esc(g.key)}" aria-label="Bucket name">`
       : `<span class="col-title">${g.person ? avatar(g.person, 22) : ''}${g.color ? `<i class="dot" style="background:${g.color}"></i>` : ''}${g.plan ? planTile(g.plan, 20) : ''}<b>${esc(g.label)}</b></span>`;
     const adding = ui.quickAdd === key;
-    return `<section class="col" data-group="${esc(g.key)}" ${g.locked ? 'data-locked="1"' : ''} ${g.bucket ? `data-bucket-id="${esc(g.key)}"` : ''}>
-      <header class="col-head" ${g.bucket ? 'data-drag="bucket"' : ''} data-id="${esc(g.key)}">
+    const movable = g.bucket || g.movable;
+    return `<section class="col ${g.color ? 'tinted' : ''}" data-group="${esc(g.key)}" ${g.locked ? 'data-locked="1"' : ''} ${movable ? `data-bucket-id="${esc(g.key)}"` : ''} ${g.color ? `style="--bc:${g.color}"` : ''}>
+      <header class="col-head" ${movable ? 'data-drag="bucket"' : ''} data-id="${esc(g.key)}">
+        ${movable ? `<span class="grip col-grip" aria-hidden="true" title="Drag to move">⋮⋮</span>` : ''}
         ${head}<span class="count">${open.length}</span>
         ${g.bucket ? `<button class="icon-btn" data-act="bucketMenu" data-id="${esc(g.key)}" aria-label="Bucket options for ${esc(g.label)}">${icon('more')}</button>` : ''}
+        ${g.movable ? `<button class="icon-btn" data-act="colourFrom" data-id="${esc(g.key)}" aria-label="Colour for ${esc(g.label)}">${icon('more')}</button>` : ''}
       </header>
       ${g.locked || g.noAdd ? '' : adding
         ? `<form class="quick-add" data-submit="quickAdd" data-group="${esc(g.key)}" data-key="${esc(key)}"><input name="title" placeholder="Task name" data-focus="qa-${esc(key)}" autocomplete="off" aria-label="Task name"><div class="row"><button class="btn primary sm">Add task</button><button class="btn ghost sm" type="button" data-act="cancelQuickAdd">Cancel</button></div></form>`
@@ -472,7 +482,7 @@ function renderPlan(plan) {
   const tasks = applyFilter(tasksOf(plan.id), filterOf(fkey));
   const ctx = { key: plan.id, planId: plan.id };
   const body = {
-    board: () => boardHTML([...groupsFor(by, tasks, plan), ...(by === 'bucket' ? assignedToMeGroups(plan) : [])], by, { ...ctx, showPlan: true }), grid: () => gridHTML(tasks, ctx),
+    board: () => boardHTML(by === 'bucket' ? placeFromGroups(plan, groupsFor(by, tasks, plan), assignedToMeGroups(plan)) : groupsFor(by, tasks, plan), by, { ...ctx, showPlan: true }), grid: () => gridHTML(tasks, ctx),
     schedule: () => scheduleHTML(tasks, plan), charts: () => chartsHTML(tasks, plan),
   }[tab]();
   return `<div class="plan-page">

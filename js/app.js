@@ -454,6 +454,7 @@ const actions = {
     const i = plan.buckets.findIndex((b) => b.id === id);
     const shift = (d) => { const [b] = plan.buckets.splice(i, 1); plan.buckets.splice(i + d, 0, b); commit(); };
     openMenu(el, [
+      { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML('bucket', id, plan.buckets[i]?.color, 'transparent', 'None')) },
       ...(i > 0 ? [{ label: 'Move left', icon: 'chevL', run: () => shift(-1) }] : []),
       ...(i < plan.buckets.length - 1 ? [{ label: 'Move right', icon: 'chevR', run: () => shift(1) }] : []),
       {
@@ -857,6 +858,8 @@ const actions = {
     const { kind, id, v } = el.dataset;
     closePop();
     if (kind === 'task') { taskById(id).tbColor = v; commit(); }
+    else if (kind === 'bucket') { const b = currentPlan()?.buckets.find((x) => x.id === id); if (b) { b.color = v || ''; commit(); } }
+    else if (kind === 'from') { const p = currentPlan(); p.fromColor = { ...(p.fromColor || {}), [id]: v || '' }; commit(); }
     else { TB().blocks.find((x) => x.id === id).color = v || null; commit(); refreshSettings(); }
   },
   runSetup: () => { $$('dialog[open]').forEach((d) => { if (d.id !== 'taskDialog') d.close(); }); setupDlg(); },
@@ -864,6 +867,7 @@ const actions = {
   remDel: (el) => { const t = openTaskObj(); t.reminders = remindersOf(t).filter((_, i) => i !== Number(el.dataset.i)); commit(); },
   remPreset: (el) => { closePop(); addReminder(openTaskObj(), JSON.parse(el.dataset.r)); },
   remAllowSystem: async () => { closePop(); try { const p = await Notification.requestPermission(); toast(p === 'granted' ? 'Reminders will also appear in this device’s notifications.' : 'Notifications stay in Planner’s bell.'); } catch { /* not supported */ } },
+  colourFrom: (el) => { const p = currentPlan(); openPop(el, () => colourListHTML('from', el.dataset.id, p.fromColor?.[el.dataset.id], 'transparent', 'None')); },
   teamDevice: () => Team.connectDevice(),
   openUsage: () => usageDlg(),
   exportUsage: (el) => {
@@ -1369,7 +1373,8 @@ function dragMove(x, y) {
     }
     const col = under?.closest('.col[data-group]');
     // Tasks shown in an "Assigned by …" bucket belong to another plan, so they stay put.
-    if (!col || col.dataset.locked || (String(s.fromGroup || '').startsWith('from:') && col.dataset.group !== s.fromGroup)) { s.ph.remove(); s.target = null; return; }
+    const fromBucket = String(s.fromGroup || '').startsWith('from:');
+    if (!col || (fromBucket ? col.dataset.group !== s.fromGroup : col.dataset.locked)) { s.ph.remove(); s.target = null; return; }
     const body = $('.col-body', col);
     const cards = $$('.card:not(.drag-src)', body);
     const before = cards.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
@@ -1454,10 +1459,13 @@ function dragEnd(drop) {
     else dropOnGroup(s.id, s.fromGroup, s.target.group, s.target.beforeId);
   } else if (s.type === 'bucket') {
     const plan = currentPlan();
-    const moved = plan.buckets.find((b) => b.id === s.id);
-    plan.buckets = plan.buckets.filter((b) => b !== moved);
-    const i = s.target.beforeId ? plan.buckets.findIndex((b) => b.id === s.target.beforeId) : plan.buckets.length;
-    plan.buckets.splice(i, 0, moved);
+    const seq = $$('.board .col[data-bucket-id]').map((c) => c.dataset.bucketId).filter((k) => k !== s.id);
+    const at = s.target.beforeId ? seq.indexOf(s.target.beforeId) : seq.length;
+    seq.splice(at < 0 ? seq.length : at, 0, s.id);
+    const real = seq.filter((k) => !k.startsWith('from:'));
+    plan.buckets = real.map((k) => plan.buckets.find((b) => b.id === k)).filter(Boolean).concat(plan.buckets.filter((b) => !real.includes(b.id)));
+    plan.fromPos = {};
+    seq.forEach((k, i) => { if (k.startsWith('from:')) plan.fromPos[k] = seq.slice(0, i).filter((x) => !x.startsWith('from:')).length; });
     commit();
   } else if (s.type === 'boxitem') {
     const moved = taskById(s.id);
@@ -1485,6 +1493,15 @@ function dragEnd(drop) {
 }
 function dropOnGroup(id, from, to, beforeId) {
   const t = taskById(id);
+  if (String(to).startsWith('from:')) {
+    if (from !== to) return;
+    const list = assignedToMeGroups(currentPlan()).find((g) => g.key === to)?.tasks.filter((x) => x.id !== id) || [];
+    const i = beforeId ? list.findIndex((x) => x.id === beforeId) : list.length;
+    list.splice(i < 0 ? list.length : i, 0, t);
+    list.forEach((x, n) => { x.myOrder = n; });
+    commit();
+    return;
+  }
   const by = currentBy();
   if (!applyGroup(t, by, from, to)) return;
   const plan = currentPlan();

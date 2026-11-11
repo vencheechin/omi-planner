@@ -971,6 +971,12 @@ dialog::backdrop { background: rgba(0, 0, 0, .35); -webkit-backdrop-filter: blur
 .rem-custom { display: grid; gap: 6px; padding-top: 6px; border-top: 0.5px solid var(--line); margin-top: 4px; }
 .rem-fields { display: grid; grid-template-columns: 56px 1fr 1fr 1fr; gap: 4px; }
 input:disabled { opacity: .7; cursor: not-allowed; }
+.col-head[data-drag="bucket"] { touch-action: none; cursor: grab; }
+.col-grip { color: var(--muted); font-size: 11px; letter-spacing: -2px; padding: 4px 2px; user-select: none; flex: none; }
+.col-head .col-title-input { cursor: text; }
+.col.tinted { background: color-mix(in srgb, var(--bc) 32%, transparent); border-radius: 14px; padding: 6px; }
+.col.tinted .col-head { padding: 2px 4px; }
+@media (hover: none) { .col-grip { padding: 8px 6px; font-size: 13px; } }
 .sug { list-style: disc; padding-left: 18px; display: grid; gap: 2px; font-size: calc(13px * var(--scale) * var(--type)); }
 
 /* Phones: tab bar at the bottom; the menu button stays for the full list of plans and people. */

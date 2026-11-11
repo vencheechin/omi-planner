@@ -135,9 +135,10 @@ function normalizeState(raw) {
     id: String(p.id), name: String(p.name || 'Untitled plan'), color: rebrand(p.color, OLD_PLAN_COLORS, PLAN_COLORS, PLAN_COLORS[0]), pinned: !!p.pinned,
     created: p.created || Date.now(), lastOpened: p.lastOpened || 0,
     labels: Array.from({ length: LABELS.length }, (_, i) => String((p.labels && p.labels[i]) || '')),
-    buckets: Array.isArray(p.buckets) && p.buckets.length ? p.buckets.map((b) => ({ id: String(b.id), name: String(b.name || 'Bucket'), ...(b.kind === 'checking' ? { kind: 'checking' } : {}) })) : [{ id: uid(), name: 'To do' }],
+    buckets: Array.isArray(p.buckets) && p.buckets.length ? p.buckets.map((b) => ({ id: String(b.id), name: String(b.name || 'Bucket'), ...(b.kind === 'checking' ? { kind: 'checking' } : {}), ...(/^#[0-9a-f]{6}$/i.test(b.color || '') ? { color: b.color } : {}) })) : [{ id: uid(), name: 'To do' }],
     members: Array.isArray(p.members) ? p.members.filter((m) => people.some((x) => x.id === m)) : [meId],
     personal: !!p.personal, shared: !!p.shared, owner: p.owner || null,
+    ...(p.fromPos && typeof p.fromPos === 'object' ? { fromPos: p.fromPos } : {}), ...(p.fromColor && typeof p.fromColor === 'object' ? { fromColor: p.fromColor } : {}),
     labelOrder: Array.isArray(p.labelOrder) ? [...new Set(p.labelOrder.filter((n) => Number.isInteger(n) && n >= 0 && n < LABELS.length))] : null, ...(p._v && typeof p._v === 'object' ? { _v: p._v } : {}),
   }));
   const planById = new Map(plans.map((p) => [p.id, p]));

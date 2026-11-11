@@ -14,8 +14,8 @@
 
    No Supabase library is needed: sign-in (emailed 6-digit code) and data use plain fetch. */
 
-const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired'];
-const PLAN_LOCAL_FIELDS = ['pinned', 'personal'];
+const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired', 'myOrder'];
+const PLAN_LOCAL_FIELDS = ['pinned', 'personal', 'fromPos', 'fromColor'];
 const PERSON_FIELDS = ['name', 'email', 'color'];
 const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat'];
 const ALL_TASK_FIELDS = [...TASK_FIELDS, ...TASK_LOCAL_FIELDS];
