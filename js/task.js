@@ -276,7 +276,7 @@ function chatHTML(t) {
   const sel = ui.chatSelect;
   return `<section class="task-sec chat-sec">
     <div class="sec-head"><h3>Conversation</h3>${count ? `<small class="muted">${count} message${count === 1 ? '' : 's'}</small>` : ''}</div>
-    <div class="chat-desc"><span>${icon('flag', 12)} Description</span><textarea rows="2" placeholder="Description" data-input="notes" data-focus="task-notes" aria-label="Description">${esc(t.notes)}</textarea></div>
+    <div class="chat-desc"><textarea rows="2" data-input="notes" data-focus="task-notes" aria-label="Description">${esc(t.notes)}</textarea></div>
     <div class="chat-scroll" data-chat>
       ${t.attachments.length ? `<div class="chat-event"><span>Files added earlier</span></div><div class="msg-files earlier">${t.attachments.map(fileChip).join('')}</div>` : ''}
       <ul class="chat">${rows || '<li class="chat-event"><span>No messages yet.</span></li>'}</ul>
