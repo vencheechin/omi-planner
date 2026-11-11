@@ -683,7 +683,7 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .tb-grid.xl .tb-band.protected { background: color-mix(in srgb, var(--c) 16%, transparent); }
 .tb-grid.xl .tb-band span { position: static; display: inline-flex; gap: 4px; align-items: center; font-size: calc(12.5px * var(--scale) * var(--type)); font-weight: 400; color: color-mix(in srgb, var(--c) 70%, var(--ink)); opacity: .85; text-align: center; }
 .tb-grid.xl .tb-block { border-radius: 0; border: 1px solid color-mix(in srgb, var(--c) 70%, var(--ink)); border-left-width: 1px; box-shadow: none; padding: 2px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-  background: color-mix(in srgb, var(--c) 55%, var(--surface)); }
+  background: color-mix(in srgb, var(--c) var(--block-mix, 55%), var(--surface)); }
 .tb-grid.xl .tb-block:hover { box-shadow: 0 0 0 2px var(--highlight); }
 .tb-grid.xl .tb-block.is-omio { box-shadow: inset 0 0 0 2px var(--ochre); }
 .tb-grid.xl .tb-block .tb-b-title { font-weight: 400; font-size: calc(13px * var(--scale) * var(--type)); -webkit-line-clamp: 6; }
@@ -1044,6 +1044,13 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 .dr-hub { display: grid; gap: 10px; margin-bottom: 22px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--highlight) 10%, var(--surface)); }
 .dr-hub h2 { font-size: calc(17px * var(--scale) * var(--type)); color: var(--heading); display: flex; align-items: center; gap: 8px; }
 .dr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.bo-pick { min-width: 230px; display: grid; gap: 6px; }
+.bo-list { display: grid; gap: 4px; }
+.bo-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: grab; touch-action: none; user-select: none; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.bo-row span:first-child { flex: 1; }
+.bo-row.on { background: color-mix(in srgb, var(--highlight) 25%, transparent); font-weight: 700; }
+.bo-row .grip { color: var(--muted); font-size: 11px; letter-spacing: -2px; }
+.bo-pick .ph { height: 34px !important; }
 .dr-status { font-size: calc(12px * var(--scale) * var(--type)); font-weight: 700; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 9%, transparent); }
 .dr-status.dr-approved { background: color-mix(in srgb, #30a158 25%, transparent); }
 .dr-status.dr-rejected { background: color-mix(in srgb, #d0453a 25%, transparent); }

@@ -38,6 +38,12 @@ const STYLES = [
     swatch: ['#2b2f36', '#6f7782', '#a68d5c', '#222428', '#f1f1ee'],
     palette: [['#a68d5c', 'Brass'], ['#6f7782', 'Slate'], ['#4f5a68', 'Steel'], ['#9aa3ad', 'Pewter'], ['#8a7768', 'Taupe'], ['#5f6f6a', 'Moss Grey'], ['#c2b08a', 'Linen'], ['#3f4650', 'Charcoal']],
   },
+  {
+    id: 'vibrant', name: 'Vibrant', note: 'Bright and colourful: cobalt blue, emerald and tangerine.',
+    base: { navy: '#1d4ed8', olive: '#10a37f', ochre: '#ff7a1a', charcoal: '#1c1f2b', cream: '#fff8ee', deep: '#171c34' }, vivid: true,
+    swatch: ['#1d4ed8', '#10a37f', '#ff7a1a', '#f43f8e', '#fff8ee'],
+    palette: [['#ff6b6b', 'Coral'], ['#ffb703', 'Sunflower'], ['#2ec4b6', 'Turquoise'], ['#4361ee', 'Cobalt'], ['#9b5de5', 'Violet'], ['#f15bb5', 'Bubblegum'], ['#06d6a0', 'Mint'], ['#fb8500', 'Tangerine']],
+  },
 ];
 const styleOf = (id) => STYLES.find((s) => s.id === id) || STYLES[0];
 const currentStyle = () => styleOf(typeof S !== 'undefined' && S ? S.settings.style : null);
@@ -54,14 +60,15 @@ function styleCSS(st) {
     --ink: var(--charcoal); --ink-2: color-mix(in srgb, var(--olive) 55%, var(--charcoal)); --muted: color-mix(in srgb, var(--olive) 80%, var(--charcoal));
     --line: color-mix(in srgb, var(--cream) 84%, var(--olive)); --line-strong: color-mix(in srgb, var(--cream) 68%, var(--olive));
     --st-doing: color-mix(in srgb, var(--navy) 80%, #fff); --st-done: var(--olive); --chart: var(--surface);`;
-  const dark = `${baseVars}
+  const dark = `${baseVars} --deep: ${b.deep || b.navy};
     --accent: color-mix(in srgb, var(--ochre) 80%, #fff); --accent-ink: var(--charcoal); --highlight: color-mix(in srgb, var(--ochre) 80%, #fff); --heading: var(--cream);
-    --bg: color-mix(in srgb, var(--navy) 72%, #000); --surface: var(--navy); --surface-2: color-mix(in srgb, var(--navy) 90%, #fff);
-    --hover: color-mix(in srgb, var(--navy) 84%, #fff); --accent-soft: color-mix(in srgb, var(--navy) 88%, #fff);
-    --ink: var(--cream); --ink-2: color-mix(in srgb, var(--cream) 85%, var(--navy)); --muted: color-mix(in srgb, var(--olive) 45%, var(--cream));
-    --line: color-mix(in srgb, var(--navy) 84%, #fff); --line-strong: color-mix(in srgb, var(--navy) 70%, #fff);
-    --st-doing: color-mix(in srgb, var(--olive) 50%, var(--cream)); --st-done: color-mix(in srgb, var(--olive) 70%, var(--cream)); --chart: color-mix(in srgb, var(--navy) 85%, #000);`;
-  return `:root { ${light} }
+    --bg: color-mix(in srgb, var(--deep) 72%, #000); --surface: var(--deep); --surface-2: color-mix(in srgb, var(--deep) 90%, #fff);
+    --hover: color-mix(in srgb, var(--deep) 84%, #fff); --accent-soft: color-mix(in srgb, var(--deep) 88%, #fff);
+    --ink: var(--cream); --ink-2: color-mix(in srgb, var(--cream) 85%, var(--deep)); --muted: color-mix(in srgb, var(--olive) 45%, var(--cream));
+    --line: color-mix(in srgb, var(--deep) 84%, #fff); --line-strong: color-mix(in srgb, var(--deep) 70%, #fff);
+    --st-doing: color-mix(in srgb, var(--olive) 50%, var(--cream)); --st-done: color-mix(in srgb, var(--olive) 70%, var(--cream)); --chart: color-mix(in srgb, var(--deep) 85%, #000);`;
+  const mix = `--block-mix: ${st.vivid ? '90%' : '55%'};`;
+  return `:root { ${light} ${mix} }
 @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) { ${dark} } }
 :root[data-theme="dark"] { ${dark} }`;
 }

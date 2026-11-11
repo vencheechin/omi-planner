@@ -228,6 +228,10 @@ function askPlanBucket(title) {
     $('select', form).focus();
   });
 }
+/** The bucket list for Move: drag the highlighted bucket (or any other) to where it should go. */
+function bucketOrderHTML(plan, current) {
+  return `<div class="picker bo-pick"><h4>Move</h4><div class="bo-list">${plan.buckets.map((b) => `<div class="bo-row ${b.id === current ? 'on' : ''}" data-drag="bucketorder" data-id="${esc(b.id)}"><span>${esc(b.name)}</span><span class="grip" aria-hidden="true">⋮⋮</span></div>`).join('')}</div></div>`;
+}
 function bindPlanBucket(form) {
   form.elements.plan.onchange = () => {
     form.elements.bucket.innerHTML = planById(form.elements.plan.value).buckets.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('');
@@ -452,11 +456,9 @@ const actions = {
     const plan = currentPlan();
     const id = el.dataset.id;
     const i = plan.buckets.findIndex((b) => b.id === id);
-    const shift = (d) => { const [b] = plan.buckets.splice(i, 1); plan.buckets.splice(i + d, 0, b); commit(); };
     openMenu(el, [
       { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML('bucket', id, plan.buckets[i]?.color, 'transparent', 'None')) },
-      ...(i > 0 ? [{ label: 'Move left', icon: 'chevL', run: () => shift(-1) }] : []),
-      ...(i < plan.buckets.length - 1 ? [{ label: 'Move right', icon: 'chevR', run: () => shift(1) }] : []),
+      ...(plan.buckets.length > 1 ? [{ label: 'Move', icon: 'move', sub: true, run: () => openPop(el, () => bucketOrderHTML(currentPlan(), id)) }] : []),
       {
         label: 'Delete bucket', icon: 'trash', danger: true,
         run: async () => {
@@ -1455,7 +1457,7 @@ function dragStart() {
     closePop();
     return;
   }
-  const keepPop = s.type === 'label';
+  const keepPop = s.type === 'label' || s.type === 'bucketorder';
   const r = s.el.getBoundingClientRect();
   const source = s.type === 'bucket' ? s.el.closest('.col') : s.el;
   s.source = source;
@@ -1563,9 +1565,9 @@ function dragMove(x, y) {
     const before = items.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
     list.insertBefore(s.ph, before || null);
     s.target = { beforeId: before ? before.dataset.id : null };
-  } else if (s.type === 'worktype') {
-    const list = s.el.closest('.wt-list');
-    const rows = $$('.wt-row:not(.drag-src)', list);
+  } else if (s.type === 'worktype' || s.type === 'bucketorder') {
+    const list = s.el.closest('.wt-list, .bo-list');
+    const rows = $$('.wt-row:not(.drag-src), .bo-row:not(.drag-src)', list);
     const before = rows.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
     list.insertBefore(s.ph, before || null);
   } else if (s.type === 'label') {
@@ -1603,12 +1605,21 @@ function dragEnd(drop) {
   if (!s.active) return;
   Drag.quietUntil = performance.now() + 350;
   s.ghost?.remove();
-  if (s.type === 'worktype' && drop && s.ph.isConnected) s.ph.replaceWith(s.source); else s.ph.remove();
+  if ((s.type === 'worktype' || s.type === 'bucketorder') && drop && s.ph.isConnected) s.ph.replaceWith(s.source); else s.ph.remove();
   s.tbph?.remove();
   s.source.classList.remove('drag-src', 'resizing');
   document.body.classList.remove('dragging');
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   if (s.type === 'worktype') return;
+  if (s.type === 'bucketorder') {
+    // The list's new order becomes the board's bucket order.
+    const plan = currentPlan();
+    const ids = $$('.bo-list .bo-row', ui.pop?.el || document).map((r) => r.dataset.id);
+    plan.buckets = ids.map((bid) => plan.buckets.find((b) => b.id === bid)).filter(Boolean).concat(plan.buckets.filter((b) => !ids.includes(b.id)));
+    commit();
+    refreshPop();
+    return;
+  }
   if (s.type === 'resize') {
     const t = taskById(s.id);
     if (drop && s.target && s.target.dur !== durOf(t)) scheduleTask(t, t.slotDate, t.slotStart, s.target.dur); else render();
