@@ -1053,6 +1053,7 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 @media (max-width: 760px) { .due-cols { grid-template-columns: minmax(0, 1fr); } }
 .dr-hub { display: grid; gap: 10px; margin-bottom: 22px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--highlight) 10%, var(--surface)); }
 .dr-hub h2 { font-size: calc(17px * var(--scale) * var(--type)); color: var(--heading); display: flex; align-items: center; gap: 8px; }
+.chk-hub { background: color-mix(in srgb, var(--st-done) 12%, var(--surface)); }
 .dr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .bo-pick { min-width: 230px; display: grid; gap: 6px; }
 .bo-list { display: grid; gap: 4px; }
