@@ -372,7 +372,7 @@ function mioPickerHTML(iso) {
 /** The "★ 3 Most Important Outcomes" bar shown on My Day and the Time Box day view. */
 function mioBarHTML(iso, bookable) {
   const list = mioOf(iso);
-  return `<div class="omio-bar ${list.length ? 'set' : ''}"><span class="omio-label">★ 3 Most Important Outcomes</span>
+  return `<div class="omio-bar ${list.length ? 'set' : ''}"><span class="omio-label"><span class="long">★ 3 Most Important Outcomes</span><span class="short">★ 3MIO</span></span>
     ${list.map((t, i) => `<span class="mio-item ${isDone(t) ? 'done' : ''}"><b>${i + 1}</b><button class="link-btn" data-open-task="${esc(t.id)}">${healthDot(t)}${esc(t.title)}</button>${isScheduled(t) && t.slotDate === iso ? `<small class="muted">${esc(fmtTime(t.slotStart))}</small>` : bookable && !isDone(t) ? `<button class="btn ghost xs" data-act="bookNextFree" data-id="${esc(t.id)}">Book time</button>` : ''}</span>`).join('') || '<span class="muted">Not chosen yet</span>'}
     <button class="btn ghost sm" data-act="mioMenu" data-date="${iso}">${list.length ? 'Edit' : 'Choose'}</button></div>`;
 }

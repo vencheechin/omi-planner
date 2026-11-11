@@ -506,6 +506,7 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .tb-quick input[name=title] { flex: 1 1 220px; }
 .omio-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: var(--radius); background: var(--surface); border-left: 3px solid var(--line-strong); }
 .omio-bar.set { border-left-color: var(--ochre); }
+.omio-label .short { display: none; }
 .omio-label { font-weight: 700; color: var(--ochre); }
 .omio-bar .link-btn { font-weight: 700; font-size: calc(15px * var(--scale) * var(--type)); }
 .mio-item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 2px; border-radius: 999px; background: var(--surface-2); }
@@ -822,6 +823,41 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
   .tb-mhead, .tb-mweek { grid-template-columns: repeat(7, minmax(84px, 1fr)); min-width: 588px; }
   .tb-side { width: auto; }
   .tb-queue { max-height: none; }
+
+  /* The whole Time Box page scrolls as one on phones; nothing above the grid stays fixed. */
+  .tb-page { height: auto; min-height: 100%; padding: 8px 10px 0; gap: 8px; }
+  .tb-main { flex: none; overflow: visible; padding-bottom: 16px; }
+  .tb-grid, .tb-grid.xl { height: auto; flex: none; overflow: visible; }
+  .tb-grid.xl .tb-scroll { overflow: visible; flex: none; }
+  .tb-grid.xl.week .tb-scroll { overflow-x: auto; overflow-y: visible; }
+  .tb-grid.xl.day .tb-heads { top: 0; }
+  .tb-grid.xl.day .tb-dayhead .tb-omio-mini, .tb-grid.xl.day .tb-dayhead .tb-cap { display: none; }
+  .tb-grid.xl.day .tb-dayhead { padding: 3px 6px; }
+  .tb-grid.xl.day .tb-date { display: flex; gap: 6px; align-items: baseline; justify-content: center; }
+
+  /* Compact header: title and date on one line, then one row of controls. */
+  .tb-head { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 8px; }
+  .tb-title { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .tb-title h1 { font-size: calc(20px * var(--scale) * var(--type)); }
+  .tb-title p { font-size: calc(13px * var(--scale) * var(--type)); }
+  .tb-head .seg button { padding: 4px 9px; }
+  .tb-head .tb-nav { gap: 2px; flex-wrap: nowrap; justify-self: end; }
+  .tb-head .tb-nav .icon-btn { width: 32px; height: 32px; }
+  .tb-head .tb-nav .btn { padding: 3px 8px; }
+  .tb-head .tb-interval { grid-column: auto; font-size: 0; }
+  .tb-head .tb-interval select { font-size: 14px; padding: 3px 4px; }
+  .tb-head > .btn { justify-self: start; padding: 5px 10px; }
+  .tb-head > .btn.primary { justify-self: end; }
+
+  /* Add bar: task name, then length, type and Add. It goes on the day shown, at the next free time. */
+  .tb-quick { grid-template-columns: 1fr 1fr auto; padding: 6px; box-shadow: none; }
+  .tb-quick input[name=date], .tb-quick input[name=start] { display: none; }
+  .tb-quick input, .tb-quick select { font-size: 16px; }
+
+  .omio-label .long { display: none; }
+  .omio-label .short { display: inline; }
+  .omio-bar { padding: 5px 10px; }
+  .omio-bar .btn { margin-left: auto; }
 }
 @media (hover: none) {
   .tb-resize { height: 14px; }
