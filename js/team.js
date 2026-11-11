@@ -225,7 +225,10 @@ function mergeRecord(kind, r, notices) {
       for (const x of r[f] || []) {
         if (!x || !x.id) continue;
         const mine = have.get(x.id);
-        if (!mine) { l[f].push(clone(x)); changed = true; } else if (x.deleted && !mine.deleted) { mine.deleted = true; changed = true; }
+        if (!mine) { l[f].push(clone(x)); changed = true; } else {
+          if (x.deleted && !mine.deleted) { mine.deleted = true; mine.deletedBy = x.deletedBy || null; mine.text = ''; mine.files = []; changed = true; }
+          if (x.recalled && !mine.recalled) { mine.recalled = clone(x.recalled); mine.text = ''; mine.files = []; changed = true; }
+        }
       }
       l[f].sort((a, b) => a.at - b.at);
     }

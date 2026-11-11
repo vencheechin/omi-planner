@@ -17,7 +17,7 @@
 const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box'];
 const PLAN_LOCAL_FIELDS = ['pinned', 'personal'];
 const PERSON_FIELDS = ['name', 'email', 'color'];
-const PREFS_FIELDS = ['timebox', 'personPlans', 'days'];
+const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat'];
 const ALL_TASK_FIELDS = [...TASK_FIELDS, ...TASK_LOCAL_FIELDS];
 const ALL_PLAN_FIELDS = [...PLAN_FIELDS, ...PLAN_LOCAL_FIELDS];
 const KIND_ORDER = { person: 0, prefs: 1, plan: 2, planLocal: 3, task: 4, taskLocal: 5 };
@@ -31,7 +31,7 @@ const pickFields = (obj, fields) => {
   return out;
 };
 /** The preferences that follow you between devices, as one record. */
-const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days });
+const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat });
 
 /**
  * Notes field changes (with time and author) and marks changed records for upload. Runs after
@@ -161,10 +161,14 @@ const Cloud = {
     const mine = await this.req(`/rest/v1/team_members?select=team_id&email=eq.${encodeURIComponent(me)}`);
     if (!mine?.length) { this.team = null; return; }
     const id = (S.sync.cloud?.teamId && mine.some((m) => m.team_id === S.sync.cloud.teamId)) ? S.sync.cloud.teamId : mine[0].team_id;
-    const [team] = await this.req(`/rest/v1/teams?select=id,name&id=eq.${id}`) || [];
-    const members = await this.req(`/rest/v1/team_members?select=email&team_id=eq.${id}&order=email`) || [];
+    const [team] = await this.req(`/rest/v1/teams?select=id,name,created_by&id=eq.${id}`) || [];
+    // Roles need the latest setup.sql; before that, only the team's creator is an admin.
+    let members;
+    try { members = await this.req(`/rest/v1/team_members?select=email,role&team_id=eq.${id}&order=email`) || []; } catch { members = await this.req(`/rest/v1/team_members?select=email&team_id=eq.${id}&order=email`) || []; }
     const was = this.team?.id;
-    this.team = { id, name: team?.name || 'Team', members: members.map((m) => m.email) };
+    const admins = members.filter((m) => m.role === 'admin').map((m) => m.email);
+    if (team?.created_by === this.session.uid && !admins.includes(me)) admins.push(me);
+    this.team = { id, name: team?.name || 'Team', members: members.map((m) => m.email), admins, creator: team?.created_by || null };
     S.sync.cloud = { ...(S.sync.cloud || {}), teamId: id };
     // Teammates become people you can assign to, by email.
     this.team.members.forEach((email) => { if (email !== me && !S.people.some((p) => p.email === email)) ensurePerson(nameFromEmail(email), email); });
@@ -172,8 +176,40 @@ const Cloud = {
   },
   async createTeam(name) {
     const [team] = await this.req('/rest/v1/teams', { method: 'POST', body: { name }, headers: { Prefer: 'return=representation' } });
-    await this.req('/rest/v1/team_members', { method: 'POST', body: { team_id: team.id, email: this.session.email }, headers: { Prefer: 'return=minimal' } });
+    await this.req('/rest/v1/team_members', { method: 'POST', body: { team_id: team.id, email: this.session.email, role: 'admin' }, headers: { Prefer: 'return=minimal' } });
     await this.loadTeam();
+  },
+  async setRole(email, role) {
+    if (!this.team || !isAdmin()) throw new Error('Only admins can change who is an admin.');
+    await this.req(`/rest/v1/team_members?team_id=eq.${this.team.id}&email=eq.${encodeURIComponent(email)}`, { method: 'PATCH', body: { role }, headers: { Prefer: 'return=minimal' } });
+    await this.loadTeam();
+  },
+  /** Sends deletions and recalls waiting on this device to the message log in the cloud. */
+  async flushLog() {
+    const queue = S.sync.logQueue || [];
+    if (!this.session || !queue.length || this.flushing) return;
+    this.flushing = true;
+    try {
+      const rows = queue.map((e) => {
+        const team = e.scope === 'team' && this.team ? this.team.id : null;
+        return {
+          id: e.id, team_id: team, scope: team ? `t:${team}` : this.scopeUser(), task_id: e.taskId, task_title: e.taskTitle || '', message_id: e.messageId,
+          action: e.action, by_name: e.byName || '', author: e.author || '', author_name: e.authorName || '', message_text: e.text || '', files: e.files || [],
+          message_at: e.messageAt ? new Date(e.messageAt).toISOString() : null, logged_at: new Date(e.at).toISOString(),
+        };
+      });
+      await this.req('/rest/v1/message_log', { method: 'POST', body: rows, headers: { Prefer: 'return=minimal,resolution=ignore-duplicates' } });
+      const sent = new Set(queue.map((e) => e.id));
+      S.sync.logQueue = (S.sync.logQueue || []).filter((e) => !sent.has(e.id));
+      Store.save();
+    } catch { /* kept for the next sync (or until setup.sql has the message_log table) */ } finally { this.flushing = false; }
+  },
+  async readLog() {
+    const rows = await this.req(`/rest/v1/message_log?select=*&team_id=eq.${this.team.id}&order=logged_at.desc&limit=2000`) || [];
+    return rows.map((r) => ({
+      id: r.id, at: Date.parse(r.logged_at), action: r.action, by: r.by_email, byName: r.by_name || r.by_email, taskId: r.task_id, taskTitle: r.task_title,
+      messageId: r.message_id, author: r.author, authorName: r.author_name, text: r.message_text, files: r.files || [], messageAt: r.message_at ? Date.parse(r.message_at) : null,
+    }));
   },
   async invite(email) {
     email = email.trim().toLowerCase();
@@ -204,6 +240,7 @@ const Cloud = {
     this.busy = true;
     try {
       await this.loadTeam();
+      await this.flushLog();
       // A device's first sync reads the cloud before writing, and lets your saved profile and
       // preferences win over a fresh install's defaults, which would otherwise look newer.
       const first = !S.sync.cloud?.since;
@@ -412,6 +449,7 @@ function applyCloudRow(row, notices, adoptMine = false) {
         if (f === 'timebox') S.settings.timebox = normalizeTimebox(clone(d.timebox));
         else if (f === 'personPlans') S.personPlans = Array.isArray(d.personPlans) ? clone(d.personPlans) : S.personPlans;
         else if (f === 'days') S.days = d.days && typeof d.days === 'object' ? clone(d.days) : S.days;
+        else if (f === 'chat') S.settings.chat = normalizeChatPrefs(clone(d.chat));
         holder._v[f] = rv;
         sh('prefs')[f] = fieldHash(prefsRecord()[f]);
         changed = true;
@@ -491,7 +529,12 @@ function cloudSettingsHTML() {
   const waiting = Object.keys(S.sync.dirty || {}).length;
   return `<p class="small">Signed in as <b>${esc(s.email)}</b> · ${esc(Cloud.statusText()?.text || '')}${waiting ? ` · ${waiting} waiting` : ''}${Cloud.error ? `<br><span class="danger-text">${esc(Cloud.error)}</span>` : ''}</p>
     ${t ? `<p class="small">Team: <b>${esc(t.name)}</b></p>
-      <ul class="people-list">${t.members.map((m) => `<li><span class="muted">${esc(m)}</span>${m === s.email ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="cloudRemoveMember" data-email="${esc(m)}" aria-label="Remove ${esc(m)} from the team">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
+      <ul class="people-list">${t.members.map((m) => {
+        const admin = (t.admins || []).includes(m);
+        return `<li><span class="muted">${esc(m)}</span>${admin ? '<small class="role-tag">Admin</small>' : ''}${m === s.email ? '<small class="muted">you</small>' : ''}
+          ${isAdmin() && m !== s.email ? `<button class="btn ghost xs" data-act="cloudSetRole" data-email="${esc(m)}" data-role="${admin ? 'member' : 'admin'}">${admin ? 'Remove admin' : 'Make admin'}</button><button class="icon-btn" data-act="cloudRemoveMember" data-email="${esc(m)}" aria-label="Remove ${esc(m)} from the team">${icon('close', 13)}</button>` : ''}</li>`;
+      }).join('')}</ul>
+      <p class="muted small">Admins can delete any message for everyone, recall any message at any time, and read the message log.</p>
       <form class="row" data-submit="cloudInvite"><input name="email" type="email" required placeholder="colleague@company.com" aria-label="Colleague's email" style="flex:1"><button class="btn ghost sm">${icon('plus', 14)} Add to team</button></form>
       <p class="muted small">Teammates sign in with the email you add here. Tasks you assign to them appear in their Planner.</p>`
     : `<form class="row" data-submit="cloudCreateTeam"><input name="name" required placeholder="Team name, e.g. OMI" aria-label="Team name" style="flex:1"><button class="btn primary sm">Create team</button></form>

@@ -195,9 +195,13 @@ function renderTask() {
 const chatDay = (ms) => { const iso = toISO(new Date(ms)); return iso === todayISO() ? 'Today' : iso === addDays(todayISO(), -1) ? 'Yesterday' : parseISO(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: iso.slice(0, 4) === todayISO().slice(0, 4) ? undefined : 'numeric' }); };
 const chatTime = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 function fileChip(a) {
+  if (a.kind === 'contact') {
+    const p = { name: a.name, color: person(a.personId)?.color || PERSON_COLORS[1] };
+    return `<div class="chat-contact">${avatar(p, 30)}<span><b>${esc(a.name)}</b>${a.email ? `<a href="mailto:${esc(a.email)}">${esc(a.email)}</a>` : ''}</span></div>`;
+  }
   if (a.kind === 'link') {
     const url = safeUrl(a.url);
-    return `<a class="chat-file link" ${url ? `href="${esc(url)}" target="_blank" rel="noopener noreferrer"` : ''}>${icon('link', 14)}<span>${esc(a.name)}</span></a>`;
+    return `<a class="chat-file link ${a.loc ? 'loc' : ''}" ${url ? `href="${esc(url)}" target="_blank" rel="noopener noreferrer"` : ''}>${icon(a.loc ? 'pin' : 'link', 14)}<span>${esc(a.name)}</span></a>`;
   }
   if (a.thumb) return `<button class="chat-img" data-act="openFile" data-id="${esc(a.id)}" title="${esc(a.name)}"><img src="${esc(a.thumb)}" alt="${esc(a.name)}"></button>`;
   return `<button class="chat-file" data-act="openFile" data-id="${esc(a.id)}">${icon('clip', 14)}<span>${esc(a.name)}</span><small>${fmtSize(a.size || 0)}</small></button>`;
@@ -205,7 +209,7 @@ function fileChip(a) {
 /** The task's description, its messages (with files) and its activity, as one conversation. */
 function chatHTML(t) {
   const items = [
-    ...t.comments.filter((c) => !c.deleted).map((c) => ({ at: c.at, c })),
+    ...t.comments.filter((c) => !(c.deleted && !c.deletedBy) && !chatPrefs().hidden.includes(c.id)).map((c) => ({ at: c.at, c })),
     ...t.history.map((e) => ({ at: e.at, e })),
   ].sort((x, y) => x.at - y.at);
   let lastDay = '';
@@ -224,18 +228,30 @@ function chatHTML(t) {
     const mine = c.author === S.meId;
     const showName = !mine && c.author !== lastAuthor;
     lastAuthor = c.author;
-    return `${out}<li class="msg ${mine ? 'mine' : 'theirs'} ${showName ? 'first' : ''}">
+    const gone = c.deleted || isRecalled(c);
+    const sel = ui.chatSelect;
+    const quoted = c.replyTo && t.comments.find((x) => x.id === c.replyTo);
+    const goneText = !gone ? '' : c.deleted ? `${c.deletedBy === S.meId ? 'You deleted this message' : 'This message was deleted'}` : `${c.recalled.by === c.author ? (mine ? 'You recalled this message' : 'This message was recalled') : `Recalled by ${esc(c.recalled.by === S.meId ? 'you' : person(c.recalled.by)?.name || 'an admin')}`}`;
+    return `${out}<li class="msg ${mine ? 'mine' : 'theirs'} ${showName ? 'first' : ''} ${sel?.has(c.id) ? 'picked' : ''}" data-msg="${esc(c.id)}">
+      ${sel && canSelect(c) && !gone ? `<input type="checkbox" class="msg-pick" data-change="msgPick" data-id="${esc(c.id)}" ${sel.has(c.id) ? 'checked' : ''} aria-label="Select message">` : ''}
       ${!mine ? (showName ? avatar(who, 28) : '<span class="avatar-gap"></span>') : ''}
-      <div class="bubble">
+      <div class="bubble ${gone ? 'gone' : ''}">
         ${showName ? `<b class="msg-name" style="--nc:${esc(who?.color || '#b5894d')}">${esc(who?.name || 'Someone')}</b>` : ''}
+        ${gone ? `<p class="msg-text gone-text">${icon('recall', 12)} ${goneText}</p>` : `
+        ${c.fwd ? `<small class="msg-fwd">${icon('fwd', 11)} Forwarded</small>` : ''}
+        ${quoted ? `<button class="msg-quote" data-act="jumpMsg" data-id="${esc(quoted.id)}"><b>${esc(quoted.author === S.meId ? 'You' : person(quoted.author)?.name || 'Someone')}</b><span>${esc(quoted.deleted || isRecalled(quoted) ? 'Message no longer available' : (quoted.text || (quoted.files || []).map((f) => f.name).join(', ')).slice(0, 120))}</span></button>` : ''}
         ${(c.files || []).length ? `<div class="msg-files">${c.files.map(fileChip).join('')}</div>` : ''}
-        ${c.text ? `<p class="msg-text">${esc(c.text)}</p>` : ''}
+        ${msgTextHTML(c)}`}
         <span class="msg-time">${esc(chatTime(c.at))}</span>
-        ${mine ? `<button class="msg-del icon-btn" data-act="delComment" data-id="${esc(c.id)}" aria-label="Delete message" title="Delete">${icon('close', 11)}</button>` : ''}
+        ${!gone && !sel ? `<button class="msg-more icon-btn" data-act="msgMenu" data-id="${esc(c.id)}" aria-label="Message options" title="Reply, forward, copy, delete">${icon('chevD', 13)}</button>` : ''}
       </div></li>`;
   }).join('');
-  const staged = [...(ui.draft.files || []).map((f, i) => ({ i, name: f.name, kind: 'file' })), ...(ui.draft.links || []).map((l, i) => ({ i, name: l.name, kind: 'link' }))];
-  const count = t.comments.filter((c) => !c.deleted).length;
+  const staged = [...(ui.draft.files || []).map((f, i) => ({ i, name: f.name, kind: 'file', ic: /^image\//.test(f.type) ? 'image' : 'clip' })),
+    ...(ui.draft.links || []).map((l, i) => ({ i, name: l.name, kind: 'link', ic: l.kind === 'location' ? 'pin' : 'link' })),
+    ...(ui.draft.contacts || []).map((p, i) => ({ i, name: p.name, kind: 'contact', ic: 'user' }))];
+  const count = t.comments.filter((c) => !c.deleted && !isRecalled(c) && !chatPrefs().hidden.includes(c.id)).length;
+  const replying = ui.draft.replyTo && t.comments.find((c) => c.id === ui.draft.replyTo);
+  const sel = ui.chatSelect;
   return `<section class="task-sec chat-sec">
     <div class="sec-head"><h3>Conversation</h3><small class="muted">${count ? `${count} message${count === 1 ? '' : 's'}` : 'Messages, files and links, shared with everyone on this task'}</small></div>
     <div class="chat-desc"><span>${icon('flag', 12)} Description</span><textarea rows="2" placeholder="What is this task about? Everyone on the task sees this at the top." data-input="notes" data-focus="task-notes" aria-label="Description">${esc(t.notes)}</textarea></div>
@@ -243,14 +259,17 @@ function chatHTML(t) {
       ${t.attachments.length ? `<div class="chat-event"><span>Files added earlier</span></div><div class="msg-files earlier">${t.attachments.map(fileChip).join('')}</div>` : ''}
       <ul class="chat">${rows || '<li class="chat-event"><span>No messages yet. Say hello, or attach a file.</span></li>'}</ul>
     </div>
-    ${staged.length ? `<div class="chat-staged">${staged.map((x) => `<span class="staged">${icon(x.kind === 'link' ? 'link' : 'clip', 12)}${esc(x.name)}<button class="chip-x" data-act="unstage" data-kind="${x.kind}" data-i="${x.i}" aria-label="Remove ${esc(x.name)}">${icon('close', 10)}</button></span>`).join('')}</div>` : ''}
+    ${sel ? `<div class="chat-selbar"><b>${sel.size} selected</b><span class="spacer"></span>
+      <button class="btn ghost sm" data-act="cancelSelect">Cancel</button>
+      <button class="btn ghost sm danger-text" data-act="delSelMe" ${sel.size ? '' : 'disabled'}>${icon('trash', 13)} Delete for me</button>
+      ${isAdmin() ? `<button class="btn danger sm" data-act="delSelAll" ${sel.size ? '' : 'disabled'}>Delete for everyone</button>` : ''}</div>`
+    : `${staged.length ? `<div class="chat-staged">${staged.map((x) => `<span class="staged">${icon(x.ic, 12)}${esc(x.name)}<button class="chip-x" data-act="unstage" data-kind="${x.kind}" data-i="${x.i}" aria-label="Remove ${esc(x.name)}">${icon('close', 10)}</button></span>`).join('')}</div>` : ''}
+    ${replying ? `<div class="chat-replying">${icon('reply', 13)}<span><b>Replying to ${esc(replying.author === S.meId ? 'yourself' : person(replying.author)?.name || 'Someone')}</b><small>${esc((replying.text || (replying.files || []).map((f) => f.name).join(', ')).slice(0, 120))}</small></span><button class="icon-btn" data-act="cancelReply" aria-label="Cancel reply">${icon('close', 12)}</button></div>` : ''}
     <form class="chat-compose" data-submit="sendMessage">
-      <button type="button" class="icon-btn" data-act="chatAttach" aria-label="Attach files" title="Attach files">${icon('clip', 17)}</button>
-      <button type="button" class="icon-btn" data-act="chatLink" aria-label="Add a link" title="Add a link">${icon('link', 17)}</button>
+      <button type="button" class="icon-btn chat-plus" data-act="chatPlus" aria-label="Attach: photos, camera, location, contact" title="Attach">${icon('plus', 20)}</button>
       <textarea name="text" rows="1" placeholder="Message" data-input="commentDraft" data-focus="comment" aria-label="Message">${esc(ui.draft.comment)}</textarea>
-      <button class="btn primary sm chat-send" aria-label="Send">Send</button>
     </form>
-    <p class="muted small">Enter sends · Shift+Enter for a new line · drop files anywhere here</p>
+    <p class="muted small">Enter sends · Shift+Enter for a new line · right-click a message for more</p>`}
   </section>`;
 }
 /** Sends the draft text with any staged files and links as one message. */
@@ -258,7 +277,8 @@ async function sendMessage(t) {
   const text = (ui.draft.comment || '').trim();
   const files = ui.draft.files || [];
   const links = ui.draft.links || [];
-  if (!text && !files.length && !links.length) return;
+  const contacts = ui.draft.contacts || [];
+  if (!text && !files.length && !links.length && !contacts.length) return;
   const stored = [];
   for (const file of files) {
     if (file.size > 50 * 1048576) { toast(`${file.name} is over the 50 MB limit.`, { error: true }); continue; }
@@ -268,9 +288,11 @@ async function sendMessage(t) {
       stored.push({ id, kind: 'file', name: file.name, size: file.size, type: file.type, thumb: await makeThumb(file) });
     } catch (err) { toast(err.message || `Could not store ${file.name}.`, { error: true }); }
   }
-  links.forEach((l) => stored.push({ id: uid(), kind: 'link', name: l.name, url: l.url }));
-  t.comments.push({ id: uid(), author: S.meId, text, at: Date.now(), ...(stored.length ? { files: stored } : {}) });
-  ui.draft = { comment: '', files: [], links: [] };
+  links.forEach((l) => stored.push({ id: uid(), kind: 'link', name: l.name, url: l.url, ...(l.kind === 'location' ? { loc: true } : {}) }));
+  contacts.forEach((p) => stored.push({ id: uid(), kind: 'contact', name: p.name, email: p.email || '', personId: p.id }));
+  const replyTo = ui.draft.replyTo && t.comments.some((c) => c.id === ui.draft.replyTo) ? ui.draft.replyTo : null;
+  t.comments.push({ id: uid(), author: S.meId, text, at: Date.now(), ...(stored.length ? { files: stored } : {}), ...(replyTo ? { replyTo } : {}) });
+  ui.draft = { comment: '', files: [], links: [], contacts: [], replyTo: null };
   ui.focus = 'comment';
   ui.chatToBottom = true;
   commit();

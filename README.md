@@ -49,6 +49,19 @@ How it works:
 - Notifications appear while Planner is open. Chrome asks once for permission to the folder after
   each restart; click the status at the top right to reconnect.
 
+## Conversation
+
+Each task has a WhatsApp-style conversation. Enter sends; Shift+Enter adds a new line.
+
+- **+** attaches a file, photos, a camera photo, your location or a contact (or a link).
+- Right-click a message (or press its ⌄) to **Reply**, **Forward** to another task, **Copy**,
+  **Recall** (your own, within 5 minutes) or **Delete**. Delete lets you tick several of your own
+  messages; they disappear for you only.
+- Admins can also delete anyone's message for everyone and recall any message at any time.
+  Every deletion and recall is logged (Settings > Messages and Language > Message log).
+- Set your **Default Language** in Settings. Messages in other languages are translated with
+  Google Translate and marked "Translated from …", with **Show original**.
+
 ## Import from Microsoft Planner
 
 In Microsoft Planner, open a plan, choose **•••** next to the plan name, then **Export plan to

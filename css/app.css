@@ -730,6 +730,44 @@ dialog::backdrop { background: rgba(35, 50, 70, .45); }
 .chat-compose { display: flex; align-items: flex-end; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 4px 4px 4px 6px; }
 .chat-compose:focus-within { border-color: var(--highlight); }
 .chat-compose textarea { flex: 1; border: 0; background: none; resize: none; padding: 7px 4px; max-height: 140px; field-sizing: content; }
+.chat-plus { width: 38px; height: 38px; border-radius: 50%; flex: none; }
+.chat-plus:hover { background: var(--surface-2, color-mix(in srgb, var(--ink) 8%, transparent)); }
+.plus-grid { display: grid; grid-template-columns: repeat(3, 92px); gap: 10px 8px; padding: 10px 6px; }
+.plus-tile { display: grid; justify-items: center; gap: 6px; padding: 4px; border-radius: 12px; }
+.plus-tile span { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--tc); }
+.plus-tile b { font-weight: 400; font-size: calc(13.5px * var(--scale) * var(--type)); }
+.plus-tile:hover span { background: color-mix(in srgb, var(--tc) 22%, transparent); }
+.msg { position: relative; }
+.msg.flash .bubble { box-shadow: 0 0 0 2px var(--ochre, #b5894d); }
+.msg.picked .bubble { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ochre, #b5894d) 70%, transparent); }
+.msg-pick { align-self: center; margin: 0 6px; width: 18px; height: 18px; }
+.msg-more { position: absolute; top: 2px; right: 2px; opacity: 0; width: 22px; height: 22px; background: inherit; border-radius: 50%; }
+.bubble:hover .msg-more, .msg-more:focus-visible { opacity: 1; }
+@media (hover: none) { .msg-more { opacity: .55; } }
+.bubble.gone { opacity: .75; }
+.gone-text { font-style: italic; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.msg-fwd { display: flex; align-items: center; gap: 4px; color: var(--muted); font-style: italic; }
+.msg-quote { display: grid; text-align: left; border-left: 3px solid var(--ochre, #b5894d); background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: 6px; padding: 4px 8px; margin: 2px 0 4px; width: 100%; }
+.msg-quote span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-tr { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; color: var(--muted); font-size: calc(11.5px * var(--scale) * var(--type)); margin-top: 2px; }
+.msg-tr .link-btn { font-size: inherit; text-decoration: underline; }
+.chat-contact { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.chat-contact span { display: grid; }
+.chat-contact a { color: inherit; opacity: .8; }
+.chat-file.loc { color: #4fbf94; }
+.chat-replying { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-left: 3px solid var(--ochre, #b5894d); background: color-mix(in srgb, var(--ink) 6%, transparent); border-radius: 6px; }
+.chat-replying span { display: grid; flex: 1; min-width: 0; }
+.chat-replying small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-selbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.cam-view { width: 100%; max-height: 60vh; border-radius: 10px; background: #000; }
+.fwd-list { max-height: 50vh; overflow: auto; display: grid; gap: 2px; }
+.fwd-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+.fwd-row:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.fwd-row span { flex: 1; }
+.role-tag { padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--ochre, #b5894d) 25%, transparent); }
+.log-scroll { max-height: 60vh; overflow: auto; }
+.log-table { width: 100%; border-collapse: collapse; font-size: calc(13px * var(--scale) * var(--type)); }
+.log-table th, .log-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .chat-send { border-radius: 18px; }
 
 /* ---------- Toasts ---------- */

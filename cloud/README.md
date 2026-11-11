@@ -47,6 +47,19 @@ Google Workspace, or a service such as Resend all work).
 2. Create your team (for example "OMI") and add colleagues' work emails.
 3. Each colleague opens Planner, signs in with that email, and the team appears for them.
 
+## Admins and the message log
+
+- Whoever creates the team is an admin. Admins can make other teammates admins in
+  **Settings > Cloud sync** (Make admin / Remove admin).
+- Everyone can recall their own message within 5 minutes, and delete their own messages for
+  themselves. Only admins can delete any message for everyone or recall any message at any time.
+  The server checks this, so changing the app can't get around it.
+- Every deletion and recall is written to the `message_log` table, which nobody can change or delete
+  from. Admins can read the team's log in **Settings > Messages and Language > Message log**, or in
+  Supabase under **Table Editor > message_log**.
+- If you ran an earlier `setup.sql`, run the latest one again: it adds roles and the log, and keeps
+  your data.
+
 ## What is private and what is shared
 
 - Your personal tasks, plans, time slots, time boxes, colours, 3 Most Important Outcomes and

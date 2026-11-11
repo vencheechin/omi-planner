@@ -24,6 +24,13 @@ create table if not exists public.team_members (
   primary key (team_id, email)
 );
 
+-- Admins: the team's creator, plus anyone an admin makes one. Admins can delete any message for
+-- everyone, recall any message at any time, and read the message log.
+alter table public.team_members add column if not exists role text not null default 'member';
+do $$ begin
+  alter table public.team_members add constraint team_members_role check (role in ('member', 'admin'));
+exception when duplicate_object then null; end $$;
+
 create table if not exists public.records (
   scope text not null,
   id text not null,
@@ -43,6 +50,12 @@ language sql stable as $$ select lower(coalesce(auth.jwt() ->> 'email', '')) $$;
 create or replace function public.is_member(t uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.team_members where team_id = t and email = public.my_email())
+$$;
+
+create or replace function public.is_admin(t uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.team_members where team_id = t and email = public.my_email() and role = 'admin')
+      or exists (select 1 from public.teams where id = t and created_by = auth.uid())
 $$;
 
 -- The scopes the signed-in person may read and write.
@@ -67,16 +80,55 @@ create policy teams_rename on public.teams for update using (public.is_member(id
 drop policy if exists members_read on public.team_members;
 drop policy if exists members_add on public.team_members;
 drop policy if exists members_remove on public.team_members;
+drop policy if exists members_role on public.team_members;
 create policy members_read on public.team_members for select
   using (public.is_member(team_id) or exists (select 1 from public.teams where id = team_id and created_by = auth.uid()));
+-- Any member can add colleagues as members; only admins can add or make admins.
 create policy members_add on public.team_members for insert
-  with check (public.is_member(team_id) or exists (select 1 from public.teams where id = team_id and created_by = auth.uid()));
-create policy members_remove on public.team_members for delete using (public.is_member(team_id));
+  with check ((public.is_member(team_id) and role = 'member') or public.is_admin(team_id));
+create policy members_role on public.team_members for update using (public.is_admin(team_id)) with check (public.is_admin(team_id));
+-- Admins can remove anyone; members can remove only themselves.
+create policy members_remove on public.team_members for delete using (public.is_admin(team_id) or email = public.my_email());
 
 drop policy if exists records_rw on public.records;
 create policy records_rw on public.records for all
   using (scope in (select public.my_scopes()))
   with check (scope in (select public.my_scopes()));
+
+-- Every deleted or recalled message, kept for the record. Nobody can change or remove an entry.
+create table if not exists public.message_log (
+  id text primary key,
+  team_id uuid references public.teams(id) on delete cascade,
+  scope text not null,
+  task_id text, task_title text, message_id text not null,
+  action text not null check (action in ('deleted for me', 'deleted for everyone', 'recalled')),
+  by_email text not null default public.my_email(), by_name text,
+  author text, author_name text, message_text text, files jsonb,
+  message_at timestamptz, logged_at timestamptz not null default now(),
+  received_at timestamptz not null default now()
+);
+create index if not exists message_log_team on public.message_log (team_id, logged_at desc);
+alter table public.message_log enable row level security;
+drop policy if exists log_write on public.message_log;
+drop policy if exists log_read on public.message_log;
+create policy log_write on public.message_log for insert
+  with check (by_email = public.my_email() and scope in (select public.my_scopes()) and (team_id is null or scope = 't:' || team_id::text));
+-- Team entries: admins only. Private entries: only the person who made them.
+create policy log_read on public.message_log for select
+  using ((team_id is not null and public.is_admin(team_id)) or (team_id is null and scope = 'u:' || auth.uid()::text));
+
+-- Whether a change that deletes or recalls a message is allowed: admins always; the author may
+-- recall their own message within 5 minutes; anything goes in your own private rows.
+create or replace function public.message_change_allowed(scope text, cur jsonb, nxt jsonb) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case
+    when scope like 'u:%' then true
+    when scope like 't:%' and public.is_admin(substr(scope, 3)::uuid) then true
+    when not coalesce((nxt ->> 'deleted')::boolean, false) and nxt ? 'recalled'
+      and cur ->> 'author' = 'e:' || public.my_email()
+      and extract(epoch from now()) * 1000 - (cur ->> 'at')::numeric < 6 * 60 * 1000 then true
+    else false end
+$$;
 
 -- Merges changes from a device into the stored rows, field by field.
 -- Each record carries "_v": { field: [time changed in ms, person id] }. A field is only
@@ -115,12 +167,24 @@ begin
       end loop;
       foreach k in array array['comments', 'history'] loop
         if jsonb_typeof(r -> 'data' -> k) = 'array' then
+          -- A delete-for-everyone or recall someone isn't allowed to make is ignored.
+          if k = 'comments' then
+            r := jsonb_set(r, array['data', 'comments'], (
+              select coalesce(jsonb_agg(case
+                when (coalesce((x ->> 'deleted')::boolean, false) or x ? 'recalled') and y is not null
+                  and not coalesce((y ->> 'deleted')::boolean, false) and not (y ? 'recalled')
+                  and not public.message_change_allowed(r ->> 'scope', y, x)
+                then y else x end), '[]'::jsonb)
+              from jsonb_array_elements(r -> 'data' -> 'comments') as a(x)
+              left join lateral (select b.y from jsonb_array_elements(coalesce(cur -> 'comments', '[]'::jsonb)) as b(y)
+                                 where b.y ->> 'id' = a.x ->> 'id' limit 1) c on true));
+          end if;
           merged := jsonb_set(merged, array[k], (
             select coalesce(jsonb_agg(s.x order by (s.x ->> 'at')::numeric nulls first), '[]'::jsonb)
             from (
               select distinct on (e.x ->> 'id') e.x
               from jsonb_array_elements(coalesce(cur -> k, '[]'::jsonb) || (r -> 'data' -> k)) as e(x)
-              order by e.x ->> 'id', coalesce((e.x ->> 'deleted')::boolean, false) desc
+              order by e.x ->> 'id', coalesce((e.x ->> 'deleted')::boolean, false) desc, (e.x ? 'recalled') desc
             ) s), true);
         end if;
       end loop;
@@ -137,3 +201,6 @@ grant execute on function public.merge_records(jsonb) to authenticated;
 grant execute on function public.my_scopes() to authenticated;
 grant execute on function public.is_member(uuid) to authenticated;
 grant execute on function public.my_email() to authenticated;
+grant execute on function public.is_admin(uuid) to authenticated;
+grant execute on function public.message_change_allowed(text, jsonb, jsonb) to authenticated;
+grant select, insert on public.message_log to authenticated;

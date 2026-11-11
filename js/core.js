@@ -173,7 +173,8 @@ function normalizeState(raw) {
   tasks.forEach((t) => { if (t.boxId && !ids.has(t.boxId)) { t.boxId = null; t.tbQueued = true; } });
   return {
     v: 1, people, meId, plans, tasks,
-    settings: (() => { const st = { theme: 'system', lastBackup: null, ...(raw.settings || {}) }; st.timebox = normalizeTimebox(st.timebox); return st; })(),
+    settings: (() => { const st = { theme: 'system', lastBackup: null, ...(raw.settings || {}) }; st.timebox = normalizeTimebox(st.timebox); st.chat = normalizeChatPrefs(st.chat); return st; })(),
+    msgLog: Array.isArray(raw.msgLog) ? raw.msgLog.filter((e) => e && e.id).slice(-2000) : [],
     // Each day keeps up to three Most Important Outcomes; a single one saved earlier becomes the first.
     days: Object.fromEntries(Object.entries(raw.days && typeof raw.days === 'object' ? raw.days : {})
       .filter(([d, v]) => /^\d{4}-\d{2}-\d{2}$/.test(d) && v && typeof v === 'object')
@@ -186,7 +187,7 @@ function normalizeState(raw) {
 
 function seedState() {
   const me = { id: uid(), name: 'Me', color: PERSON_COLORS[0] };
-  S = { v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { theme: 'system', lastBackup: null, timebox: defaultTimebox() }, sync: freshSync(), personPlans: [], inbox: [], days: {} };
+  S = { v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { theme: 'system', lastBackup: null, timebox: defaultTimebox(), chat: defaultChatPrefs() }, sync: freshSync(), personPlans: [], inbox: [], days: {}, msgLog: [] };
   const personal = makePlan('Personal tasks', PLAN_COLORS[2], { personal: true, lastOpened: 1 });
   personal.buckets[0].name = 'Tasks';
   const t = todayISO();

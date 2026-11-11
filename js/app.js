@@ -334,6 +334,7 @@ function settingsHTML() {
     <p class="muted small">Add a colleague's work email so tasks you assign reach them through the team folder.</p>
     <ul class="people-list">${S.people.map((p) => `<li>${avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${p.id === S.meId ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="delPerson" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
     <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form></section>
+  <section class="set-sec"><h3>Messages and Language</h3>${chatSettingsHTML()}</section>
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
@@ -539,7 +540,36 @@ const actions = {
     renderTask();
     location.hash = '#/timebox';
   },
+  chatPlus: (el) => openPop(el, plusMenuHTML),
+  chatPhotos: () => { closePop(); pickFiles('image/*,video/*'); },
+  chatCamera: () => takePhoto(),
+  chatLocation: () => shareLocation(),
+  chatContact: (el) => { ui.contactQuery = ''; openPop($('.chat-plus') || el, contactPickerHTML); $('[data-focus="contact-search"]', ui.pop.el)?.focus(); },
+  pickContact: (el) => { const p = person(el.dataset.id); closePop(); if (p) { ui.draft.contacts = [...(ui.draft.contacts || []), { id: p.id, name: p.name, email: p.email || '' }]; renderTask(); } },
+  msgMenu: (el) => msgMenu(el, el.dataset.id),
+  cancelReply: () => { ui.draft.replyTo = null; renderTask(); },
+  jumpMsg: (el) => { const li = $(`[data-msg="${CSS.escape(el.dataset.id)}"]`); if (li) { li.scrollIntoView({ block: 'center', behavior: 'smooth' }); li.classList.add('flash'); setTimeout(() => li.classList.remove('flash'), 1200); } },
+  toggleOriginal: (el) => { ui.showOriginal = ui.showOriginal || new Set(); const id = el.dataset.id; if (ui.showOriginal.has(id)) ui.showOriginal.delete(id); else ui.showOriginal.add(id); renderTask(); },
+  cancelSelect: () => { ui.chatSelect = null; renderTask(); },
+  delSelMe: () => deleteSelected(false),
+  delSelAll: () => deleteSelected(true),
+  openMsgLog: () => messageLogDlg(),
+  exportMsgLog: (el) => {
+    const rows = el.closest('dialog')._rows || [];
+    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = [['When', 'Who', 'Action', 'Task', 'Message by', 'Message', 'Files', 'Sent'].map(cell).join(','),
+      ...rows.map((r) => [fmtDateTime(r.at), r.byName || r.by, r.action, r.taskTitle, r.authorName || r.author, r.text, (r.files || []).join('; '), r.messageAt ? fmtDateTime(r.messageAt) : ''].map(cell).join(','))].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv' }));
+    a.download = `Message log ${todayISO()}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+  cloudSetRole: async (el) => {
+    try { await Cloud.setRole(el.dataset.email, el.dataset.role); refreshSettings(); toast(el.dataset.role === 'admin' ? `${el.dataset.email} is now an admin.` : `${el.dataset.email} is no longer an admin.`); } catch (err) { toast(err.message, { error: true }); }
+  },
   chatAttach: () => {
+    closePop();
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
@@ -547,6 +577,7 @@ const actions = {
     input.click();
   },
   chatLink: async () => {
+    closePop();
     let url = await promptDlg('Add a link', 'Web address', 'https://', 'Add');
     if (!url) return;
     if (!/^[a-z]+:/i.test(url)) url = `https://${url}`;
@@ -555,7 +586,7 @@ const actions = {
     renderTask();
   },
   unstage: (el) => {
-    const key = el.dataset.kind === 'link' ? 'links' : 'files';
+    const key = { link: 'links', contact: 'contacts' }[el.dataset.kind] || 'files';
     ui.draft[key] = (ui.draft[key] || []).filter((_, i) => i !== Number(el.dataset.i));
     renderTask();
   },
@@ -813,6 +844,7 @@ const actions = {
 
 // ---------- Form submits ----------
 const submits = {
+  forwardMsg: (form, data) => forwardMessage(form, data),
   importPlanner: (form, data) => importPlanner(form, data),
   tbBlockSave: (form, data) => saveBlockFromMenu(form, data),
   saveWorkTypes: (form) => saveWorkTypes(form),
@@ -1021,6 +1053,9 @@ const changes = {
     if (isScheduled(t) && dur) scheduleTask(t, t.slotDate, t.slotStart, dur); else { t.estimate = dur; commit(); }
   },
   boxAddExisting: (el) => { if (!el.value) return; putInBox(taskById(el.dataset.id), taskById(el.value)); commit(); },
+  chatLang: (el) => { chatPrefs().lang = el.value; commit(); refreshSettings(); toast(`Messages will be shown in ${langName(el.value)}.`); },
+  chatTranslate: (el) => { chatPrefs().translate = el.checked; commit(); },
+  msgPick: (el) => { const s = ui.chatSelect || new Set(); if (el.checked) s.add(el.dataset.id); else s.delete(el.dataset.id); ui.chatSelect = s; renderTask(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
     const t = openTaskObj();
@@ -1092,6 +1127,7 @@ function setField(t, field, value) {
   commit();
 }
 const inputs = {
+  contactSearch: (el) => { ui.contactQuery = el.value; refreshPop(); const i = $('[data-focus="contact-search"]', ui.pop?.el); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } },
   title: (el) => { openTaskObj().title = el.value; Store.save(); renderMainOnly(); },
   notes: (el) => { openTaskObj().notes = el.value; Store.save(); renderMainOnly(); },
   checkText: (el) => { openTaskObj().checklist.find((c) => c.id === el.dataset.id).text = el.value; Store.save(); },
@@ -1407,7 +1443,8 @@ document.addEventListener('click', (e) => {
 }, true);
 function openTask(id) {
   ui.openTask = id;
-  ui.draft = { comment: '', files: [], links: [] };
+  ui.draft = { comment: '', files: [], links: [], contacts: [], replyTo: null };
+  ui.chatSelect = null;
   ui.chatToBottom = true;
   renderTask();
   $('#taskDialog .task-scroll').scrollTop = 0;
@@ -1418,6 +1455,15 @@ document.addEventListener('submit', (e) => {
   e.preventDefault();
   submits[form.dataset.submit](form, new FormData(form));
   if (form.isConnected) form.reset();
+});
+// Right-click (or long-press on a phone) on a message opens its menu.
+document.addEventListener('contextmenu', (e) => {
+  const li = e.target.closest('#taskDialog .msg[data-msg]');
+  if (!li || ui.chatSelect || e.target.closest('a, textarea, input')) return;
+  const c = msgOf(li.dataset.msg);
+  if (!c || c.deleted || isRecalled(c)) return;
+  e.preventDefault();
+  msgMenu({ getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false }, li.dataset.msg);
 });
 // Right-click (or long-press on a phone) on the Time Box grid edits the block there.
 document.addEventListener('contextmenu', (e) => {
