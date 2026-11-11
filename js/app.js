@@ -794,6 +794,14 @@ const actions = {
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   decShow: (el) => { ui.decShow = el.dataset.v; render(); },
+  goTimebox: (el) => {
+    const t = taskById(el.dataset.id);
+    const box = t.boxId && boxOf(t);
+    const day = isScheduled(t) ? t.slotDate : box && isScheduled(box) ? box.slotDate : null;
+    if (day) ui.dayDate = day;
+    ui.openTask = null; closePop(); renderTask();
+    location.hash = '#/timebox';
+  },
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);

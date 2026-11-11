@@ -568,9 +568,11 @@ function tbRowHTML(t) {
   const inTimebox = isScheduled(t) || inBox || t.tbQueued;
   const where = isScheduled(t) ? `${dayLabel(t.slotDate)} ${fmtTime(t.slotStart)}–${fmtTime(endOf(t))}${blockAt(t.slotDate, t.slotStart) ? ` · ${blockAt(t.slotDate, t.slotStart).name}` : ''}`
     : inBox ? `in “${boxOf(t).title}”${isScheduled(boxOf(t)) ? `, ${slotText(boxOf(t))}` : ''}` : 'waiting in the Time Box list';
+  // Need Focus first, then the Time Box: assign it, or once it's there, a button that takes you to it.
   return `<div class="tb-row">
+        <button class="need-focus ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}">${icon('target', 15)} Need Focus</button>
         ${inTimebox
-          ? `<span class="tb-state">${icon('clock', 14)} <b>Time Box:</b> ${esc(where)}${overlapsOf(t).length ? ' · <span class="danger-text">overlaps</span>' : ''}</span>`
+          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
       </div>`;
 }
@@ -591,7 +593,6 @@ function healthRowHTML(t) {
       <button class="health-toggle" data-act="healthMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Traffic Light: ${esc(h ? `${h.label}, ${h.meaning}` : 'not set')}" title="Traffic Light">
         <span class="tl ${h ? 'set' : ''}" aria-hidden="true">${['red', 'yellow', 'green'].map((v) => `<i class="tl-${v} ${t.health === v ? 'on' : ''}"></i>`).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : ''}</button>
       ${progressPickHTML(t)}
-      <button class="need-focus ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}">${icon('target', 15)} Need Focus</button>
       </div>
       ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note">${esc(t.healthNote || '')}</textarea></label>` : ''}
     </div>`;
