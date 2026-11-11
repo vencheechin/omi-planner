@@ -96,12 +96,12 @@ function groupsFor(by, tasks, plan) {
       { key: 'done', label: 'Completed', noAdd: true, tasks: pick(isDone) },
     ];
     // A person's board: one column per progress step, so a card moves when they update it.
-    // A person's board shows Checking plus only the progress columns that have tasks, so nothing hides off-screen.
+    // A person's board shows only the columns that have tasks, so nothing hides off-screen.
     case 'stage': return [
       { key: 'checking', label: 'Checking', noAdd: true, tasks: pick((t) => !!t.review) },
       { key: 'done', label: 'Completed', noAdd: true, tasks: pick(isDone) },
       ...[80, 50, 10, 0].map((v) => ({ key: `p${v}`, label: v ? `${v}%` : 'Not started', noAdd: true, tasks: pick((t) => !t.review && !isDone(t) && t.progress === v) })),
-    ].filter((g) => g.key === 'checking' || g.tasks.length);
+    ].filter((g) => g.tasks.length);
     default: return [];
   }
 }
