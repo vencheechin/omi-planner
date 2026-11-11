@@ -71,7 +71,7 @@ function noteDlg(title, label, action) {
 const currentPlan = () => (ui.route.view === 'plan' ? planById(ui.route.id) : null);
 const currentPersonPlan = () => (ui.route.view === 'person' ? personPlanById(ui.route.id) : null);
 const viewKey = () => (ui.route.view === 'plan' ? ui.route.id : ui.route.view === 'person' ? `person:${ui.route.id}` : 'my-tasks');
-const currentBy = () => ui.groupBy[viewKey()] || (currentPlan() ? 'bucket' : currentPersonPlan() ? 'status' : 'due');
+const currentBy = () => ui.groupBy[viewKey()] || (currentPlan() ? 'bucket' : currentPersonPlan() ? 'stage' : 'due');
 const openTaskObj = () => taskById(ui.openTask);
 /** The tasks the current board shows, before filtering. */
 function currentViewTasks() {

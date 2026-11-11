@@ -55,7 +55,7 @@ function applyFilter(tasks, f) {
 }
 
 // ---------- Grouping ----------
-const GROUPINGS = { bucket: 'Bucket', assignee: 'Assigned to', progress: 'Progress', due: 'Due date', priority: 'Priority', label: 'Labels', plan: 'Plan', status: 'Status', health: 'Traffic light', work: 'Work type' };
+const GROUPINGS = { stage: 'Progress', bucket: 'Bucket', assignee: 'Assigned to', progress: 'Progress', due: 'Due date', priority: 'Priority', label: 'Labels', plan: 'Plan', status: 'Status', health: 'Traffic light', work: 'Work type' };
 
 function groupsFor(by, tasks, plan) {
   const sorted = [...tasks].sort(byOrder);
@@ -91,6 +91,12 @@ function groupsFor(by, tasks, plan) {
       { key: 'checking', label: 'Checking', noAdd: true, tasks: pick((t) => !!t.review) },
       { key: 'done', label: 'Completed', noAdd: true, tasks: pick(isDone) },
     ];
+    // A person's board: one column per progress step, so a card moves when they update it.
+    case 'stage': return [
+      { key: 'checking', label: 'Checking', noAdd: true, tasks: pick((t) => !!t.review) },
+      { key: 'done', label: 'Completed', noAdd: true, tasks: pick(isDone) },
+      ...[80, 50, 10, 0].map((v) => ({ key: `p${v}`, label: v ? `${v}%` : 'Not started', noAdd: true, tasks: pick((t) => !t.review && !isDone(t) && t.progress === v) })),
+    ];
     default: return [];
   }
 }
@@ -108,6 +114,10 @@ function applyGroup(t, by, from, to) {
     }
     case 'health': setField(t, 'health', to === 'none' ? '' : to); break;
     case 'work': t.workType = to === 'other' ? '' : to; break;
+    case 'stage':
+      if (to === 'checking') { if (!needsReview(t)) return false; submitForReview(t); break; }
+      setProgress(t, to === 'done' ? 100 : Number(to.slice(1)));
+      break;
     case 'status':
       if (to === 'checking') { if (!needsReview(t)) return false; submitForReview(t); break; }
       setProgress(t, { todo: 0, doing: inProgress(t) ? t.progress : 50, done: 100 }[to]);
@@ -262,7 +272,7 @@ function assignedToMeGroups(plan) {
 function boardHTML(groups, by, ctx) {
   const col = (g) => {
     const key = `${ctx.key}:${g.key}`;
-    const splitDone = by !== 'progress' && by !== 'status';
+    const splitDone = by !== 'progress' && by !== 'status' && by !== 'stage';
     const open = splitDone ? g.tasks.filter((t) => !isDone(t)) : g.tasks;
     const done = splitDone ? g.tasks.filter(isDone) : [];
     const showDone = ui.showDone[key];

@@ -549,7 +549,7 @@ function activityHTML(t) {
 function renderPersonPlan(pp) {
   const fkey = `person:${pp.id}`;
   const tab = ui.planTab[fkey] || 'board';
-  const by = ui.groupBy[fkey] || 'status';
+  const by = ui.groupBy[fkey] || 'stage';
   const who = person(pp.personId);
   const tasks = applyFilter(personPlanTasks(pp), filterOf(fkey));
   const ctx = { key: fkey, showPlan: true, crossPlan: true };
@@ -566,7 +566,7 @@ function renderPersonPlan(pp) {
       <a class="btn ghost sm" href="#/report?person=${esc(pp.personId)}">Report</a>
       <button class="icon-btn" data-act="personPlanMenu" data-id="${esc(pp.id)}" aria-label="Plan options">${icon('more')}</button>
     </header>
-    ${toolbar({ fkey, by, tab, tabs: TABS, options: ['status', 'plan', 'due', 'priority', 'health', 'work'] })}
+    ${toolbar({ fkey, by, tab, tabs: TABS, options: ['stage', 'status', 'plan', 'due', 'priority', 'health', 'work'] })}
     <div class="view">${body}</div>
   </div>`;
 }
