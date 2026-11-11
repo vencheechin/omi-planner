@@ -314,6 +314,7 @@ function buildTeamFile() {
     delete o.reminders;
     delete o.remFired;
     delete o.myOrder;
+    delete o.myBucketId;
     return o;
   });
   const planIds = new Set(tasks.map((t) => t.planId));

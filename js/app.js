@@ -77,7 +77,7 @@ const openTaskObj = () => taskById(ui.openTask);
 /** The tasks the current board shows, before filtering. */
 function currentViewTasks() {
   const plan = currentPlan();
-  if (plan) return tasksOf(plan.id);
+  if (plan) return boardTasks(plan);
   const pp = currentPersonPlan();
   if (pp) return personPlanTasks(pp);
   return S.tasks.filter((x) => x.assignees.includes(S.meId));
@@ -176,7 +176,7 @@ function taskMenuItems(t, anchor) {
       label: t.assignees.length ? `Delegated to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Delegate to someone', icon: 'user', sub: true,
       run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },
     },
-    ...(planById(t.planId)?.buckets.length > 1 ? [{ label: 'Bucket', icon: 'list', sub: true, run: () => openPop(anchor, () => `<div class="menu" role="menu">${planById(t.planId).buckets.map((b) => `<button role="menuitem" data-act="setBucket" data-id="${esc(t.id)}" data-b="${esc(b.id)}"><span>${esc(b.name)}</span>${b.id === t.bucketId ? icon('check', 14) : ''}</button>`).join('')}</div>`) }] : []),
+    ...(boardPlanOf(t)?.buckets.length > 1 || delegatedToMe(t) ? [{ label: 'Bucket', icon: 'list', sub: true, run: () => openPop(anchor, () => `<div class="menu" role="menu">${(delegatedToMe(t) ? [{ id: '', name: `Assigned by ${person(t.assignedBy)?.name || 'someone'}` }] : []).concat(boardPlanOf(t).buckets).map((b) => `<button role="menuitem" data-act="setBucket" data-id="${esc(t.id)}" data-b="${esc(b.id)}"><span>${esc(b.name)}</span>${b.id === (delegatedToMe(t) ? myBucketOf(t) || '' : t.bucketId) ? icon('check', 14) : ''}</button>`).join('')}</div>`) }] : []),
     { label: 'Label', icon: 'tag', sub: true, run: () => openLabels(anchor, { taskId: t.id, planId: t.planId }) },
     { label: 'Copy task', icon: 'copy', run: () => copyTaskDialog(t) },
     { label: 'Copy link to task', icon: 'link', run: () => copyTaskLink(t) },
@@ -790,7 +790,8 @@ const actions = {
     const steps = [0, 10, 50, 80, 100];
     setField(t, 'progress', t.progress === v ? steps[steps.indexOf(v) - 1] : v);
   },
-  setBucket: (el) => { const t = taskById(el.dataset.id); closePop(); if (t) { t.bucketId = el.dataset.b; commit(); } },
+  chatTab: (el) => { const sc = $('.task-scroll'); const y = sc?.scrollTop; ui.chatTab = el.dataset.tab; renderTask(); const s2 = $('.task-scroll'); if (s2 && y != null) s2.scrollTop = y; },
+  setBucket: (el) => { const t = taskById(el.dataset.id); closePop(); if (t && setBucketFor(t, el.dataset.b)) commit(); },
   cardMenu: (el) => openMenu(el, taskMenuItems(taskById(el.dataset.id), el)),
   pickLabels: (el) => {
     const t = taskById(el.dataset.id);
@@ -1427,6 +1428,7 @@ const changes = {
   taskField: (el) => setField(openTaskObj(), el.dataset.field, el.value),
 };
 function setField(t, field, value) {
+  if (field === 'bucketId') { if (setBucketFor(t, value)) commit(); else render(); return; }
   if (field === 'due' && dueLocked(t)) { toast(`${person(t.assignedBy)?.name || 'The assigner'} set this due date.`, { error: true }); render(); return; }
   if (field === 'progress') completeNotice(setProgress(t, Number(value)));
   else if (field === 'priority') t.priority = Number(value);
@@ -1587,7 +1589,10 @@ function dragMove(x, y) {
     // Tasks shown in an "Assigned by …" bucket belong to another plan, so they stay put.
     const fromBucket = String(s.fromGroup || '').startsWith('from:');
     // The Decision Request bucket always runs by deadline, so its cards don't move by hand.
-    if (!col || (fromBucket ? col.dataset.group !== s.fromGroup : col.dataset.locked)) { s.ph.remove(); s.target = null; return; }
+    const dt = taskById(s.id);
+    const home = dt && delegatedToMe(dt) && currentPlan()?.personal ? `from:${dt.assignedBy}` : null;
+    const ok = col && (col.dataset.group === home || (fromBucket ? col.dataset.group === s.fromGroup || (!col.dataset.locked && currentBy() === 'bucket') : !col.dataset.locked));
+    if (!ok) { s.ph.remove(); s.target = null; return; }
     const body = $('.col-body', col);
     const cards = $$('.card:not(.drag-src)', body);
     const before = cards.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
@@ -1730,7 +1735,7 @@ function dragEnd(drop) {
 function dropOnGroup(id, from, to, beforeId) {
   const t = taskById(id);
   if (String(to).startsWith('from:')) {
-    if (from !== to) return;
+    if (from !== to) { if (to !== `from:${t.assignedBy}` || !setBucketFor(t, '')) return; }
     const list = assignedToMeGroups(currentPlan()).find((g) => g.key === to)?.tasks.filter((x) => x.id !== id) || [];
     const i = beforeId ? list.findIndex((x) => x.id === beforeId) : list.length;
     list.splice(i < 0 ? list.length : i, 0, t);
@@ -1745,9 +1750,9 @@ function dropOnGroup(id, from, to, beforeId) {
   const list = (group ? group.tasks : []).filter((x) => x.id !== id);
   const i = beforeId ? list.findIndex((x) => x.id === beforeId) : list.filter((x) => !isDone(x)).length;
   const [prev, next] = [list[i - 1], list[i]];
-  if (prev && next) t.order = (prev.order + next.order) / 2;
-  else if (next) t.order = next.order - 1;
-  else if (prev) t.order = prev.order + 1;
+  // A delegated task keeps its place in your planner without moving it on the assigner's board.
+  const at = prev && next ? (taskOrder(prev) + taskOrder(next)) / 2 : next ? taskOrder(next) - 1 : prev ? taskOrder(prev) + 1 : null;
+  if (at !== null) { if (myBucketOf(t)) t.myOrder = at; else t.order = at; }
   commit();
 }
 function dropOnDate(id, date, grabDate) {

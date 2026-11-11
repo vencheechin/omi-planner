@@ -51,7 +51,7 @@ function applyFilter(tasks, f) {
     && (!f.due.length || f.due.includes(dueGroupOf(t.due)))
     && (!f.priority.length || f.priority.includes(t.priority))
     && (!f.progress.length || f.progress.includes(t.progress))
-    && (!f.bucket.length || f.bucket.includes(t.bucketId))
+    && (!f.bucket.length || f.bucket.includes(bucketOf(t)))
     && (!f.label.length || t.labels.some((l) => f.label.includes(l)))
     && (!f.assignee.length || t.assignees.some((a) => f.assignee.includes(a)) || (f.assignee.includes('none') && !t.assignees.length))
     && (!f.health.length || f.health.includes(t.health || 'none'))
@@ -65,7 +65,7 @@ function groupsFor(by, tasks, plan) {
   const sorted = [...tasks].sort(byOrder);
   const pick = (test) => sorted.filter(test);
   switch (by) {
-    case 'bucket': return plan.buckets.map((b) => ({ key: b.id, label: b.name, bucket: true, color: b.color || '', tasks: pick((t) => t.bucketId === b.id) }));
+    case 'bucket': return plan.buckets.map((b) => ({ key: b.id, label: b.name, bucket: true, color: b.color || '', tasks: pick((t) => bucketOf(t) === b.id).sort((x, y) => taskOrder(x) - taskOrder(y)) }));
     case 'assignee': {
       const ids = [...new Set([...(plan ? plan.members : [S.meId]), ...tasks.flatMap((t) => t.assignees)])];
       return [
@@ -107,12 +107,17 @@ function groupsFor(by, tasks, plan) {
 }
 
 /** Changes a task so it belongs to group `to`. Returns false when that group can't be dropped on. */
+/** A plan's tasks; your own planner also holds the delegated tasks you moved into its buckets. */
+function boardTasks(plan) {
+  const own = tasksOf(plan.id);
+  return plan.personal ? own.concat(S.tasks.filter((t) => t.planId !== plan.id && myBucketOf(t))) : own;
+}
 function applyGroup(t, by, from, to) {
   if (from === to) return true;
   switch (by) {
     case 'bucket': {
       const target = planById(t.planId).buckets.find((b) => b.id === to);
-      t.bucketId = to;
+      if (!setBucketFor(t, to)) return false;
       break;
     }
     case 'health': setField(t, 'health', to === 'none' ? '' : to); break;
@@ -300,7 +305,7 @@ function cardHTML(t, { showPlan } = {}) {
  */
 function assignedToMeGroups(plan) {
   if (!plan.personal) return [];
-  const mine = S.tasks.filter((t) => t.planId !== plan.id && t.assignees.includes(S.meId) && t.assignedBy && t.assignedBy !== S.meId && !t.boxId);
+  const mine = S.tasks.filter((t) => t.planId !== plan.id && delegatedToMe(t) && !t.boxId && !myBucketOf(t));
   const by = [...new Set(mine.map((t) => t.assignedBy))];
   return by.map((id) => ({
     key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true, movable: true, noAdd: true,
@@ -364,13 +369,15 @@ function gridHTML(tasks, ctx) {
   const select = (t, field, opts, val) => `<select data-change="gridField" data-field="${field}" data-id="${esc(t.id)}" aria-label="${field}">${opts.map((o) => `<option value="${esc(o.v)}" ${String(o.v) === String(val) ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
   const row = (t) => {
     const plan = planById(t.planId);
+    const bp = boardPlanOf(t) || plan;
+    const bucketOpts = bp.buckets.map((b) => ({ v: b.id, label: b.name })).concat(delegatedToMe(t) ? [{ v: '', label: `Assigned by ${person(t.assignedBy)?.name || 'someone'}` }] : []);
     return `<tr class="${isDone(t) ? 'done' : ''}">
       <td class="c-check"><button class="check ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 12)}</button></td>
       <td class="c-title"><button class="link-btn" data-open-task="${esc(t.id)}">${esc(t.title || 'Untitled task')}</button>${t.repeat ? icon('repeat', 12) : ''}</td>
       <td><button class="avatars assign-cell" data-act="pickAssignees" data-id="${esc(t.id)}" aria-label="Assign task">${t.assignees.length ? t.assignees.slice(0, 3).map((a) => avatar(person(a), 24)).join('') : `<span class="muted">Assign</span>`}</button></td>
       <td><input type="date" value="${t.start || ''}" data-change="gridField" data-field="start" data-id="${esc(t.id)}" aria-label="Start date"></td>
       <td class="${isLate(t) ? 'late' : ''}"><input type="date" value="${t.due || ''}" data-change="gridField" data-field="due" data-id="${esc(t.id)}" aria-label="Due date"></td>
-      <td>${ctx.crossPlan ? `<a class="muted" href="#/plan/${esc(t.planId)}">${esc(plan?.name || '')}</a>` : select(t, 'bucketId', plan.buckets.map((b) => ({ v: b.id, label: b.name })), t.bucketId)}</td>
+      <td>${ctx.crossPlan ? `<a class="muted" href="#/plan/${esc(t.planId)}">${esc(plan?.name || '')}</a>` : select(t, 'bucketId', bucketOpts, delegatedToMe(t) ? myBucketOf(t) || '' : t.bucketId)}</td>
       <td>${select(t, 'progress', PROGRESS, t.progress)}</td>
       <td>${select(t, 'priority', PRIORITY, t.priority)}</td>
       <td class="c-health">${healthDot(t)}${select(t, 'health', [{ v: '', label: 'Not set' }, ...HEALTH.map((h) => ({ v: h.v, label: h.label }))], t.health)}</td>
@@ -518,7 +525,7 @@ function renderPlan(plan) {
   const fkey = plan.id;
   const tab = ui.planTab[plan.id] || 'board';
   const by = ui.groupBy[plan.id] || 'bucket';
-  const tasks = applyFilter(tasksOf(plan.id), filterOf(fkey));
+  const tasks = applyFilter(boardTasks(plan), filterOf(fkey));
   const ctx = { key: plan.id, planId: plan.id };
   const body = {
     board: () => boardHTML(by === 'bucket' ? placeFromGroups(plan, groupsFor(by, tasks, plan), assignedToMeGroups(plan)) : groupsFor(by, tasks, plan), by, { ...ctx, showPlan: true }), grid: () => gridHTML(tasks, ctx),

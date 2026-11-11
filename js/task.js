@@ -229,22 +229,26 @@ function fileChip(a) {
   return `<button class="chat-file" data-act="openFile" data-id="${esc(a.id)}">${icon('clip', 14)}<span>${esc(a.name)}</span><small>${fmtSize(a.size || 0)}</small></button>`;
 }
 /** The task's description, its messages (with files) and its activity, as one conversation. */
+/** The task's activity, newest first, grouped by day. */
+function logHTML(t) {
+  let lastDay = '';
+  const rows = [...t.history].sort((a, b) => b.at - a.at).map((e) => {
+    const day = chatDay(e.at);
+    const head = day !== lastDay ? `<li class="log-day">${esc(day)}</li>` : '';
+    lastDay = day;
+    return `${head}<li class="log-row"><time>${esc(chatTime(e.at))}</time><span><b>${esc(e.by === S.meId ? 'You' : person(e.by)?.name || 'Someone')}</b> ${esc((EVENT_TEXT[e.type] || (() => e.type))(e))}${e.note ? `: “${esc(e.note)}”` : ''}</span></li>`;
+  }).join('');
+  return `<ul class="log">${rows || '<li class="log-day">Nothing yet</li>'}</ul>`;
+}
 function chatHTML(t) {
-  const items = [
-    ...t.comments.filter((c) => !(c.deleted && !c.deletedBy) && !chatPrefs().hidden.includes(c.id)).map((c) => ({ at: c.at, c })),
-    ...t.history.map((e) => ({ at: e.at, e })),
-  ].sort((x, y) => x.at - y.at);
+  const items = t.comments.filter((c) => !(c.deleted && !c.deletedBy) && !chatPrefs().hidden.includes(c.id)).map((c) => ({ at: c.at, c }))
+    .sort((x, y) => x.at - y.at);
   let lastDay = '';
   let lastAuthor = null;
   const rows = items.map((it) => {
     let out = '';
     const day = chatDay(it.at);
     if (day !== lastDay) { out += `<li class="chat-day"><span>${esc(day)}</span></li>`; lastDay = day; lastAuthor = null; }
-    if (it.e) {
-      const e = it.e;
-      lastAuthor = null;
-      return `${out}<li class="chat-event"><span><b>${esc(e.by === S.meId ? 'You' : person(e.by)?.name || 'Someone')}</b> ${esc((EVENT_TEXT[e.type] || (() => e.type))(e))}${e.note ? `: “${esc(e.note)}”` : ''} · ${esc(chatTime(e.at))}</span></li>`;
-    }
     const c = it.c;
     const who = person(c.author);
     const mine = c.author === S.meId;
@@ -274,8 +278,13 @@ function chatHTML(t) {
   const count = t.comments.filter((c) => !c.deleted && !isRecalled(c) && !chatPrefs().hidden.includes(c.id)).length;
   const replying = ui.draft.replyTo && t.comments.find((c) => c.id === ui.draft.replyTo);
   const sel = ui.chatSelect;
+  const tab = ui.chatTab === 'log' ? 'log' : 'chat';
+  const head = `<div class="sec-head chat-tabs"><div class="tabs" role="tablist">
+      <button role="tab" aria-selected="${tab === 'chat'}" class="${tab === 'chat' ? 'on' : ''}" data-act="chatTab" data-tab="chat">Conversation${count ? ` <small>${count}</small>` : ''}</button>
+      <button role="tab" aria-selected="${tab === 'log'}" class="${tab === 'log' ? 'on' : ''}" data-act="chatTab" data-tab="log">Log${t.history.length ? ` <small>${t.history.length}</small>` : ''}</button></div></div>`;
+  if (tab === 'log') return `<section class="task-sec chat-sec">${head}<div class="chat-scroll log-scroll">${logHTML(t)}</div></section>`;
   return `<section class="task-sec chat-sec">
-    <div class="sec-head"><h3>Conversation</h3>${count ? `<small class="muted">${count} message${count === 1 ? '' : 's'}</small>` : ''}</div>
+    ${head}
     ${t.notes.trim() ? `<div class="chat-note">${esc(t.notes)}</div>` : ''}
     <div class="chat-scroll" data-chat>
       ${t.attachments.length ? `<div class="chat-event"><span>Files added earlier</span></div><div class="msg-files earlier">${t.attachments.map(fileChip).join('')}</div>` : ''}

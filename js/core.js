@@ -307,7 +307,23 @@ const tasksOf = (planId) => S.tasks.filter((t) => t.planId === planId);
 const byOrder = (a, b) => a.order - b.order;
 const isDone = (t) => t.progress === 100;
 const isLate = (t) => !isDone(t) && !!t.due && t.due < todayISO();
-const bucketName = (t) => { const p = planById(t.planId); const b = p && p.buckets.find((x) => x.id === t.bucketId); return b ? b.name : ''; };
+/** A task someone else delegated to you: where you put it is yours (myBucketId); their board keeps theirs. */
+const delegatedToMe = (t) => !!t.assignedBy && t.assignedBy !== S.meId && t.assignees.includes(S.meId);
+const myPlan = () => S.plans.find((p) => p.personal);
+/** The bucket of your own planner you moved a delegated task into, or null while it sits in "Assigned by …". */
+const myBucketOf = (t) => (delegatedToMe(t) && t.myBucketId && myPlan()?.buckets.some((b) => b.id === t.myBucketId) ? t.myBucketId : null);
+const bucketOf = (t) => myBucketOf(t) || t.bucketId;
+/** The plan whose buckets you file this task in: your own planner for tasks delegated to you. */
+const boardPlanOf = (t) => (delegatedToMe(t) ? myPlan() : planById(t.planId));
+const taskOrder = (t) => (myBucketOf(t) ? t.myOrder ?? t.order : t.order);
+/** Delegated to you: only your own placement changes ('' = back to "Assigned by …"); the assigner's board is never touched. */
+function setBucketFor(t, id) {
+  if (!delegatedToMe(t)) { t.bucketId = id; return true; }
+  if (id && !myPlan()?.buckets.some((b) => b.id === id)) { toast('Move it in your own planner. Their buckets stay as they are.'); return false; }
+  t.myBucketId = id || null;
+  return true;
+}
+const bucketName = (t) => { const p = boardPlanOf(t); const b = p && p.buckets.find((x) => x.id === bucketOf(t)); return b ? b.name : ''; };
 const labelName = (plan, i) => (plan && plan.labels[i]) || LABELS[i][0];
 const inMyDay = (t) => !isDone(t) && !t.box && (t.myDay === todayISO() || t.slotDate === todayISO() || (t.boxId && taskById(t.boxId)?.slotDate === todayISO()) || (t.due === todayISO() && t.assignees.includes(S.meId)));
 // Labels in the order set for the plan (drag to reorder in the label picker); otherwise named labels first.
