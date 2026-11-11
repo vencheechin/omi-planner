@@ -17,7 +17,7 @@
 const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired', 'myOrder'];
 const PLAN_LOCAL_FIELDS = ['pinned', 'personal', 'fromPos', 'fromColor'];
 const PERSON_FIELDS = ['name', 'email', 'color'];
-const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat', 'brandPlan'];
+const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat'];
 const ALL_TASK_FIELDS = [...TASK_FIELDS, ...TASK_LOCAL_FIELDS];
 const ALL_PLAN_FIELDS = [...PLAN_FIELDS, ...PLAN_LOCAL_FIELDS];
 const KIND_ORDER = { person: 0, prefs: 1, plan: 2, planLocal: 3, task: 4, taskLocal: 5 };
@@ -31,7 +31,7 @@ const pickFields = (obj, fields) => {
   return out;
 };
 /** The preferences that follow you between devices, as one record. */
-const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat, brandPlan: S.brandPlan });
+const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat });
 
 /**
  * Notes field changes (with time and author) and marks changed records for upload. Runs after
@@ -56,7 +56,8 @@ function stampAll() {
   S.people.forEach((p) => stamp(p.id, p, PERSON_FIELDS, p));
   sy.prefs = sy.prefs || {};
   stamp('prefs', prefsRecord(), PREFS_FIELDS, sy.prefs);
-  const live = new Set([...S.tasks, ...S.plans, ...S.people].map((x) => x.id).concat('prefs'));
+  stamp('brandplan', bpRecord(), bpFieldsOf(), bp());
+  const live = new Set([...S.tasks, ...S.plans, ...S.people].map((x) => x.id).concat('prefs', 'brandplan'));
   for (const id of Object.keys(sy.shadow)) {
     if (!live.has(id)) { sy.tombstones[id] = [now, S.meId]; delete sy.shadow[id]; sy.dirty[id] = 1; }
   }
@@ -289,6 +290,7 @@ const Cloud = {
     const user = this.scopeUser();
     const team = this.scopeTeam();
     const meta = (S.sync.cloudMeta = S.sync.cloudMeta || {});
+    if (id === 'brandplan') return [{ scope: team || user, id, kind: 'brandplan', data: bpWire() }];
     if (id === 'prefs') return [{ scope: user, id, kind: 'prefs', data: { ...pickFields(prefsRecord(), PREFS_FIELDS), _v: { ...(S.sync.prefs?._v || {}) } } }];
     const t = taskById(id);
     if (t) {
@@ -382,6 +384,7 @@ function sharedPeople() {
 function markSharedDirty() {
   S.sync.dirty = S.sync.dirty || {};
   [...S.tasks.filter((t) => t.shared), ...S.plans.filter((p) => p.shared), ...S.people].forEach((x) => { S.sync.dirty[x.id] = 1; });
+  S.sync.dirty.brandplan = 1;
 }
 const nameFromEmail = (email) => email.split('@')[0].split(/[._-]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') || email;
 
@@ -463,6 +466,7 @@ function applyCloudRow(row, notices, adoptMine = false) {
       }
       return apply(p, PERSON_FIELDS);
     }
+    case 'brandplan': return applyBrandPlanData(d);
     case 'prefs': {
       const holder = (S.sync.prefs = S.sync.prefs || {});
       holder._v = holder._v || {};
@@ -474,7 +478,6 @@ function applyCloudRow(row, notices, adoptMine = false) {
         else if (f === 'personPlans') S.personPlans = Array.isArray(d.personPlans) ? clone(d.personPlans) : S.personPlans;
         else if (f === 'days') S.days = d.days && typeof d.days === 'object' ? clone(d.days) : S.days;
         else if (f === 'chat') S.settings.chat = normalizeChatPrefs(clone(d.chat));
-        else if (f === 'brandPlan') S.brandPlan = normalizeBrandPlan(clone(d.brandPlan));
         holder._v[f] = rv;
         sh('prefs')[f] = fieldHash(prefsRecord()[f]);
         changed = true;

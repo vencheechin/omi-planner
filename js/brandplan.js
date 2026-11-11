@@ -2,7 +2,8 @@
 /* H1 / H2 Plan: a half-year table like the Monthly Brand Status Review.
    Groups (OMI, LHS) hold brands; each brand has a PIC and one cell per month with the month's
    focus and a status: Green = on plan, Yellow = off plan but recoverable, Red = needs CEO support.
-   It's kept with your settings and syncs to your own devices. */
+   It's shared with your team (cloud sync or the shared folder). Each group syncs on its own, so
+   two people editing different groups never overwrite each other; within a group the latest edit wins. */
 
 Object.assign(ICON, { table: 'M3 5h18v14H3zM3 10h18M3 15h18M9 5v14' });
 
@@ -13,8 +14,9 @@ const BP_STATUS = [
 ];
 const bp = () => (S.brandPlan = S.brandPlan && Array.isArray(S.brandPlan.groups) ? S.brandPlan : { groups: [] });
 function normalizeBrandPlan(b) {
-  if (!b || !Array.isArray(b.groups)) return { groups: [] };
+  if (!b || !Array.isArray(b.groups)) return { groups: [], ...(b && b._v ? { _v: b._v } : {}) };
   return {
+    ...(b._v && typeof b._v === 'object' ? { _v: b._v } : {}),
     groups: b.groups.filter((g) => g && g.id).map((g) => ({
       id: String(g.id), name: String(g.name || 'Group'),
       rows: (Array.isArray(g.rows) ? g.rows : []).filter((r) => r && r.id).map((r) => ({
@@ -72,6 +74,43 @@ function bpCellPicker(g, r, k) {
     <textarea name="text" rows="2" aria-label="Focus for the month">${esc(c.text)}</textarea>
     <div class="bp-status">${[{ v: '', label: 'None', meaning: '' }, ...BP_STATUS].map((s) => `<label class="bp-opt"><input type="radio" name="status" value="${s.v}" ${c.status === s.v ? 'checked' : ''}><i class="bp-dot ${s.v ? `bp-${s.v}` : 'bp-none'}"></i><span>${esc(s.label)}</span></label>`).join('')}</div>
     <div class="row"><button class="btn ghost sm" type="button" data-act="bpCellClear">Clear</button><span class="spacer"></span><button class="btn primary sm">Save</button></div></form>`;
+}
+// ---------- Sharing: one record, one field per group plus the order of the groups ----------
+const bpRecord = () => ({ order: bp().groups.map((g) => g.id), ...Object.fromEntries(bp().groups.map((g) => [`g:${g.id}`, g])) });
+/** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
+function bpFieldsOf() {
+  const f = new Set(bp().groups.map((g) => `g:${g.id}`));
+  [...Object.keys(S.sync?.shadow?.brandplan || {}), ...Object.keys(bp()._v || {})].forEach((k) => { if (k.startsWith('g:')) f.add(k); });
+  return ['order', ...f];
+}
+const bpWire = () => ({ ...bpRecord(), _v: clone(bp()._v || {}) });
+/** Applies a teammate's copy, field by field (newest wins). Returns true when anything changed. */
+function applyBrandPlanData(d) {
+  if (!d || typeof d !== 'object') return false;
+  const b = bp();
+  b._v = b._v || {};
+  const sh = (S.sync.shadow.brandplan = S.sync.shadow.brandplan || {});
+  const v = d._v || {};
+  let changed = false;
+  let order = null;
+  for (const [f, rv] of Object.entries(v)) {
+    if ((f !== 'order' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if (f === 'order') order = Array.isArray(d.order) ? d.order : null;
+    else {
+      const id = f.slice(2);
+      const i = b.groups.findIndex((g) => g.id === id);
+      const val = d[f];
+      if (val && val.id) {
+        const g = normalizeBrandPlan({ groups: [val] }).groups[0];
+        if (i >= 0) b.groups[i] = g; else b.groups.push(g);
+      } else if (i >= 0) b.groups.splice(i, 1);
+    }
+    b._v[f] = rv;
+    changed = true;
+  }
+  if (order) b.groups.sort((x, y) => ((order.indexOf(x.id) + 1) || 1e9) - ((order.indexOf(y.id) + 1) || 1e9));
+  if (changed) { const rec = bpRecord(); Object.keys(v).forEach((f) => { if (f === 'order' || f.startsWith('g:')) sh[f] = fieldHash(rec[f]); }); }
+  return changed;
 }
 const bpGroup = (id) => bp().groups.find((g) => g.id === id);
 const bpRowOf = (gid, rid) => bpGroup(gid)?.rows.find((r) => r.id === rid);

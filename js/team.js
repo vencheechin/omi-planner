@@ -282,8 +282,9 @@ function mergeTeamFile(data) {
   }
   data.plans.forEach((p) => mergeRecord('plan', p, notices));
   data.tasks.forEach((t) => mergeRecord('task', t, notices));
+  const bpChanged = data.brandplan ? applyBrandPlanData(data.brandplan) : false;
   notices.forEach(notify);
-  return JSON.stringify([S.people, S.plans, S.tasks]) !== before;
+  return bpChanged || JSON.stringify([S.people, S.plans, S.tasks]) !== before;
 }
 
 /** What this device publishes: shared tasks, their plans, the people they mention, and deletions. */
@@ -313,7 +314,7 @@ function buildTeamFile() {
   });
   const ids = new Set([S.meId, ...tasks.flatMap((t) => [...t.assignees, t.assignedBy, ...t.history.flatMap((e) => [e.by, e.to]), ...t.comments.map((c) => c.author)]), ...plans.flatMap((p) => p.members)]);
   const people = S.people.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name, email: p.email || '', color: p.color }));
-  return { app: FILE_APP, v: 1, device: deviceId, person: people.find((p) => p.id === S.meId), people, plans, tasks, tombstones: S.sync.tombstones };
+  return { app: FILE_APP, v: 1, device: deviceId, person: people.find((p) => p.id === S.meId), people, plans, tasks, tombstones: S.sync.tombstones, brandplan: bpWire() };
 }
 
 // ---------- Notifications ----------
@@ -428,7 +429,8 @@ const Team = {
       for await (const [name, handle] of members.entries()) {
         if (handle.kind !== 'file' || !name.endsWith('.json') || name === this.fileName()) continue;
         const file = await handle.getFile();
-        const stamp = `${file.lastModified}:${file.size}`;
+        // The suffix changes when teammate files gain new parts (bp: the H1 / H2 Plan), so each file is read again once.
+        const stamp = `${file.lastModified}:${file.size}:bp`;
         if (S.sync.files[name] === stamp) continue;
         try {
           if (mergeTeamFile(JSON.parse(await file.text()))) changed = true;
