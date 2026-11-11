@@ -154,11 +154,12 @@ function applyGroup(t, by, from, to) {
 
 // ---------- Sidebar ----------
 /** A plan someone else shared with you shows their name, e.g. "Getting started (Ven)". */
-/** Someone else's plan shared with you reads "Assigned by Ven" (plus the plan's name if they share more than one). */
+/** Someone else's plan shared with you reads "Ray's Task (Ven)" (plus the plan's name if they share more than one). */
 const planLabel = (p) => {
   if (!(p.owner && p.owner !== S.meId && person(p.owner))) return p.name;
   const theirs = S.plans.filter((x) => x.owner === p.owner).length;
-  return `Assigned by ${person(p.owner).name}${theirs > 1 ? ` · ${p.name}` : ''}`;
+  const me = (person(S.meId)?.name || 'My').trim();
+  return `${me}${/s$/i.test(me) ? "'" : "'s"} Task (${person(p.owner).name})${theirs > 1 ? ` · ${p.name}` : ''}`;
 };
 /** "Ven's Planner" once you've set your name in Settings; plain "Planner" until then. */
 const plannerName = () => { if (S.settings.plannerName) return S.settings.plannerName; const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n}${/s$/i.test(n) ? "'" : "'s"} Planner` : 'Planner'; };
