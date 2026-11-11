@@ -49,18 +49,23 @@ const needsReview = (t) => !!t.assignedBy && t.assignedBy !== S.meId;
 const isReviewer = (t) => !!t.review && reviewerOf(t) === S.meId;
 const checkLabel = (t) => (isDone(t) ? 'Mark not complete' : isReviewer(t) ? 'Approve and complete' : needsReview(t) ? 'Submit for checking' : 'Mark complete');
 
-function checkingBucket(plan, create) {
-  let b = plan.buckets.find((x) => x.kind === 'checking');
-  if (!b && create) {
-    b = { id: uid(), name: 'Checking', kind: 'checking' };
-    plan.buckets.push(b);
+/** Older versions kept submitted tasks in a "Checking" bucket; it's only looked up to empty it. */
+function checkingBucket(plan) {
+  return plan.buckets.find((x) => x.kind === 'checking');
+}
+/** Removes Checking buckets (once): their tasks go back to the bucket they came from. */
+function removeCheckingBuckets() {
+  for (const plan of S.plans) {
+    const check = checkingBucket(plan);
+    if (!check) continue;
+    const others = plan.buckets.filter((b) => b !== check);
+    if (!others.length) { delete check.kind; continue; }
+    S.tasks.filter((t) => t.bucketId === check.id).forEach((t) => { t.bucketId = (others.find((b) => b.id === t.prevBucketId) || others[0]).id; t.prevBucketId = null; });
+    plan.buckets = others;
   }
-  return b;
 }
 function submitForReview(t, note) {
   if (t.review || isDone(t)) return;
-  const b = checkingBucket(planById(t.planId), true);
-  if (t.bucketId !== b.id) { t.prevBucketId = t.bucketId; t.bucketId = b.id; }
   t.review = { at: Date.now(), by: S.meId };
   if (t.progress === 0) t.progress = 50;
   addEvent(t, 'submitted', note ? { note } : {});
@@ -69,7 +74,7 @@ function submitForReview(t, note) {
 /** Moves a task out of the Checking bucket, back to where it was before it was submitted. */
 function leaveChecking(t) {
   const plan = planById(t.planId);
-  const check = checkingBucket(plan, false);
+  const check = checkingBucket(plan);
   if (check && t.bucketId === check.id) {
     const back = plan.buckets.find((b) => b.id === t.prevBucketId && b.kind !== 'checking') || plan.buckets.find((b) => b.kind !== 'checking');
     if (back) t.bucketId = back.id;

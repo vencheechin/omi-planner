@@ -96,11 +96,12 @@ function groupsFor(by, tasks, plan) {
       { key: 'done', label: 'Completed', noAdd: true, tasks: pick(isDone) },
     ];
     // A person's board: one column per progress step, so a card moves when they update it.
+    // A person's board shows Checking plus only the progress columns that have tasks, so nothing hides off-screen.
     case 'stage': return [
       { key: 'checking', label: 'Checking', noAdd: true, tasks: pick((t) => !!t.review) },
       { key: 'done', label: 'Completed', noAdd: true, tasks: pick(isDone) },
       ...[80, 50, 10, 0].map((v) => ({ key: `p${v}`, label: v ? `${v}%` : 'Not started', noAdd: true, tasks: pick((t) => !t.review && !isDone(t) && t.progress === v) })),
-    ];
+    ].filter((g) => g.key === 'checking' || g.tasks.length);
     default: return [];
   }
 }
@@ -111,8 +112,6 @@ function applyGroup(t, by, from, to) {
   switch (by) {
     case 'bucket': {
       const target = planById(t.planId).buckets.find((b) => b.id === to);
-      if (target?.kind === 'checking' && !t.review && needsReview(t)) { submitForReview(t); break; }
-      if (t.review && target?.kind !== 'checking') endReview(t);
       t.bucketId = to;
       break;
     }
@@ -303,19 +302,17 @@ function assignedToMeGroups(plan) {
   if (!plan.personal) return [];
   const mine = S.tasks.filter((t) => t.planId !== plan.id && t.assignees.includes(S.meId) && t.assignedBy && t.assignedBy !== S.meId && !t.boxId);
   const by = [...new Set(mine.map((t) => t.assignedBy))];
-  const decision = { key: 'from:decision', label: 'Decision Request', locked: true, movable: true, noAdd: true, color: plan.fromColor?.['from:decision'] || '',
-    tasks: applyFilter(decisionsForMe(), filterOf(plan.id)) };
-  return [decision, ...by.map((id) => ({
+  return by.map((id) => ({
     key: `from:${id}`, label: `Assigned by ${person(id)?.name || 'someone'}`, person: person(id), locked: true, movable: true, noAdd: true,
     color: plan.fromColor?.[`from:${id}`] || '',
     tasks: applyFilter(mine.filter((t) => t.assignedBy === id), filterOf(plan.id)).sort((a, b) => (a.myOrder ?? a.order) - (b.myOrder ?? b.order)),
-  }))];
+  }));
 }
 /** Your own planner's columns: its buckets with the "Assigned by" buckets placed where you put them. */
 function placeFromGroups(plan, real, from) {
   const cols = [...real];
-  // Decision Request starts at the front; "Assigned by" buckets at the end, until you move them.
-  from.forEach((g) => { const at = plan.fromPos?.[g.key] ?? (g.key === 'from:decision' ? 0 : null); cols.splice(Number.isInteger(at) ? Math.min(at, cols.length) : cols.length, 0, g); });
+  // "Assigned by" buckets go at the end, until you move them.
+  from.forEach((g) => { const at = plan.fromPos?.[g.key]; cols.splice(Number.isInteger(at) ? Math.min(at, cols.length) : cols.length, 0, g); });
   return cols;
 }
 function boardHTML(groups, by, ctx) {
