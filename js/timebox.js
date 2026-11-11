@@ -9,15 +9,64 @@
 const INTERVALS = [5, 10, 15, 20, 30, 60];
 /** The Time Box row size in minutes; drags, resizes and new blocks snap to it. Set it on the Time Box page or in Settings. */
 const SNAP_OF = () => (typeof S !== 'undefined' && S && INTERVALS.includes(S.settings?.timebox?.interval) ? S.settings.timebox.interval : 15);
-const WORK_TYPES = [
-  { v: 'focus', label: 'Focus work', short: 'Focus', color: '#233246' },
+const BASE_WORK_TYPES = [
+  { v: 'focus', label: 'Focus', short: 'Focus', color: '#233246' },
   { v: 'decision', label: 'Decision', short: 'Decision', color: '#b5894d' },
-  { v: 'collab', label: 'Operational / collaboration', short: 'Collaboration', color: '#7b8060' },
-  { v: 'planning', label: 'Planning and review', short: 'Planning', color: '#6e7a8f' },
-  { v: 'review', label: 'Biweekly review', short: 'Review', color: '#be7f5c' },
-  { v: '', label: 'Other', short: 'Other', color: '#a39c8c' },
+  { v: 'collab', label: 'Collaboration', short: 'Collaboration', color: '#7b8060' },
+  { v: 'planning', label: 'Planning', short: 'Planning', color: '#6e7a8f' },
+  { v: 'meeting', label: 'Meeting', short: 'Meeting', color: '#4f6d7a' },
+  { v: '', label: 'Misc', short: 'Misc', color: '#a39c8c' },
+  { v: 'exercise', label: 'Exercise', short: 'Exercise', color: '#8c9a5b' },
+  { v: 'review', label: 'Biweekly Review', short: 'Review', color: '#be7f5c' },
 ];
-const workTypeOf = (v) => WORK_TYPES.find((w) => w.v === (v || '')) || WORK_TYPES[WORK_TYPES.length - 1];
+/** Colours given to types you add yourself, in turn. */
+const CUSTOM_TYPE_COLORS = ['#5b7f95', '#9a6b8f', '#c27d4f', '#4f7f73', '#a35d5d', '#7a6a4f', '#6b8f71', '#8f7a9a'];
+/** Work types in your order, with your names (part of your Time Box settings, which sync to your devices). */
+function workTypes() {
+  const saved = (typeof S !== 'undefined' && S?.settings?.timebox?.workTypes) || [];
+  const byV = new Map(BASE_WORK_TYPES.map((w) => [w.v, w]));
+  const out = [];
+  for (const x of saved) {
+    if (x.custom) { out.push({ v: x.v, label: x.name, short: x.name, color: x.color, custom: true }); continue; }
+    const w = byV.get(x.v);
+    if (!w) continue;
+    byV.delete(x.v);
+    out.push(x.name ? { ...w, label: x.name, short: x.name } : w);
+  }
+  return [...out, ...byV.values()];
+}
+const workTypeOf = (v) => workTypes().find((w) => w.v === (v || '')) || BASE_WORK_TYPES.find((w) => w.v === '');
+const EDIT_WORK_TYPES = '__editWorkTypes';
+/** Options for a work type dropdown, ending with "Edit…", which opens the editor. */
+const workTypeOptions = (cur, short = false) => `${workTypes().map((w) => `<option value="${w.v}" ${w.v === (cur || '') ? 'selected' : ''}>${esc(w.short)}</option>`).join('')}<option disabled>──────────</option><option value="${EDIT_WORK_TYPES}">Edit…</option>`;
+function editWorkTypesDlg() {
+  const d = showDialog({
+    title: 'Edit Work Types',
+    html: `<form method="dialog" class="stack" data-submit="saveWorkTypes">
+      <p class="muted small">Rename a type, add your own, or drag ⋮⋮ to change the order. Types name your Time Box blocks and tasks.</p>
+      <div class="wt-list">${workTypes().map(wtRowHTML).join('')}</div>
+      <div class="row wt-add"><input data-focus="wt-new" placeholder="Add your own, e.g. Family" aria-label="New type name" autocomplete="off"><button class="btn ghost sm" type="button" data-act="wtAddRow">${icon('plus', 14)} Add</button></div>
+      <div class="dlg-foot"><button class="btn ghost" type="button" data-act="resetWorkTypes">Reset</button><span class="spacer"></span><button class="btn ghost" type="button" data-role="no">Cancel</button><button class="btn primary">Save</button></div>
+    </form>`,
+  });
+  $('[data-role="no"]', d).onclick = () => d.close();
+  return d;
+}
+function wtRowHTML(w) {
+  const base = BASE_WORK_TYPES.find((b) => b.v === w.v);
+  return `<div class="wt-row" data-drag="worktype" data-id="${esc(w.v)}"><span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span><i class="dot" style="background:${w.color}"></i><input name="wt" data-v="${esc(w.v)}" ${w.custom ? `data-custom="1" data-color="${w.color}"` : ''} value="${esc(w.short)}" placeholder="${esc(base ? base.short : 'Name')}" aria-label="Name" autocomplete="off">${w.custom ? `<button class="icon-btn" type="button" data-act="wtDelRow" aria-label="Remove ${esc(w.short)}" title="Remove">${icon('close', 13)}</button>` : ''}</div>`;
+}
+function saveWorkTypes(form) {
+  TB().workTypes = $$('.wt-row input', form).map((i) => {
+    const name = i.value.trim();
+    if (i.dataset.custom) return name ? { v: i.dataset.v, name: name.slice(0, 40), color: i.dataset.color, custom: true } : null;
+    const base = BASE_WORK_TYPES.find((b) => b.v === i.dataset.v);
+    return { v: i.dataset.v, name: name && name !== base.short ? name.slice(0, 40) : '' };
+  }).filter(Boolean);
+  form.closest('dialog').close();
+  commit();
+  toast('Work types saved.');
+}
 const HEALTH = [
   { v: 'green', label: 'Green', meaning: 'On Track', color: '#4f7f3c' },
   { v: 'yellow', label: 'Yellow', meaning: 'At Risk', color: '#c99a1e' },
@@ -29,7 +78,7 @@ const URGENCY = [
   { v: '', label: 'Not set' },
   { v: 'same-day', label: 'Same-day decision · Decision Window' },
   { v: 'routine', label: 'Routine update · biweekly review' },
-  { v: 'emergency', label: 'Emergency · may interrupt CEO Focus' },
+  { v: 'emergency', label: 'Emergency · may interrupt Focus' },
 ];
 const DEFAULT_ESTIMATES = [5, 10, 15, 30, 45, 60, 90];
 /** The duration choices offered everywhere; edit them in Settings > Time boxing. */
@@ -55,7 +104,7 @@ function defaultTimebox() {
   return {
     workDays: [1, 2, 3, 4, 5], dayStart: 8 * 60 + 30, dayEnd: 17 * 60 + 30, capacity: 8, interval: 15, estimates: [...DEFAULT_ESTIMATES],
     blocks: [
-      { id: uid(), name: 'CEO Focus', kind: 'focus', start: 8 * 60 + 30, end: 12 * 60 + 30, cadence: 'daily', protected: true,
+      { id: uid(), name: 'Focus', kind: 'focus', start: 8 * 60 + 30, end: 12 * 60 + 30, cadence: 'daily', protected: true,
         note: 'Strategy, culture, finances, planning, proposals, leadership, growth and long-term decisions. Protected from interruptions, except emergencies.' },
       { id: uid(), name: 'Decision Window', kind: 'decision', start: 13 * 60 + 30, end: 14 * 60, cadence: 'daily', protected: false,
         note: 'Review written decision requests and handle same-day decisions.' },
@@ -70,13 +119,17 @@ function defaultTimebox() {
 function normalizeTimebox(tb) {
   if (!tb || typeof tb !== 'object' || !Array.isArray(tb.blocks)) return defaultTimebox();
   const mins = (v, d) => (Number.isFinite(v) && v >= 0 && v <= 1440 ? v : d);
+  const workTypes = (Array.isArray(tb.workTypes) ? tb.workTypes : []).filter((w) => w && (w.custom ? /^c_/.test(w.v) && String(w.name || '').trim() : BASE_WORK_TYPES.some((b) => b.v === w.v)))
+    .map((w) => (w.custom ? { v: w.v, name: String(w.name).trim().slice(0, 40), color: /^#[0-9a-f]{6}$/i.test(w.color || '') ? w.color : CUSTOM_TYPE_COLORS[0], custom: true } : { v: w.v, name: String(w.name || '').slice(0, 40) }));
+  const kinds = new Set([...BASE_WORK_TYPES.map((w) => w.v), ...workTypes.map((w) => w.v)]);
   return {
     workDays: Array.isArray(tb.workDays) ? tb.workDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) : [1, 2, 3, 4, 5],
     dayStart: mins(tb.dayStart, 510), dayEnd: mins(tb.dayEnd, 1050), capacity: Number.isFinite(tb.capacity) && tb.capacity > 0 ? tb.capacity : 8,
     interval: INTERVALS.includes(tb.interval) ? tb.interval : 15,
+    workTypes,
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
     blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start).map((b) => ({
-      id: String(b.id || uid()), name: String(b.name || 'Block'), kind: WORK_TYPES.some((w) => w.v === b.kind) ? b.kind : '', color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '',
+      id: String(b.id || uid()), name: b.name === 'CEO Focus' ? 'Focus' : String(b.name || 'Block'), kind: kinds.has(b.kind) ? b.kind : '', color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '',
       start: b.start, end: b.end, cadence: CADENCES.some((c) => c.v === b.cadence) ? b.cadence : 'daily', anchor: b.anchor || null,
       protected: !!b.protected, note: String(b.note || ''),
     })),
@@ -403,6 +456,51 @@ function setHealth(t, v, exact = false) {
   if (t.health === 'yellow' || t.health === 'red') setTimeout(() => $('[data-focus="health-note"]')?.focus(), 0);
 }
 
+/** Suggestions for a block's name: your types and the names already in use. You can also type anything. */
+function blockNamesList() {
+  const names = [...new Set([...TB().blocks.map((b) => b.name), "Tomorrow's Planning", 'Decision Window', ...workTypes().map((w) => w.short)])];
+  return `<datalist id="tb-block-names">${names.map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist>`;
+}
+/** Right-click on the Time Box grid: change the block under the pointer, or add one there. */
+function blockMenu(e, col) {
+  const rect = col.getBoundingClientRect();
+  const min = Math.floor((Number(col.dataset.rs) + (e.clientY - rect.top) / Number(col.dataset.ppm)) / SNAP_OF()) * SNAP_OF();
+  const iso = col.dataset.tbDate;
+  const b = blockAt(iso, min);
+  const start = b ? b.start : min;
+  const end = b ? b.end : Math.min(min + 60, 1440);
+  const anchor = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false };
+  openPop(anchor, () => `<form class="picker block-menu" data-submit="tbBlockSave" data-id="${b ? esc(b.id) : ''}">
+    <h4>${b ? `Change “${esc(b.name)}”` : `New block at ${esc(fmtTime(min))}`}</h4>
+    <label class="field"><span>Name</span><input name="name" list="tb-block-names" value="${esc(b ? b.name : '')}" placeholder="Pick or type, e.g. Exercise" autocomplete="off" data-focus="block-name"></label>
+    ${blockNamesList()}
+    <div class="task-fields two">
+      <label class="field"><span>Type</span><select name="kind">${workTypeOptions(b ? b.kind : 'focus')}</select></label>
+      <label class="field"><span>Colour</span><select name="color">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (b?.color || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Type colour')}</option>`).join('')}</select></label>
+      <label class="field"><span>Starts</span><input name="start" type="time" step="300" value="${hm(start)}" required></label>
+      <label class="field"><span>Ends</span><input name="end" type="time" step="300" value="${hm(end)}" required></label>
+    </div>
+    <label class="mini"><input type="checkbox" name="protected" ${b?.protected ? 'checked' : ''}> Protected (warn before booking over it)</label>
+    <div class="row">${b ? `<button class="btn ghost sm danger-text" type="button" data-act="tbDelBlock" data-id="${esc(b.id)}">Delete</button>` : ''}<span class="spacer"></span>
+      <button class="btn primary sm">${b ? 'Save' : 'Add block'}</button></div>
+    <p class="muted small">${b && b.cadence !== 'daily' ? 'Repeats ' + esc(CADENCES.find((c) => c.v === b.cadence)?.label.toLowerCase() || '') + '. ' : ''}Changes apply to every day this block appears.</p>
+  </form>`);
+  $('[data-focus="block-name"]', ui.pop.el)?.focus();
+}
+function saveBlockFromMenu(form, data) {
+  const start = parseHM(data.get('start'));
+  const end = parseHM(data.get('end'));
+  if (start === null || end === null || end <= start) { toast('A block has to end after it starts.', { error: true }); return; }
+  const kind = data.get('kind') === EDIT_WORK_TYPES ? '' : data.get('kind');
+  const name = String(data.get('name') || '').trim() || workTypeOf(kind).short;
+  let b = TB().blocks.find((x) => x.id === form.dataset.id);
+  if (!b) { b = { id: uid(), cadence: 'daily', anchor: null, note: '' }; TB().blocks.push(b); }
+  Object.assign(b, { name: name.slice(0, 60), kind, color: data.get('color') || '', start, end, protected: data.get('protected') === 'on' });
+  closePop();
+  commit();
+  toast(`Saved “${b.name}”.`);
+}
+
 /** The Traffic Light row under the task name: a dropdown, plus a recovery or support note when not Green. */
 function healthRowHTML(t) {
   const h = healthOf(t.health);
@@ -709,7 +807,7 @@ function renderPlanner() {
     <form class="tb-quick" data-submit="tbQuickAdd">
       <input name="title" placeholder="Add a task to the Time Box" data-focus="tb-quick" autocomplete="off" aria-label="Task name" required>
       <select name="estimate" aria-label="Estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select>
-      <select name="workType" aria-label="Work type">${WORK_TYPES.map((w) => `<option value="${w.v}">${esc(w.short)}</option>`).join('')}</select>
+      <select name="workType" aria-label="Work type">${workTypeOptions('focus', true)}</select>
       <input name="date" type="date" value="${anchor}" aria-label="Day">
       <input name="start" type="time" step="${SNAP_OF() * 60}" aria-label="Start time" title="Leave empty to use the next free slot">
       <button class="btn primary sm">${icon('plus', 14)} Add</button>
@@ -717,7 +815,7 @@ function renderPlanner() {
     </form>
     ${mode === 'day' ? mioBarHTML(anchor, true) : ''}
     ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span><button class="btn ghost sm" data-act="moveUnfinished" data-date="past">Move to free slots</button></div>` : ''}
-    <div class="tb-legend">${WORK_TYPES.filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}
+    <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}
       <span class="muted">${matchMedia('(hover: none)').matches
         ? (mode === 'month' ? 'Press and hold a task, then drag it onto a day · tap a day to open it' : 'Press and hold a block to move it · drag its bottom edge to resize · drop a task on a box to squeeze it in · tap empty time to add')
         : (mode === 'month' ? 'Drag a task onto a day · click a day to open it' : 'Drag to move · drag the bottom edge to resize · drop a task on a box to squeeze it in · click empty time to add')}</span></div>
@@ -756,8 +854,8 @@ function timeboxSettingsHTML() {
     </div>
     <ul class="tb-blocks">${tb.blocks.map((b) => `<li>
       <i class="dot" style="background:${b.color || workTypeOf(b.kind).color}"></i>
-      <input value="${esc(b.name)}" data-change="tbBlock" data-id="${esc(b.id)}" data-k="name" aria-label="Block name">
-      <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="kind" aria-label="Type">${WORK_TYPES.map((w) => `<option value="${w.v}" ${w.v === b.kind ? 'selected' : ''}>${esc(w.short)}</option>`).join('')}</select>
+      <input value="${esc(b.name)}" list="tb-block-names" data-change="tbBlock" data-id="${esc(b.id)}" data-k="name" aria-label="Block name">
+      <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="kind" aria-label="Type">${workTypeOptions(b.kind, true)}</select>
       <select data-change="tbBlock" data-id="${esc(b.id)}" data-k="color" aria-label="Colour">${TB_COLORS.map((c) => `<option value="${c.v}" ${c.v === (b.color || '') ? 'selected' : ''}>${esc(c.v ? c.label : 'Type colour')}</option>`).join('')}</select>
       <input type="time" step="900" value="${hm(b.start)}" data-change="tbBlock" data-id="${esc(b.id)}" data-k="start" aria-label="Starts">
       <input type="time" step="900" value="${hm(b.end)}" data-change="tbBlock" data-id="${esc(b.id)}" data-k="end" aria-label="Ends">
@@ -766,7 +864,10 @@ function timeboxSettingsHTML() {
       <label class="mini"><input type="checkbox" ${b.protected ? 'checked' : ''} data-change="tbBlock" data-id="${esc(b.id)}" data-k="protected"> Protected</label>
       <button class="icon-btn" data-act="tbDelBlock" data-id="${esc(b.id)}" aria-label="Remove ${esc(b.name)}">${icon('close', 13)}</button>
     </li>`).join('')}</ul>
+    ${blockNamesList()}
+    <p class="muted small">Tip: right-click a block on the Time Box page to change it there.</p>
     <div class="row"><button class="btn ghost sm" data-act="tbAddBlock">${icon('plus', 14)} Add block</button>
+      <button class="btn ghost sm" data-act="editWorkTypes">${icon('pencil', 14)} Edit types</button>
       ${tb.blocks.some((b) => b.kind === 'review') ? '' : `<button class="btn ghost sm" data-act="tbAddReview">${icon('plus', 14)} Add biweekly review</button>`}
       <button class="btn ghost sm" data-act="tbRestore">Restore default rhythm</button></div>`;
 }

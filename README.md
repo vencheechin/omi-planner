@@ -54,9 +54,12 @@ How it works:
 Open **Time Box** in the sidebar and choose **Day**, **Week** or **Month**. Day and Week look like
 a spreadsheet: 15-minute rows, one column per day, coloured cells.
 
-- Your weekday rhythm shows as named bands: CEO Focus (protected), Decision Window,
-  Collaboration and Tomorrow Planning. Change the working days, hours, daily capacity and blocks
-  (including their colour) in Settings > Time boxing. Time outside the blocks stays free.
+- Your weekday rhythm shows as named bands: Focus (protected), Decision Window,
+  Collaboration and Tomorrow Planning. Right-click a band (or empty time) to rename it, change its
+  type, colour or hours, delete it, or add a new block. The same is in Settings > Time boxing,
+  with working days, hours and daily capacity. Time outside the blocks stays free.
+- Types: Focus, Decision, Collaboration, Planning, Meeting, Misc, Exercise and Review. Choose
+  **Edit…** at the bottom of any type dropdown to rename them, add your own and drag to reorder.
 - In any task's ••• menu, **Add to Time Box** puts it in the list on the right of the Time Box
   page. Drag it onto a time (or a day in Month view), or press **Next free**.
 - Add a task straight onto the grid from the bar at the top, or click empty time.
@@ -73,7 +76,7 @@ a spreadsheet: 15-minute rows, one column per day, coloured cells.
   the recovery plan or support needed.
 - Decision tasks have Issue → Recommendation → Impact → Decision Needed → Deadline, and a
   handling choice: same-day (Decision Window), routine (biweekly review: add that block in
-  Settings) or emergency (may interrupt CEO Focus).
+  Settings) or emergency (may interrupt Focus).
 - Time slots, boxes, colours and the One Most Important Outcome are personal and don't sync to
   colleagues; estimates, work type, progress, traffic light and decision briefs do.
 

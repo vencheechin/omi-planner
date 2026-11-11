@@ -511,7 +511,7 @@ const actions = {
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
       <textarea name="title" rows="3" placeholder="Task name. Or several small tasks, one per line, to share this time box." required aria-label="Task name, or several, one per line"></textarea>
       <div class="task-fields two"><label class="field"><span>Estimate</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
-      <label class="field"><span>Work type</span><select name="workType">${WORK_TYPES.map((w) => `<option value="${w.v}" ${w.v === (block?.kind || '') ? 'selected' : ''}>${esc(w.short)}</option>`).join('')}</select></label></div>
+      <label class="field"><span>Work type</span><select name="workType">${workTypeOptions(block?.kind || '', true)}</select></label></div>
       <button class="btn primary sm">Add to ${esc(fmtTime(start))}</button></form>`);
     $('textarea', ui.pop.el).focus();
   },
@@ -564,6 +564,19 @@ const actions = {
   unschedule: (el) => unschedule(taskById(el.dataset.id)),
   handleNow: (el) => { const t = taskById(el.dataset.id); t.urgency = 'emergency'; scheduleTask(t, todayISO(), ceilSnap(nowMin())); },
   setHealth: (el) => setHealth(taskById(el.dataset.id), el.dataset.v),
+  editWorkTypes: () => editWorkTypesDlg(),
+  wtDelRow: (el) => el.closest('.wt-row').remove(),
+  wtAddRow: (el) => {
+    const input = $('[data-focus="wt-new"]', el.closest('form'));
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    const list = $('.wt-list', el.closest('form'));
+    const n = $$('[data-custom]', list).length + (TB().workTypes || []).filter((w) => w.custom).length;
+    list.insertAdjacentHTML('beforeend', wtRowHTML({ v: `c_${uid()}`, short: name, color: CUSTOM_TYPE_COLORS[n % CUSTOM_TYPE_COLORS.length], custom: true }));
+    input.value = '';
+    input.focus();
+  },
+  resetWorkTypes: (el) => { TB().workTypes = []; el.closest('dialog').close(); commit(); editWorkTypesDlg(); },
   moveUnfinished: (el) => moveUnfinishedDlg(el.dataset.date),
   planTomorrow: () => planTomorrowDlg(),
   tbToggleDay: (el) => {
@@ -595,6 +608,7 @@ const actions = {
   },
   tbDelBlock: (el) => {
     const b = TB().blocks.find((x) => x.id === el.dataset.id);
+    closePop();
     undoable(`Removed “${b.name}”. Tasks keep their times.`, () => { TB().blocks = TB().blocks.filter((x) => x !== b); });
     refreshSettings();
   },
@@ -786,6 +800,8 @@ const actions = {
 
 // ---------- Form submits ----------
 const submits = {
+  tbBlockSave: (form, data) => saveBlockFromMenu(form, data),
+  saveWorkTypes: (form) => saveWorkTypes(form),
   quickAdd: (form, data) => {
     const title = data.get('title').trim();
     if (!title) return;
@@ -1213,6 +1229,11 @@ function dragMove(x, y) {
     const before = items.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
     list.insertBefore(s.ph, before || null);
     s.target = { beforeId: before ? before.dataset.id : null };
+  } else if (s.type === 'worktype') {
+    const list = s.el.closest('.wt-list');
+    const rows = $$('.wt-row:not(.drag-src)', list);
+    const before = rows.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
+    list.insertBefore(s.ph, before || null);
   } else if (s.type === 'label') {
     const list = s.el.closest('.picker-scroll');
     const rows = $$('.label-row[data-drag]:not(.drag-src):not([hidden])', list);
@@ -1248,11 +1269,12 @@ function dragEnd(drop) {
   if (!s.active) return;
   Drag.quietUntil = performance.now() + 350;
   s.ghost?.remove();
-  s.ph.remove();
+  if (s.type === 'worktype' && drop && s.ph.isConnected) s.ph.replaceWith(s.source); else s.ph.remove();
   s.tbph?.remove();
   s.source.classList.remove('drag-src', 'resizing');
   document.body.classList.remove('dragging');
   $$('.drop').forEach((n) => n.classList.remove('drop'));
+  if (s.type === 'worktype') return;
   if (s.type === 'resize') {
     const t = taskById(s.id);
     if (drop && s.target && s.target.dur !== durOf(t)) scheduleTask(t, t.slotDate, t.slotStart, s.target.dur); else render();
@@ -1330,7 +1352,7 @@ function dropOnDate(id, date, grabDate) {
 document.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   const el = e.target.closest('[data-drag]');
-  if (!el || e.target.closest('select, textarea, a, .check, .icon-btn, .btn, .ck-item input')) return;
+  if (!el || e.target.closest('select, textarea, a, .check, .icon-btn, .btn, .ck-item input, .wt-row input')) return;
   const touch = e.pointerType !== 'mouse';
   Drag.s = {
     el, type: el.dataset.drag, id: el.dataset.id, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, touch, active: false,
@@ -1383,6 +1405,22 @@ document.addEventListener('submit', (e) => {
   submits[form.dataset.submit](form, new FormData(form));
   if (form.isConnected) form.reset();
 });
+// Right-click (or long-press on a phone) on the Time Box grid edits the block there.
+document.addEventListener('contextmenu', (e) => {
+  const col = e.target.closest('.tb-col[data-tb-date]');
+  if (!col || e.target.closest('.tb-block')) return;
+  e.preventDefault();
+  blockMenu(e, col);
+});
+// "Edit…" at the bottom of any work type dropdown: put the dropdown back and open the editor.
+document.addEventListener('change', (e) => {
+  const sel = e.target;
+  if (sel.tagName !== 'SELECT' || sel.value !== EDIT_WORK_TYPES) return;
+  e.stopImmediatePropagation();
+  const was = [...sel.options].find((o) => o.defaultSelected) || sel.options[0];
+  sel.value = was.value;
+  editWorkTypesDlg();
+}, true);
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-change]');
   if (el) changes[el.dataset.change](el);
@@ -1392,6 +1430,7 @@ document.addEventListener('input', (e) => {
   if (el) inputs[el.dataset.input](el);
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches?.('[data-focus="wt-new"]')) { e.preventDefault(); actions.wtAddRow(e.target); return; }
   const tag = e.target.tagName;
   const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
   if (e.key === 'Escape') {

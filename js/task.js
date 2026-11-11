@@ -165,7 +165,7 @@ function renderTask() {
         ${field('Start date', `<input type="date" value="${t.start || ''}" data-change="taskField" data-field="start">`)}
         ${field('Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}">`)}
         ${field('Repeat', `<select data-change="taskField" data-field="repeat">${options(REPEATS, t.repeat)}</select>`)}
-        ${field('Work type', `<select data-change="tbField" data-field="workType">${options(WORK_TYPES.map((w) => ({ v: w.v, label: w.label })), t.workType || '')}</select>`)}
+        ${field('Work type', `<select data-change="tbField" data-field="workType">${workTypeOptions(t.workType)}</select>`)}
         ${field('Show on card', `<select data-change="taskField" data-field="preview">${options([{ v: 'auto', label: 'Automatic' }, { v: 'notes', label: 'Description' }, { v: 'checklist', label: 'Checklist' }, { v: 'attachment', label: 'Picture' }, { v: 'none', label: 'Nothing' }], t.preview)}</select>`)}
       </div>
       ${timeboxHTML(t)}
@@ -359,7 +359,7 @@ function filterPicker(fkey, plan, crossPlan) {
     ${section('Progress', PROGRESS.map((p) => chip('progress', p.v, p.label)).join(''))}
     ${section('Priority', PRIORITY.map((p) => chip('priority', p.v, p.label)).join(''))}
     ${section('Traffic light', HEALTH.map((h) => chip('health', h.v, h.label)).join('') + chip('health', 'none', 'Not set'))}
-    ${section('Work type', WORK_TYPES.map((w) => chip('work', w.v, w.short)).join(''))}
+    ${section('Work type', workTypes().map((w) => chip('work', w.v, w.short)).join(''))}
     ${plan ? section('Bucket', plan.buckets.map((b) => chip('bucket', b.id, b.name)).join('')) : ''}
     ${usedLabels.length ? section('Labels', usedLabels.map((l) => chip('label', l, labelName(plan, l))).join('')) : ''}
     ${crossPlan ? '' : section('Assigned to', chip('assignee', 'none', 'Unassigned') + people.map((id) => chip('assignee', id, person(id)?.name || '')).join(''))}

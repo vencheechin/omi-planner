@@ -84,7 +84,7 @@ function groupsFor(by, tasks, plan) {
       ...HEALTH.map((h) => ({ key: h.v, label: `${h.label} · ${h.meaning.split(' · ')[0]}`, color: h.color, tasks: pick((t) => t.health === h.v) })),
       { key: 'none', label: 'Not set', tasks: pick((t) => !t.health) },
     ];
-    case 'work': return WORK_TYPES.map((w) => ({ key: w.v || 'other', label: w.label, color: w.color, tasks: pick((t) => (t.workType || '') === w.v) }));
+    case 'work': return workTypes().map((w) => ({ key: w.v || 'other', label: w.label, color: w.color, tasks: pick((t) => (t.workType || '') === w.v) }));
     case 'status': return [
       { key: 'todo', label: 'To do', tasks: pick((t) => t.progress === 0 && !t.review) },
       { key: 'doing', label: 'In progress', tasks: pick((t) => inProgress(t) && !t.review) },
