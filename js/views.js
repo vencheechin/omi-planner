@@ -180,8 +180,18 @@ function renderTabbar() {
   const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
   bar.innerHTML = tab('#/halfplan', 'table', 'S-Team', r === 'halfplan')
     + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
-    + tab('#/hub', 'home', 'My Planner', r === 'hub' || r === 'plan' || r === 'person', dueSoonCount())
+    + tab('#/hub', 'home', 'My Planner', r === 'hub' || r === 'plan' || r === 'person' || r === 'decisions', dueSoonCount())
     + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
+}
+function decisionNavHTML(r) {
+  const open = openDecisions();
+  const keys = [...new Set(open.map(decisionOther))].filter(personByKey).sort((a, b) => personByKey(a).name.localeCompare(personByKey(b).name));
+  const row = (k, label, av, list) => {
+    const forMe = list.filter((t) => isMeId(t.decisionReq.to)).length;
+    const on = r.view === 'decisions' && (r.id || '') === k;
+    return `<a class="nav-item plan ${on ? 'active' : ''}" href="#/decisions${k ? `/${encodeURIComponent(k)}` : ''}">${av}<span>${esc(label)}</span>${forMe ? `<em class="to-check" title="Waiting for your decision">${forMe}</em>` : list.length ? `<em title="Waiting on them">${list.length}</em>` : ''}</a>`;
+  };
+  return `<h3>Decision Request</h3>${row('', 'All decisions', `<span class="dr-flag">⚑</span>`, open)}${keys.map((k) => row(k, personByKey(k).name, avatar(personByKey(k), 22), open.filter((t) => decisionOther(t) === k))).join('')}`;
 }
 function renderSidebar() {
   renderTabbar();
@@ -201,6 +211,7 @@ function renderSidebar() {
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
       ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
+      ${decisionNavHTML(r)}
       ${S.personPlans.length ? `<h3>Delegate to</h3>${S.personPlans.map(personLink).join('')}` : ''}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
@@ -212,7 +223,55 @@ function renderSidebar() {
 // ---------- Hub ----------
 /** Decision requests: the closest deadline first, then those without one (oldest request first). */
 const byDecisionDeadline = (a, b) => String(a.decision?.deadline || '9999').localeCompare(String(b.decision?.deadline || '9999')) || a.decisionReq.at - b.decisionReq.at;
-const decisionsForMe = () => S.tasks.filter((t) => t.decisionReq?.to === S.meId && t.decisionReq.status === 'pending').sort(byDecisionDeadline);
+const isMeId = (id) => !!id && pkey(id) === pkey(S.meId);
+const decisionsForMe = () => S.tasks.filter((t) => t.decisionReq?.status === 'pending' && isMeId(t.decisionReq.to)).sort(byDecisionDeadline);
+/** Every open decision request you're in: ones you must decide and ones you sent. */
+const openDecisions = () => S.tasks.filter((t) => t.decisionReq?.status === 'pending' && (isMeId(t.decisionReq.to) || isMeId(t.decisionReq.by)));
+/** The other person on a decision request (who asked you, or who you asked). */
+const decisionOther = (t) => pkey(isMeId(t.decisionReq.to) ? t.decisionReq.by : t.decisionReq.to);
+const personByKey = (k) => S.people.find((p) => pkey(p.id) === k);
+const DEC_SORTS = [['deadline', 'Deadline'], ['priority', 'Priority'], ['due', 'Due date'], ['newest', 'Newest request'], ['oldest', 'Oldest request'], ['person', 'Person']];
+function decisionSorter(by) {
+  const dl = (t) => String(t.decision?.deadline || '9999');
+  const due = (t) => String(t.due || '9999');
+  const name = (t) => personByKey(decisionOther(t))?.name || '';
+  const f = {
+    deadline: (a, b) => dl(a).localeCompare(dl(b)) || a.priority - b.priority,
+    priority: (a, b) => a.priority - b.priority || dl(a).localeCompare(dl(b)),
+    due: (a, b) => due(a).localeCompare(due(b)) || dl(a).localeCompare(dl(b)),
+    newest: (a, b) => b.decisionReq.at - a.decisionReq.at,
+    oldest: (a, b) => a.decisionReq.at - b.decisionReq.at,
+    person: (a, b) => name(a).localeCompare(name(b)) || dl(a).localeCompare(dl(b)),
+  }[by] || byDecisionDeadline;
+  return (a, b) => f(a, b) || a.decisionReq.at - b.decisionReq.at;
+}
+/** All your decision requests in one place (or one person's), sortable. */
+function renderDecisions() {
+  const key = ui.route.id || '';
+  const who = key ? personByKey(key) : null;
+  const sort = S.settings.decisionSort || 'deadline';
+  const show = ui.decShow || 'all';
+  const all = openDecisions().filter((t) => !key || decisionOther(t) === key).sort(decisionSorter(sort));
+  const toMe = all.filter((t) => isMeId(t.decisionReq.to));
+  const fromMe = all.filter((t) => !isMeId(t.decisionReq.to));
+  const item = (t) => {
+    const mine = isMeId(t.decisionReq.to);
+    const other = personByKey(decisionOther(t))?.name || 'Someone';
+    const dl = t.decision?.deadline;
+    return `<div class="dr-item"><div class="dr-who">${mine ? `From <b>${esc(other)}</b>` : `Waiting on <b>${esc(other)}</b>`} · asked ${esc(fmtDate(new Date(t.decisionReq.at).toISOString().slice(0, 10)))}${dl ? ` · <span class="${dl < todayISO() ? 'danger-text' : ''}">decide by ${esc(fmtDate(dl))}</span>` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`;
+  };
+  const sec = (title, list, empty) => `<section class="dr-hub"><h2>${title} <span class="count">${list.length}</span></h2>
+    ${list.length ? `<div class="dr-cards">${list.map(item).join('')}</div>` : `<p class="muted small">${empty}</p>`}</section>`;
+  return `<div class="page">
+    <header class="page-head"><h1>⚑ Decision Request${who ? `: ${esc(who.name)}` : ''}</h1></header>
+    <div class="dr-tools">
+      <div class="seg">${[['all', 'All'], ['me', 'To decide'], ['sent', 'Waiting on']].map(([v, l]) => `<button class="${show === v ? 'on' : ''}" data-act="decShow" data-v="${v}">${l}</button>`).join('')}</div>
+      <label class="mini">Sort by <select data-change="decSort">${DEC_SORTS.map(([v, l]) => `<option value="${v}" ${v === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    </div>
+    ${show !== 'sent' ? sec('To decide', toMe, who ? `Nothing from ${esc(who.name)} waiting for you.` : 'Nothing waiting for you.') : ''}
+    ${show !== 'me' ? sec('Waiting on', fromMe, who ? `You haven’t asked ${esc(who.name)} for a decision.` : 'You’re not waiting on anyone.') : ''}
+  </div>`;
+}
 /** Your open tasks from every plan that are late, due today or due this week. */
 const DUE_SOON = [['late', 'Late'], ['today', 'Today'], ['tomorrow', 'This week'], ['week', 'This week']];
 const dueSoonTasks = () => S.tasks.filter((t) => t.assignees.includes(S.meId) && !isDone(t) && !t.box && DUE_SOON.some(([k]) => k === dueGroupOf(t.due)));
@@ -237,7 +296,7 @@ function checkingHubHTML() {
 /** Decision requests waiting for you, at the top of My Planner. */
 function decisionHubHTML() {
   const asks = decisionsForMe();
-  return `<section class="dr-hub"><h2>⚑ Decision Request <span class="count">${asks.length}</span></h2>
+  return `<section class="dr-hub"><h2>⚑ Decision Request <span class="count">${asks.length}</span><a class="dr-all" href="#/decisions">See all</a></h2>
     ${asks.length ? `<div class="dr-cards">${asks.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing waiting.</p>'}</section>`;
 }
 function renderHub() {
@@ -573,6 +632,7 @@ function renderMain() {
     return pp ? renderPersonPlan(pp) : renderHub();
   }
   if (r.view === 'report') return renderReport();
+  if (r.view === 'decisions') return renderDecisions();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan') return renderBrandPlan();
   return renderHub();

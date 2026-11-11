@@ -762,7 +762,10 @@ const actions = {
   taskMenu: (el) => openMenu(el, taskMenuItems(openTaskObj(), el)),
   decisionSend: (el) => {
     const t = taskById(el.dataset.id);
-    const people = S.people.filter((p) => p.id !== S.meId);
+    // Anyone can ask anyone: reporting lines don't apply. One row per person (same email = same person).
+    const seen = new Map();
+    for (const p of S.people) { const k = pkey(p.id); if (k !== pkey(S.meId) && (!seen.has(k) || String(p.id).startsWith('e:'))) seen.set(k, p); }
+    const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
     if (!people.length) { toast('Add the person who decides in Settings › People first.', { error: true }); return; }
     openMenu(el, people.map((p) => ({ label: p.name, icon: 'user', run: () => {
       t.decisionReq = { to: p.id, by: S.meId, at: Date.now(), status: 'pending' };
@@ -790,6 +793,7 @@ const actions = {
     toast('Rejected. They\u2019ve been notified.');
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
+  decShow: (el) => { ui.decShow = el.dataset.v; render(); },
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);
@@ -1425,6 +1429,7 @@ const changes = {
     render();
   },
   stSwitch: (el) => { ui.stPlanId = el.value; render(); },
+  decSort: (el) => { S.settings.decisionSort = el.value; Store.save(); render(); },
   orgReportsTo: (el) => { const rt = { ...(org().reportsTo || {}) }; if (el.value) rt[el.dataset.p] = el.value; else delete rt[el.dataset.p]; if (el.value && isAbove(el.dataset.p, el.value)) { toast('That would make a loop.'); refreshSettings(); return; } org().reportsTo = rt; commit(); refreshSettings(); },
   stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },
   stDeptName: (el) => { const d = deptById(el.dataset.d); d.name = el.value.trim() || d.name; org().depts = [...org().depts]; commit(); },
@@ -2005,7 +2010,7 @@ function route() {
   const [path, query] = location.hash.split('?');
   const [, a, b, c, d] = path.split('/');
   Usage.track(`page:${a || 'hub'}`);
-  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'decisions', id: b ? decodeURIComponent(b) : '' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
   // A link like #/hub?name=Sam&email=sam@company.com fills in your identity on a fresh copy, then opens Settings.
