@@ -82,6 +82,12 @@ function currentViewTasks() {
   if (pp) return personPlanTasks(pp);
   return S.tasks.filter((x) => x.assignees.includes(S.meId));
 }
+/** Stops adding a task to a plan someone else owns. */
+function cantAddHere() {
+  if (!othersPlan(currentPlan())) return false;
+  toast(`Only ${person(currentPlan().owner)?.name || 'the owner'} can add tasks here.`);
+  return true;
+}
 const newFields = () => {
   const plan = currentPlan();
   if (plan) return { planId: plan.id, bucketId: plan.buckets[0].id };
@@ -194,7 +200,7 @@ function taskMenuItems(t, anchor) {
 function planBucketFields(planId, bucketId) {
   const plan = planById(planId);
   return `<div class="task-fields two">
-    <label class="field"><span>Plan</span><select name="plan">${S.plans.map((p) => `<option value="${esc(p.id)}" ${p.id === planId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+    <label class="field"><span>Plan</span><select name="plan">${S.plans.filter((p) => !othersPlan(p) || p.id === planId).map((p) => `<option value="${esc(p.id)}" ${p.id === planId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
     <label class="field"><span>Bucket</span><select name="bucket">${plan.buckets.map((b) => `<option value="${esc(b.id)}" ${b.id === bucketId ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}</select></label></div>`;
 }
 /**
@@ -745,6 +751,7 @@ const actions = {
   schedToday: () => { ui.sched.anchor = todayISO(); render(); },
   calWeek: (el) => { ui.sched = { mode: 'week', anchor: el.dataset.date }; render(); },
   calAdd: async (el) => {
+    if (cantAddHere()) return;
     const name = await promptDlg(`New task for ${fmtDate(el.dataset.date)}`, 'Task name', '', 'Add task');
     if (name) { addTask({ ...newFields(), title: name, due: el.dataset.date }); commit(); }
   },
@@ -1144,6 +1151,7 @@ const submits = {
   tbBlockSave: (form, data) => saveBlockFromMenu(form, data),
   saveWorkTypes: (form) => saveWorkTypes(form),
   quickAdd: (form, data) => {
+    if (cantAddHere()) return;
     const title = data.get('title').trim();
     if (!title) return;
     const t = addTask({ ...newFields(), title });
@@ -1152,6 +1160,7 @@ const submits = {
     commit();
   },
   gridAdd: (form, data) => {
+    if (cantAddHere()) return;
     const title = data.get('title').trim();
     if (!title) return;
     addTask({ ...newFields(), title });

@@ -341,7 +341,7 @@ function boardHTML(groups, by, ctx) {
         ${g.bucket ? `<button class="icon-btn" data-act="bucketMenu" data-id="${esc(g.key)}" aria-label="Bucket options for ${esc(g.label)}">${icon('more')}</button>` : ''}
         ${g.movable ? `<button class="icon-btn" data-act="colourFrom" data-id="${esc(g.key)}" aria-label="Colour for ${esc(g.label)}">${icon('more')}</button>` : ''}
       </header>
-      ${g.locked || g.noAdd ? '' : adding
+      ${g.locked || g.noAdd || othersPlan(planById(ctx.planId)) ? '' : adding
         ? `<form class="quick-add" data-submit="quickAdd" data-group="${esc(g.key)}" data-key="${esc(key)}"><input name="title" placeholder="Task name" data-focus="qa-${esc(key)}" autocomplete="off" aria-label="Task name"><div class="row"><button class="btn primary sm">Add task</button><button class="btn ghost sm" type="button" data-act="cancelQuickAdd">Cancel</button></div></form>`
         : `<button class="add-task" data-act="openQuickAdd" data-key="${esc(key)}">${icon('plus', 14)} Add task</button>`}
       <div class="col-body" data-drop="tasks" data-scroll="col-${esc(key)}">
@@ -387,7 +387,7 @@ function gridHTML(tasks, ctx) {
     </tr>`;
   };
   return `<div class="grid-wrap" data-scroll="grid-${esc(ctx.key)}">
-    <form class="grid-add" data-submit="gridAdd"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task" data-focus="grid-add" autocomplete="off" aria-label="Add a task"></form>
+    ${othersPlan(planById(ctx.planId)) ? '' : `<form class="grid-add" data-submit="gridAdd"><span>${icon('plus', 14)}</span><input name="title" placeholder="Add a task" data-focus="grid-add" autocomplete="off" aria-label="Add a task"></form>`}
     <table class="grid"><thead><tr><th></th>${th('title', 'Task')}${th('assignee', 'Assigned to')}${th('start', 'Start')}${th('due', 'Due')}${ctx.crossPlan ? th('plan', 'Plan') : th('bucket', 'Bucket')}${th('progress', 'Progress')}${th('priority', 'Priority')}${th('health', 'Traffic light')}<th>Labels</th></tr></thead>
     <tbody>${rows.map(row).join('') || `<tr><td colspan="10" class="muted center">No tasks match.</td></tr>`}</tbody></table>
   </div>`;
@@ -425,7 +425,7 @@ function scheduleHTML(tasks, plan) {
       const cls = [isLate(h.t) ? 'late' : '', isDone(h.t) ? 'done' : '', h.a < w ? 'cont-l' : '', h.b > end ? 'cont-r' : ''].join(' ');
       bars += `<button class="bar ${cls}" style="grid-column:${c1 + 1}/${c2 + 2};grid-row:${lane + 2};background:${color};color:${inkOn(color)}" data-open-task="${esc(h.t.id)}" data-drag="task" data-id="${esc(h.t.id)}" title="${esc(h.t.title)}">${esc(h.t.title || 'Untitled task')}</button>`;
     }
-    const cells = days.map((d) => `<div class="cal-cell ${d === t0 ? 'today' : ''} ${mode === 'month' && d.slice(0, 7) !== month ? 'other' : ''}" data-date="${d}" data-act="calAdd"></div>`).join('');
+    const cells = days.map((d) => `<div class="cal-cell ${d === t0 ? 'today' : ''} ${mode === 'month' && d.slice(0, 7) !== month ? 'other' : ''}" data-date="${d}" ${othersPlan(plan) ? '' : 'data-act="calAdd"'}></div>`).join('');
     const nums = days.map((d, i) => `<span class="cal-num ${d === t0 ? 'today' : ''}" style="grid-column:${i + 1};grid-row:1">${parseISO(d).getDate()}</span>`).join('');
     const more = overflow.map((n, i) => (n ? `<button class="cal-more" style="grid-column:${i + 1};grid-row:${maxLanes + 2}" data-act="calWeek" data-date="${days[i]}">+${n} more</button>` : '')).join('');
     return `<div class="cal-week ${mode}" style="--lanes:${mode === 'month' ? maxLanes : Math.max(lanes.length + 1, 6)}"><div class="cal-cells">${cells}</div><div class="cal-bars">${nums}${bars}${more}</div></div>`;
