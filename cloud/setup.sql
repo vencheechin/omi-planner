@@ -176,6 +176,8 @@ begin
     else
       merged := cur || jsonb_build_object('_v', coalesce(cur -> '_v', '{}'::jsonb));
       for k, v in select key, value from jsonb_each(coalesce(r -> 'data' -> '_v', '{}'::jsonb)) loop
+        -- The due date of an assigned task belongs to whoever assigned it.
+        if k = 'due' and coalesce(cur ->> 'assignedBy', '') <> '' and (v ->> 1) <> (cur ->> 'assignedBy') then continue; end if;
         old := merged -> '_v' -> k;
         if old is null
           or (v ->> 0)::numeric > (old ->> 0)::numeric

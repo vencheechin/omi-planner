@@ -163,11 +163,12 @@ function renderTask() {
         ${field('Progress', `<select data-change="taskField" data-field="progress">${options(PROGRESS, t.progress)}</select>`)}
         ${field('Priority', `<select data-change="taskField" data-field="priority">${options(PRIORITY, t.priority)}</select>`)}
         ${field('Start date', `<input type="date" value="${t.start || ''}" data-change="taskField" data-field="start">`)}
-        ${field('Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}">`)}
+        ${field(dueLocked(t) ? `Due date ${icon('lock', 11)}` : 'Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}" ${dueLocked(t) ? `disabled title="Set by ${esc(person(t.assignedBy)?.name || 'the assigner')}"` : ''}>`)}
         ${field('Repeat', `<select data-change="taskField" data-field="repeat">${options(REPEATS, t.repeat)}</select>`)}
         ${field('Work type', `<select data-change="tbField" data-field="workType">${workTypeOptions(t.workType)}</select>`)}
         ${field('Show on card', `<select data-change="taskField" data-field="preview">${options([{ v: 'auto', label: 'Automatic' }, { v: 'notes', label: 'Description' }, { v: 'checklist', label: 'Checklist' }, { v: 'attachment', label: 'Picture' }, { v: 'none', label: 'Nothing' }], t.preview)}</select>`)}
       </div>
+      ${remindersHTML(t)}
       ${timeboxHTML(t)}
       <section class="task-sec">
         <div class="sec-head"><h3>Checklist${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>

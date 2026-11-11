@@ -130,7 +130,7 @@ function applyGroup(t, by, from, to) {
     case 'progress': setProgress(t, Number(to)); break;
     case 'priority': t.priority = Number(to); break;
     case 'due':
-      if (to === 'late') return false;
+      if (to === 'late' || dueLocked(t)) return false;
       t.due = dateForDueGroup(to);
       if (t.start && t.due && t.start > t.due) t.start = null;
       break;

@@ -860,6 +860,10 @@ const actions = {
     else { TB().blocks.find((x) => x.id === id).color = v || null; commit(); refreshSettings(); }
   },
   runSetup: () => { $$('dialog[open]').forEach((d) => { if (d.id !== 'taskDialog') d.close(); }); setupDlg(); },
+  remAdd: (el) => openPop(el, () => remPickerHTML(openTaskObj())),
+  remDel: (el) => { const t = openTaskObj(); t.reminders = remindersOf(t).filter((_, i) => i !== Number(el.dataset.i)); commit(); },
+  remPreset: (el) => { closePop(); addReminder(openTaskObj(), JSON.parse(el.dataset.r)); },
+  remAllowSystem: async () => { closePop(); try { const p = await Notification.requestPermission(); toast(p === 'granted' ? 'Reminders will also appear in this device’s notifications.' : 'Notifications stay in Planner’s bell.'); } catch { /* not supported */ } },
   teamDevice: () => Team.connectDevice(),
   openUsage: () => usageDlg(),
   exportUsage: (el) => {
@@ -937,6 +941,11 @@ const actions = {
 
 // ---------- Form submits ----------
 const submits = {
+  remCustom: (form, data) => {
+    const n = Math.max(0, Math.min(52, Number(data.get('n')) || 0));
+    closePop();
+    addReminder(openTaskObj(), { n, unit: data.get('unit') === 'weeks' ? 'weeks' : 'days', when: data.get('when') === 'after' ? 'after' : 'before', at: data.get('at') || '09:00' });
+  },
   forwardMsg: (form, data) => forwardMessage(form, data),
   importPlanner: (form, data) => importPlanner(form, data),
   tbBlockSave: (form, data) => saveBlockFromMenu(form, data),
@@ -1207,6 +1216,7 @@ const changes = {
   taskField: (el) => setField(openTaskObj(), el.dataset.field, el.value),
 };
 function setField(t, field, value) {
+  if (field === 'due' && dueLocked(t)) { toast(`${person(t.assignedBy)?.name || 'The assigner'} set this due date.`, { error: true }); render(); return; }
   if (field === 'progress') completeNotice(setProgress(t, Number(value)));
   else if (field === 'priority') t.priority = Number(value);
   else if (field === 'health') {
@@ -1489,6 +1499,7 @@ function dropOnGroup(id, from, to, beforeId) {
 }
 function dropOnDate(id, date, grabDate) {
   const t = taskById(id);
+  if (dueLocked(t) && t.due) { toast(`${person(t.assignedBy)?.name || 'The assigner'} set this due date.`, { error: true }); render(); return; }
   if (t.due || t.start) {
     const shift = daysBetween(grabDate || t.due || t.start, date);
     if (t.start) t.start = addDays(t.start, shift);
@@ -1628,6 +1639,7 @@ function bindShell() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { if (Store.timer) Store.flush(); return; }
     if (Team.dir) Team.sync();
+    checkReminders();
     if (!topDialog()) render(); // pick up a new day's Late / Today / My Day
   });
   let tip;
@@ -1695,6 +1707,8 @@ function route() {
   applyTheme();
   route();
   if (S.settings.onboarded === false) setTimeout(setupDlg, 60);
+  setTimeout(checkReminders, 1500);
+  setInterval(checkReminders, 60000);
   if (new URLSearchParams(location.search).get('test') === '1') setTimeout(() => { if (!Team.dir && person(S.meId)?.email) Team.connectDevice({ quiet: true }); }, 400);
   updateStatus();
   Store.collectGarbage().catch(console.error);
