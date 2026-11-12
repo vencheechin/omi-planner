@@ -20,7 +20,7 @@ const USAGE_NAMES = {
   toggleCheckAlerts: 'Checklist notifications', cardMenu: 'Card ••• menu', cardCheck: 'Tick card', sizeMenu: 'Text size',
 };
 // Plumbing that isn't a real choice (closing things, typing), left out of the counts.
-const USAGE_SKIP = new Set(['closeDialog', 'closeTask', 'menuPick', 'commentDraft', 'checkText', 'notes', 'title', 'filterQ', 'contactSearch', 'labelSearch', 'assignSearch', 'decisionField', 'healthNote']);
+const USAGE_SKIP = new Set(['closeDialog', 'closeTask', 'menuPick', 'commentDraft', 'checkText', 'notes', 'title', 'filterQ', 'contactSearch', 'labelSearch', 'assignSearch', 'decisionField', 'approvalField', 'healthNote']);
 
 const Usage = {
   track(name) {

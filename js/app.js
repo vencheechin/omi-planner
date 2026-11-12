@@ -761,36 +761,41 @@ const actions = {
   closeTask: async () => {
     // An unsent decision request: send it, or leave without sending (what you typed stays).
     const t = openTaskObj();
-    if (t && isDecisionDraft(t)) {
-      const to = person(t.decisionReq.to)?.name || 'them';
-      const choice = await choiceDlg('Exit without sending?', `<p>Your decision request to <b>${esc(to)}</b> hasn’t been sent yet.</p>`, [
+    const drafts = t ? ['decision', 'approval'].filter((k) => isReqDraft(t, k)) : [];
+    if (drafts.length) {
+      const what = drafts.map((k) => `${REQ_KINDS[k].label.toLowerCase()} to <b>${esc(person(reqOf(t, k).to)?.name || 'them')}</b>`).join(' and your ');
+      const choice = await choiceDlg('Exit without sending?', `<p>Your ${what} hasn’t been sent yet.</p>`, [
         { v: 'send', label: 'Send now', primary: true },
         { v: 'exit', label: 'Exit without sending' },
       ]);
       if (!choice) return; // dismissed: stay on the task
-      if (choice === 'send') sendDecision(t, { quiet: false });
-      else { t.decisionReq = null; commit(); }
+      if (choice === 'send') drafts.forEach((k) => sendReq(t, k));
+      else { drafts.forEach((k) => { t[REQ_KINDS[k].field] = null; }); commit(); }
     }
     ui.openTask = null; closePop(); renderTask();
   },
   taskMenu: (el) => openMenu(el, taskMenuItems(openTaskObj(), el)),
-  decisionSend: (el) => {
+  decisionSend: (el) => pickRequestee(el, 'decision'),
+  approvalSend: (el) => pickRequestee(el, 'approval'),
+  reqSendNow: (el) => sendReq(taskById(el.dataset.id), el.dataset.kind),
+  reqDiscard: (el) => { const t = taskById(el.dataset.id); t[REQ_KINDS[el.dataset.kind].field] = null; commit(); toast(`${REQ_KINDS[el.dataset.kind].label} not sent.`); },
+  approvalApprove: (el) => {
     const t = taskById(el.dataset.id);
-    // Anyone can ask anyone: reporting lines don't apply. One row per person (same email = same person).
-    const seen = new Map();
-    for (const p of S.people) { const k = pkey(p.id); if (k !== pkey(S.meId) && (!seen.has(k) || String(p.id).startsWith('e:'))) seen.set(k, p); }
-    const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
-    if (!people.length) { toast('Add the person who decides in Settings › People first.', { error: true }); return; }
-    openMenu(el, people.map((p) => ({ label: p.name, icon: 'user', run: () => {
-      // A draft until you press Send, so you can fill it in first.
-      t.decisionReq = { to: p.id, by: S.meId, at: Date.now(), status: 'draft' };
-      if (t.workType !== 'decision') t.workType = 'decision';
-      commit();
-      toast(`Fill in the issue, recommendation and impact, then tap Send.`);
-    } })));
+    t.approvalReq = { ...t.approvalReq, status: 'approved', decidedAt: Date.now() };
+    addEvent(t, 'approvalDone', { value: 'approved' });
+    commit();
+    toast('Approved. They\u2019ve been notified.');
   },
-  decisionSendNow: (el) => sendDecision(taskById(el.dataset.id)),
-  decisionDiscard: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request not sent.'); },
+  approvalReject: async (el) => {
+    const t = taskById(el.dataset.id);
+    const note = await promptDlg('Reject approval request', 'Reason', '', 'Reject');
+    if (note === null || note === undefined) return;
+    t.approvalReq = { ...t.approvalReq, status: 'rejected', decidedAt: Date.now(), note: String(note).trim() };
+    addEvent(t, 'approvalDone', { value: 'rejected', note: String(note).trim() });
+    commit();
+    toast('Rejected. They\u2019ve been notified.');
+  },
+  approvalWithdraw: (el) => { const t = taskById(el.dataset.id); t.approvalReq = null; commit(); toast('Approval request withdrawn.'); },
   decisionApprove: (el) => {
     const t = taskById(el.dataset.id);
     t.decisionReq = { ...t.decisionReq, status: 'approved', decidedAt: Date.now() };
@@ -1493,6 +1498,7 @@ const changes = {
       if (m !== null) await scheduleTask(t, t.slotDate || (ui.dayDate >= todayISO() ? ui.dayDate : todayISO()), m);
     }
   },
+  approvalDeadline: (el) => { const t = openTaskObj(); t.approval = { ...(t.approval || {}), deadline: el.value || '' }; commit(); },
   decisionDeadline: (el) => { const t = openTaskObj(); t.decision = { ...(t.decision || {}), deadline: el.value || '' }; commit(); },
   tbSetting: (el) => {
     const tb = TB();
@@ -1570,6 +1576,7 @@ const inputs = {
   },
   textScale: (el) => { S.settings.textScale = Number(el.value); applySizes(); el.nextElementSibling.textContent = `${Math.round(el.value * 100)}%`; Store.save(); },
   bucketSize: (el) => { S.settings.bucketSize = Number(el.value); applySizes(); el.nextElementSibling.textContent = `${el.value}px`; Store.save(); },
+  approvalField: (el) => { const t = openTaskObj(); t.approval = { ...(t.approval || {}), [el.dataset.k]: el.value }; Store.save(); },
   decisionField: (el) => { const t = openTaskObj(); t.decision = { ...(t.decision || {}), [el.dataset.k]: el.value }; Store.save(); },
   healthNote: (el) => { openTaskObj().healthNote = el.value; Store.save(); },
   filterQ: (el) => { filterOf(el.dataset.key).q = el.value; renderMainOnly(); },
@@ -2006,7 +2013,7 @@ function bindShell() {
   const d = $('#taskDialog');
   d.addEventListener('cancel', (e) => {
     if (ui.pop) { e.preventDefault(); closePop(); return; }
-    if (openTaskObj() && isDecisionDraft(openTaskObj())) { e.preventDefault(); actions.closeTask(); return; }
+    if (openTaskObj() && ['decision', 'approval'].some((k) => isReqDraft(openTaskObj(), k))) { e.preventDefault(); actions.closeTask(); return; }
     ui.openTask = null;
   });
   d.addEventListener('close', () => { ui.openTask = null; closePop(); });
@@ -2043,7 +2050,9 @@ function route() {
   const [path, query] = location.hash.split('?');
   const [, a, b, c, d] = path.split('/');
   Usage.track(`page:${a || 'hub'}`);
-  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'decisions', id: b ? decodeURIComponent(b) : '' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+  ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
+    : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
+    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   // My Planner with just one plan opens that plan; with more, you pick one.
   if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
     history.replaceState(null, '', `#/plan/${S.plans[0].id}`);
@@ -2076,6 +2085,23 @@ function route() {
 }
 
 // ---------- Startup ----------
+// Hover tip (mouse only): shows a Time Box slot's start and end time next to the pointer.
+if (matchMedia('(hover: hover)').matches) {
+  const tip = document.createElement('div');
+  tip.className = 'hover-tip';
+  tip.setAttribute('role', 'tooltip');
+  document.body.append(tip);
+  let over = null;
+  document.addEventListener('mousemove', (e) => {
+    const el = e.buttons ? null : e.target.closest?.('[data-tip]');
+    if (el !== over) { over = el; tip.textContent = el ? el.dataset.tip : ''; tip.classList.toggle('on', !!el); }
+    if (!el) return;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = `${Math.min(e.clientX + 14, innerWidth - w - 8)}px`;
+    tip.style.top = `${e.clientY + 18 + h > innerHeight ? e.clientY - h - 10 : e.clientY + 18}px`;
+  }, { passive: true });
+  document.addEventListener('mousedown', () => { over = null; tip.classList.remove('on'); });
+}
 sheetSwipe($('#taskDialog'), () => actions.closeTask());
 (async function start() {
   try {

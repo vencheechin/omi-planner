@@ -5,7 +5,7 @@ const ui = {
   route: { view: 'hub' }, openTask: null, search: '', navOpen: false,
   planTab: {}, groupBy: {}, filters: {}, showDone: {}, quickAdd: null, gridSort: { key: 'order', dir: 1 },
   sched: { mode: 'month', anchor: todayISO() }, chartTable: false, pop: null, draft: { comment: '' },
-  labelCtx: null, labelQuery: '', labelEdit: null, dayView: matchMedia('(max-width: 760px)').matches ? 'day' : 'week', dayDate: todayISO(), tbFullDay: false, tbPicked: [], tbShowOthers: false, report: { scope: 'me', person: '', status: '', from: '', to: '' },
+  labelCtx: null, labelQuery: '', labelEdit: null, dayView: 'day', dayDate: todayISO(), tbFullDay: false, tbPicked: [], tbShowOthers: false, report: { scope: 'me', person: '', status: '', from: '', to: '' },
 };
 
 const ICON = {
@@ -180,18 +180,42 @@ function renderTabbar() {
   const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
   bar.innerHTML = tab('#/halfplan', 'table', 'S-Team', r === 'halfplan')
     + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
-    + tab('#/hub', 'home', 'My Planner', r === 'hub' || r === 'plan' || r === 'person' || r === 'decisions', dueSoonCount())
+    + tab('#/hub', 'home', 'My Planner', ['hub', 'plan', 'person', 'req', 'from'].includes(r), dueSoonCount())
     + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
 }
-function decisionNavHTML(r) {
-  const open = openDecisions();
-  const keys = [...new Set(open.map(decisionOther))].filter(personByKey).sort((a, b) => personByKey(a).name.localeCompare(personByKey(b).name));
-  const row = (k, label, av, list) => {
-    const forMe = list.filter((t) => isMeId(t.decisionReq.to)).length;
-    const on = r.view === 'decisions' && (r.id || '') === k;
-    return `<a class="nav-item plan ${on ? 'active' : ''}" href="#/decisions${k ? `/${encodeURIComponent(k)}` : ''}">${av}<span>${esc(label)}</span>${forMe ? `<em class="to-check" title="Waiting for your decision">${forMe}</em>` : list.length ? `<em title="Waiting on them">${list.length}</em>` : ''}</a>`;
-  };
-  return `<h3>Decision Request</h3>${row('', 'All decisions', `<span class="dr-flag">⚑</span>`, open)}${keys.map((k) => row(k, personByKey(k).name, avatar(personByKey(k), 22), open.filter((t) => decisionOther(t) === k))).join('')}`;
+/** Decision and approval requests share one shape: who asked whom, when, and the answer. */
+const REQ_KINDS = {
+  decision: { label: 'Decision Request', field: 'decisionReq', data: 'decision', mark: '⚑', by: 'decide by' },
+  approval: { label: 'Approval Request', field: 'approvalReq', data: 'approval', mark: '✓', by: 'approve by' },
+};
+const reqOf = (t, kind) => t[REQ_KINDS[kind].field];
+const reqDeadline = (t, kind) => t[REQ_KINDS[kind].data]?.deadline || '';
+/** Open requests you're in: ones waiting for you (from) and ones you sent (to). */
+const openReqs = (kind) => S.tasks.filter((t) => { const r = reqOf(t, kind); return r?.status === 'pending' && (isMeId(r.to) || isMeId(r.by)); });
+const reqForMe = (t, kind) => isMeId(reqOf(t, kind).to);
+const reqOther = (t, kind) => { const r = reqOf(t, kind); return pkey(isMeId(r.to) ? r.by : r.to); };
+const byPersonName = (a, b) => (personByKey(a)?.name || '').localeCompare(personByKey(b)?.name || '');
+/** Tasks someone else delegated to you that are still open. */
+const delegatedFromTasks = () => S.tasks.filter((t) => delegatedToMe(t) && !isDone(t));
+/** One sidebar section, e.g. "Decision Request From": a row per person, newest names sorted A–Z. */
+function reqNavHTML(r, kind, dir) {
+  const K = REQ_KINDS[kind];
+  const list = openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind));
+  if (!list.length) return '';
+  const keys = [...new Set(list.map((t) => reqOther(t, kind)))].filter(personByKey).sort(byPersonName);
+  const on = (k) => r.view === 'req' && r.kind === kind && r.dir === dir && (r.id || '') === k;
+  const title = `${K.label} ${dir === 'from' ? 'From' : 'To'}`;
+  return `<h3><a class="${on('') ? 'active' : ''}" href="#/req/${kind}/${dir}">${title}</a></h3>${keys.map((k) => {
+    const n = list.filter((t) => reqOther(t, kind) === k).length;
+    return `<a class="nav-item plan ${on(k) ? 'active' : ''}" href="#/req/${kind}/${dir}/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em class="${dir === 'from' ? 'to-check' : ''}" title="${dir === 'from' ? 'Waiting for you' : 'Waiting on them'}">${n}</em></a>`;
+  }).join('')}`;
+}
+/** "Delegate From": the people who gave you work, with how much is still open. */
+function delegateFromNavHTML(r) {
+  const list = delegatedFromTasks();
+  const keys = [...new Set(list.map((t) => pkey(t.assignedBy)))].filter(personByKey).sort(byPersonName);
+  if (!keys.length) return '';
+  return `<h3>Delegate From</h3>${keys.map((k) => `<a class="nav-item plan ${r.view === 'from' && r.id === k ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em>${list.filter((t) => pkey(t.assignedBy) === k).length}</em></a>`).join('')}`;
 }
 function renderSidebar() {
   renderTabbar();
@@ -211,8 +235,10 @@ function renderSidebar() {
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
       ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
-      ${decisionNavHTML(r)}
-      ${S.personPlans.length ? `<h3>Delegate to</h3>${S.personPlans.map(personLink).join('')}` : ''}
+      ${reqNavHTML(r, 'decision', 'from')}${reqNavHTML(r, 'decision', 'to')}
+      ${reqNavHTML(r, 'approval', 'from')}${reqNavHTML(r, 'approval', 'to')}
+      ${S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''}
+      ${delegateFromNavHTML(r)}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
     </nav>`;
@@ -245,31 +271,59 @@ function decisionSorter(by) {
   }[by] || byDecisionDeadline;
   return (a, b) => f(a, b) || a.decisionReq.at - b.decisionReq.at;
 }
-/** All your decision requests in one place (or one person's), sortable. */
-function renderDecisions() {
+function reqSorter(by, kind) {
+  const dl = (t) => String(reqDeadline(t, kind) || '9999');
+  const due = (t) => String(t.due || '9999');
+  const at = (t) => reqOf(t, kind).at;
+  const name = (t) => personByKey(reqOther(t, kind))?.name || '';
+  const f = {
+    deadline: (a, b) => dl(a).localeCompare(dl(b)) || a.priority - b.priority,
+    priority: (a, b) => a.priority - b.priority || dl(a).localeCompare(dl(b)),
+    due: (a, b) => due(a).localeCompare(due(b)) || dl(a).localeCompare(dl(b)),
+    newest: (a, b) => at(b) - at(a),
+    oldest: (a, b) => at(a) - at(b),
+    person: (a, b) => name(a).localeCompare(name(b)) || dl(a).localeCompare(dl(b)),
+  }[by] || ((a, b) => dl(a).localeCompare(dl(b)));
+  return (a, b) => f(a, b) || at(a) - at(b);
+}
+/** All your decision or approval requests in one place (or one person's), sortable. */
+function renderRequests() {
+  const { kind, dir } = ui.route;
+  const K = REQ_KINDS[kind];
   const key = ui.route.id || '';
   const who = key ? personByKey(key) : null;
   const sort = S.settings.decisionSort || 'deadline';
-  const show = ui.decShow || 'all';
-  const all = openDecisions().filter((t) => !key || decisionOther(t) === key).sort(decisionSorter(sort));
-  const toMe = all.filter((t) => isMeId(t.decisionReq.to));
-  const fromMe = all.filter((t) => !isMeId(t.decisionReq.to));
+  const all = openReqs(kind).filter((t) => !key || reqOther(t, kind) === key).sort(reqSorter(sort, kind));
+  const fromList = all.filter((t) => reqForMe(t, kind));
+  const toList = all.filter((t) => !reqForMe(t, kind));
   const item = (t) => {
-    const mine = isMeId(t.decisionReq.to);
-    const other = personByKey(decisionOther(t))?.name || 'Someone';
-    const dl = t.decision?.deadline;
-    return `<div class="dr-item"><div class="dr-who">${mine ? `From <b>${esc(other)}</b>` : `Waiting on <b>${esc(other)}</b>`} · asked ${esc(fmtDate(new Date(t.decisionReq.at).toISOString().slice(0, 10)))}${dl ? ` · <span class="${dl < todayISO() ? 'danger-text' : ''}">decide by ${esc(fmtDate(dl))}</span>` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`;
+    const r = reqOf(t, kind);
+    const other = personByKey(reqOther(t, kind))?.name || 'Someone';
+    const dl = reqDeadline(t, kind);
+    return `<div class="dr-item"><div class="dr-who">${reqForMe(t, kind) ? `From <b>${esc(other)}</b>` : `To <b>${esc(other)}</b>`} · asked ${esc(fmtDate(new Date(r.at).toISOString().slice(0, 10)))}${dl ? ` · <span class="${dl < todayISO() ? 'danger-text' : ''}">${K.by} ${esc(fmtDate(dl))}</span>` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`;
   };
   const sec = (title, list, empty) => `<section class="dr-hub"><h2>${title} <span class="count">${list.length}</span></h2>
     ${list.length ? `<div class="dr-cards">${list.map(item).join('')}</div>` : `<p class="muted small">${empty}</p>`}</section>`;
+  const href = (k, d) => `#/req/${k}/${d}${key ? `/${encodeURIComponent(key)}` : ''}`;
   return `<div class="page">
-    <header class="page-head"><h1>⚑ Decision Request${who ? `: ${esc(who.name)}` : ''}</h1></header>
+    <header class="page-head"><h1>${K.mark} ${K.label}${dir ? ` ${dir === 'from' ? 'From' : 'To'}` : ''}${who ? `: ${esc(who.name)}` : ''}</h1></header>
     <div class="dr-tools">
-      <div class="seg">${[['all', 'All'], ['me', 'To decide'], ['sent', 'Waiting on']].map(([v, l]) => `<button class="${show === v ? 'on' : ''}" data-act="decShow" data-v="${v}">${l}</button>`).join('')}</div>
+      <div class="seg">${Object.entries(REQ_KINDS).map(([k, x]) => `<a class="${k === kind ? 'on' : ''}" href="${href(k, dir || 'all')}">${x.label.replace(' Request', '')}</a>`).join('')}</div>
+      <div class="seg">${[['all', 'All'], ['from', 'From'], ['to', 'To']].map(([d, l]) => `<a class="${(dir || 'all') === d ? 'on' : ''}" href="${href(kind, d)}">${l}</a>`).join('')}</div>
       <label class="mini">Sort by <select data-change="decSort">${DEC_SORTS.map(([v, l]) => `<option value="${v}" ${v === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
-    ${show !== 'sent' ? sec('To decide', toMe, who ? `Nothing from ${esc(who.name)} waiting for you.` : 'Nothing waiting for you.') : ''}
-    ${show !== 'me' ? sec('Waiting on', fromMe, who ? `You haven’t asked ${esc(who.name)} for a decision.` : 'You’re not waiting on anyone.') : ''}
+    ${dir !== 'to' ? sec(`${K.label} From`, fromList, who ? `Nothing from ${esc(who.name)} waiting for you.` : 'Nothing waiting for you.') : ''}
+    ${dir !== 'from' ? sec(`${K.label} To`, toList, who ? `You haven’t sent ${esc(who.name)} one.` : 'You’re not waiting on anyone.') : ''}
+  </div>`;
+}
+/** Work someone delegated to you, still open, soonest due first. */
+function renderDelegatedFrom() {
+  const who = personByKey(ui.route.id);
+  const list = delegatedFromTasks().filter((t) => pkey(t.assignedBy) === ui.route.id)
+    .sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')) || a.priority - b.priority);
+  return `<div class="page">
+    <header class="page-head"><h1>Delegate From${who ? `: ${esc(who.name)}` : ''}</h1></header>
+    ${list.length ? `<div class="dr-cards">${list.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing open from them.</p>'}
   </div>`;
 }
 /** Your open tasks from every plan that are late, due today or due this week. */
@@ -328,6 +382,7 @@ function cardHTML(t, { showPlan } = {}) {
   const meta = [
     S.inbox.some((n) => n.taskId === t.id && !n.read) ? `<span class="meta alert" title="New notifications on this task">${icon('bell', 13)}${S.inbox.filter((n) => n.taskId === t.id && !n.read).length}</span>` : '',
     t.decisionReq?.status === 'pending' && t.decision?.deadline ? `<span class="meta ${t.decision.deadline < todayISO() ? 'late' : ''}" title="Decision deadline">⚑ ${fmtDate(t.decision.deadline)}</span>` : '',
+    t.approvalReq?.status === 'pending' ? `<span class="meta ${t.approval?.deadline && t.approval.deadline < todayISO() ? 'late' : ''}" title="Approval request">✓ Approval${t.approval?.deadline ? ` ${fmtDate(t.approval.deadline)}` : ''}</span>` : '',
     t.review ? `<span class="meta checking" title="Submitted for checking ${esc(fmtDateTime(t.review.at))}">Checking</span>` : '',
     timeboxMeta(t), priorityIcon(t.priority),
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
@@ -617,7 +672,8 @@ function renderMain() {
     return pp ? renderPersonPlan(pp) : renderHub();
   }
   if (r.view === 'report') return renderReport();
-  if (r.view === 'decisions') return renderDecisions();
+  if (r.view === 'req') return renderRequests();
+  if (r.view === 'from') return renderDelegatedFrom();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan') return renderBrandPlan();
   return renderHub();

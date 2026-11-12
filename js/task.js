@@ -190,6 +190,7 @@ function renderTask() {
         <div class="avatars">${t.assignees.map((a) => avatar(person(a), 28)).join('')}</div>
         <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? esc(t.assignees.map((a) => (a === S.meId ? 'Me' : person(a)?.name || 'Someone')).join(', ')) : 'Delegate'}</button>
         ${t.decisionReq ? '' : `<button class="add-chip" data-act="decisionSend" data-id="${esc(t.id)}">${icon('flag', 13)} Decision Request</button>`}
+        ${t.approvalReq ? '' : `<button class="add-chip" data-act="approvalSend" data-id="${esc(t.id)}">${icon('approve', 13)} Approval Request</button>`}
       </div>
       ${workflowHTML(t)}
       <div class="task-fields two">

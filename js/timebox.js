@@ -89,7 +89,8 @@ const CADENCES = [{ v: 'daily', label: 'Every working day' }, { v: 'weekly', lab
 // ---------- Time helpers ----------
 const hm = (min) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`; // value for <input type="time">
 const parseHM = (s) => { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
-const fmtTime = (min) => new Date(2000, 0, 1, Math.floor(min / 60), min % 60).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+/** 9:00 am, 12:30 pm: always 12-hour with am/pm. */
+const fmtTime = (min) => { const h = Math.floor(min / 60) % 24; return `${((h + 11) % 12) + 1}:${pad(min % 60)} ${h < 12 ? 'am' : 'pm'}`; };
 const fmtDur = (min) => { if (!min) return '0m'; const h = Math.floor(min / 60); const m = min % 60; return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`; };
 const snapMin = (min) => Math.round(min / SNAP_OF()) * SNAP_OF();
 const ceilSnap = (min) => Math.ceil(min / SNAP_OF()) * SNAP_OF();
@@ -543,15 +544,63 @@ function saveBlockFromMenu(form, data) {
   toast(`Saved “${b.name}”.`);
 }
 
-const isDecisionDraft = (t) => t?.decisionReq?.status === 'draft' && pkey(t.decisionReq.by) === pkey(S.meId);
-/** Sends a drafted decision request: they're notified and it shows in their Decision Request list. */
-function sendDecision(t) {
-  if (!t?.decisionReq) return;
-  t.decisionReq = { ...t.decisionReq, at: Date.now(), status: 'pending' };
+const isReqDraft = (t, kind) => { const r = t?.[REQ_KINDS[kind].field]; return r?.status === 'draft' && pkey(r.by) === pkey(S.meId); };
+const isDecisionDraft = (t) => isReqDraft(t, 'decision');
+/** Choose who decides or approves. Anyone can ask anyone; one row per person (same email = same person). */
+function pickRequestee(el, kind) {
+  const t = taskById(el.dataset.id);
+  const seen = new Map();
+  for (const p of S.people) { const k = pkey(p.id); if (k !== pkey(S.meId) && (!seen.has(k) || String(p.id).startsWith('e:'))) seen.set(k, p); }
+  const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  if (!people.length) { toast('Add the person in Settings › People first.', { error: true }); return; }
+  openMenu(el, people.map((p) => ({ label: p.name, icon: 'user', run: () => {
+    // A draft until you press Send, so you can fill it in first.
+    t[REQ_KINDS[kind].field] = { to: p.id, by: S.meId, at: Date.now(), status: 'draft' };
+    if (kind === 'decision' && t.workType !== 'decision') t.workType = 'decision';
+    commit();
+    toast(kind === 'decision' ? 'Fill in the issue, recommendation and impact, then tap Send.' : 'Fill in what needs approval, then tap Send.');
+  } })));
+}
+/** Sends a drafted request: they're notified and it shows in their sidebar. */
+function sendReq(t, kind) {
+  const f = REQ_KINDS[kind].field;
+  if (!t?.[f]) return;
+  t[f] = { ...t[f], at: Date.now(), status: 'pending' };
   t.shared = true;
-  addEvent(t, 'decision', { to: t.decisionReq.to });
+  addEvent(t, kind === 'decision' ? 'decision' : 'approvalReq', { to: t[f].to });
   commit();
-  toast(`Decision request sent to ${person(t.decisionReq.to)?.name || 'them'}.`);
+  toast(`${REQ_KINDS[kind].label} sent to ${person(t[f].to)?.name || 'them'}.`);
+}
+/** The Send / Discard bar at the bottom of a draft request. */
+const reqSendBarHTML = (t, kind) => (isReqDraft(t, kind) ? `<div class="dr-send"><p class="small">To <b>${esc(person(reqOf(t, kind).to)?.name || 'someone')}</b> · not sent yet</p>
+  <button class="btn ghost sm" data-act="reqDiscard" data-kind="${kind}" data-id="${esc(t.id)}">Discard</button>
+  <button class="btn primary" data-act="reqSendNow" data-kind="${kind}" data-id="${esc(t.id)}">${icon('send', 15)} Send</button></div>` : '');
+/** Approval Request: the decision is already made, only the authorisation is needed. */
+function approvalHTML(t) {
+  const r = t.approvalReq;
+  if (!r || (r.status === 'draft' && !isReqDraft(t, 'approval'))) return '';
+  const a = t.approval || {};
+  const who = (id) => (isMeId(id) ? 'you' : person(id)?.name || 'someone');
+  const label = { draft: 'Not sent', pending: 'Waiting', approved: 'Approved', rejected: 'Rejected' }[r.status] || r.status;
+  const field = (k, lab, rows = 2) => `<label class="field"><span>${lab}</span><textarea rows="${rows}" data-input="approvalField" data-k="${k}" data-focus="apr-${k}">${esc(a[k] || '')}</textarea></label>`;
+  const box = r.status === 'pending' && isMeId(r.to)
+    ? `<div class="review-box"><p><b>${esc(person(r.by)?.name || 'A teammate')}</b> asked for your approval on ${esc(fmtDateTime(r.at))}.</p>
+      <div class="row"><button class="btn primary sm" data-act="approvalApprove" data-id="${esc(t.id)}">${icon('check', 14)} Approve</button><button class="btn ghost sm danger-text" data-act="approvalReject" data-id="${esc(t.id)}">Reject</button></div></div>`
+    : r.status === 'pending' ? `<div class="review-box"><p>Sent to <b>${esc(who(r.to))}</b> on ${esc(fmtDateTime(r.at))}.</p>
+      <div class="row"><button class="btn ghost sm" data-act="approvalWithdraw" data-id="${esc(t.id)}">Withdraw</button></div></div>`
+    : r.status !== 'draft' ? `<div class="review-box"><p><b>${r.status === 'approved' ? 'Approved' : 'Rejected'}</b> by ${esc(who(r.to))} on ${esc(fmtDateTime(r.decidedAt))}${r.note ? `: “${esc(r.note)}”` : ''}</p></div>` : '';
+  return `<section class="task-sec decision-sec approval-sec">
+    <div class="sec-head"><h3>Approval Request</h3><span class="dr-status dr-${esc(r.status)}">${esc(label)} · ${esc(who(r.to))}</span></div>
+    ${r.status === 'draft' ? '<p class="muted small">For when the decision is already made and you only need sign-off, like a budget, leave, a discount or a hire.</p>' : ''}
+    ${field('what', 'Approval needed for')}
+    <div class="task-fields two">
+      <label class="field"><span>Amount (if any)</span><input value="${esc(a.amount || '')}" data-input="approvalField" data-k="amount" data-focus="apr-amount" placeholder="e.g. $5,000"></label>
+      <label class="field"><span>Approve by</span><input type="date" value="${esc(a.deadline || '')}" data-change="approvalDeadline"></label>
+    </div>
+    ${field('details', 'Details', 3)}
+    ${box}
+    ${reqSendBarHTML(t, 'approval')}
+  </section>`;
 }
 /** Who the request is with, and the answer so far. */
 function decisionStatusHTML(t) {
@@ -625,7 +674,6 @@ function timeboxHTML(t) {
   return `${isBox(t) ? boxSectionHTML(t) : ''}
     ${t.workType === 'decision' || t.decisionReq ? `<section class="task-sec decision-sec">
       <div class="sec-head"><h3>Decision Request</h3>${decisionStatusHTML(t)}</div>
-      ${decisionActionsHTML(t)}
       ${decField('issue', 'Issue')}${decField('recommendation', 'Recommendation')}${decField('impact', 'Impact')}${decField('needed', 'Decision needed')}
       <div class="task-fields two">
         <label class="field"><span>Deadline</span><input type="date" value="${esc(dec.deadline || '')}" data-change="decisionDeadline"></label>
@@ -636,10 +684,10 @@ function timeboxHTML(t) {
         : t.urgency === 'emergency'
           ? `<button class="btn primary sm" data-act="handleNow" data-id="${esc(t.id)}">Handle now (interrupts focus)</button>`
           : `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}">Schedule in the Decision Window</button>`}</div>
-      ${isDecisionDraft(t) ? `<div class="dr-send"><p class="small">To <b>${esc(person(t.decisionReq.to)?.name || 'someone')}</b> · not sent yet</p>
-        <button class="btn ghost sm" data-act="decisionDiscard" data-id="${esc(t.id)}">Discard</button>
-        <button class="btn primary" data-act="decisionSendNow" data-id="${esc(t.id)}">${icon('send', 15)} Send</button></div>` : ''}
-    </section>` : ''}`;
+      ${decisionActionsHTML(t)}
+      ${reqSendBarHTML(t, 'decision')}
+    </section>` : ''}
+    ${approvalHTML(t)}`;
 }
 
 // ---------- Boxes: one time slot holding several small tasks ----------
@@ -779,7 +827,7 @@ function blockHTML(t, iso, ppm, y, lane, n) {
   const cls = ['tb-block', isBox(t) ? 'box' : '', isDone(t) ? 'done' : '', overlapsOf(t).length ? 'overlap' : '', intrudes(t) ? 'intrude' : '', h < 30 ? 'short' : '', omio ? 'is-omio' : ''].join(' ');
   const label = `${t.title || 'Untitled task'}, ${fmtTime(t.slotStart)} to ${fmtTime(endOf(t))}${items.length ? `, ${items.filter(isDone).length} of ${items.length} done` : ''}`;
   return `<div class="${cls}" style="top:${y(t.slotStart)}px;height:${h}px;left:calc(${lane / n} * 100% + 1px);width:calc(100% / ${n} - 2px);--c:${fillOf(t)}"
-    data-open-task="${esc(t.id)}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" title="${esc(`${fmtTime(t.slotStart)}–${fmtTime(endOf(t))} · ${fmtDur(durOf(t))}`)}">
+    data-open-task="${esc(t.id)}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" data-tip="${esc(`${fmtTime(t.slotStart)} – ${fmtTime(endOf(t))}`)}">
     <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${h < 38 ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
     ${h >= 38 ? `<small class="tb-b-dur">${dur}</small>` : ''}
     ${items.length ? `<ul class="tb-items">${fit.shown.map((i) => `<li class="${isDone(i) ? 'done' : ''}"><button class="check small ${isDone(i) ? 'on' : ''} ${i.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(i.id)}" aria-label="${esc(`${checkLabel(i)}: ${i.title}`)}" title="${checkLabel(i)}">${icon('check', 9)}</button><span>${esc(i.title || 'Untitled task')}</span></li>`).join('')}</ul>` : ''}
@@ -797,7 +845,7 @@ function timeGridHTML(dates, mode) {
   const col = (iso) => {
     const tasks = scheduledOn(iso);
     const lanes = laneLayout(tasks);
-    const bands = blocksOn(iso).map((b) => `<div class="tb-band ${b.protected ? 'protected' : ''}" style="top:${y(b.start)}px;height:${(b.end - b.start) * ppm}px;--c:${b.color || workTypeOf(b.kind).color}" title="${esc(`${b.name}, ${fmtTime(b.start)}–${fmtTime(b.end)}${b.note ? `. ${b.note}` : ''}`)}"><span>${b.protected ? icon('lock', 10) : ''}${esc(b.name)}</span></div>`).join('');
+    const bands = blocksOn(iso).map((b) => `<div class="tb-band ${b.protected ? 'protected' : ''}" style="top:${y(b.start)}px;height:${(b.end - b.start) * ppm}px;--c:${b.color || workTypeOf(b.kind).color}" data-tip="${esc(`${b.name}: ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.note ? `. ${b.note}` : ''}`)}"><span>${b.protected ? icon('lock', 10) : ''}${esc(b.name)}</span></div>`).join('');
     const off = isWorkDay(iso) ? '' : `<div class="tb-off" style="top:0;height:${height}px"></div>`;
     const blocks = tasks.map((t) => { const { lane, lanes: n } = lanes.get(t.id); return blockHTML(t, iso, ppm, y, lane, n); }).join('');
     const now = iso === today && nowMin() >= rs && nowMin() <= re ? `<div class="tb-now" style="top:${y(nowMin())}px"></div>` : '';

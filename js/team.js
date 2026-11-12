@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder'];
 const FILE_APP = 'planner-team';
@@ -39,6 +39,8 @@ const EVENT_TEXT = {
   check: (e) => `${e.done ? 'ticked' : 'unticked'} “${e.text}”`,
   decision: (e) => `sent a decision request to ${nameOf(e.to)}`,
   decided: (e) => `${e.value === 'approved' ? 'approved' : 'rejected'} the decision request`,
+  approvalReq: (e) => `sent an approval request to ${nameOf(e.to)}`,
+  approvalDone: (e) => `${e.value === 'approved' ? 'approved' : 'rejected'} the approval request`,
   changeReq: (e) => `asked ${nameOf(e.to)} to change ${e.text}`, changeOk: () => 'approved the change', changeNo: () => 'declined the change',
 };
 const nameOf = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
@@ -265,6 +267,8 @@ function newEvents(t, known) {
     else if (e.type === 'completed' && t.assignees.includes(S.meId)) out.push({ kind: 'completed', text: `${who} approved “${t.title}”` });
     else if (e.type === 'decision' && e.to === S.meId && t.decisionReq?.status === 'pending') out.push({ kind: 'review', text: `${who} sent you a decision request: “${t.title}”` });
     else if (e.type === 'decided' && t.decisionReq?.by === S.meId) out.push({ kind: e.value === 'approved' ? 'completed' : 'returned', text: `${who} ${e.value === 'approved' ? 'approved' : 'rejected'} your decision request “${t.title}”`, note: e.note });
+    else if (e.type === 'approvalReq' && isMeId(e.to) && t.approvalReq?.status === 'pending') out.push({ kind: 'review', text: `${who} sent you an approval request: “${t.title}”` });
+    else if (e.type === 'approvalDone' && isMeId(t.approvalReq?.by)) out.push({ kind: e.value === 'approved' ? 'completed' : 'returned', text: `${who} ${e.value === 'approved' ? 'approved' : 'rejected'} your approval request “${t.title}”`, note: e.note });
     else if (e.type === 'changeReq' && e.to === S.meId && t.changeReq?.status === 'pending') out.push({ kind: 'review', text: `${who} requests a change to “${t.title}”`, note: e.note });
     else if ((e.type === 'changeOk' || e.type === 'changeNo') && t.assignees.includes(S.meId)) out.push({ kind: e.type === 'changeOk' ? 'completed' : 'returned', text: `${who} ${e.type === 'changeOk' ? 'approved' : 'declined'} your change to “${t.title}”`, note: e.note });
     else if (e.type === 'check' && e.done && (t.checkAlerts || []).includes(S.meId)) out.push({ kind: 'check', text: `${who} ticked “${e.text}” on “${t.title}”` });
