@@ -2044,6 +2044,11 @@ function route() {
   const [, a, b, c, d] = path.split('/');
   Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'decisions', id: b ? decodeURIComponent(b) : '' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+  // My Planner with just one plan opens that plan; with more, you pick one.
+  if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
+    history.replaceState(null, '', `#/plan/${S.plans[0].id}`);
+    ui.route = { view: 'plan', id: S.plans[0].id };
+  }
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
   // A link like #/hub?name=Sam&email=sam@company.com fills in your identity on a fresh copy, then opens Settings.

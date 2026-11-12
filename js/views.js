@@ -286,19 +286,6 @@ function dueSoonHTML() {
       ${list.map((t) => cardHTML(t, { showPlan: true })).join('') || '<p class="muted small">Nothing.</p>'}</div>`).join('')}</div>`
     : '<p class="muted small">Nothing due this week.</p>'}</section>`;
 }
-/** Tasks submitted for your check (from every plan), oldest first. */
-function checkingHubHTML() {
-  const list = S.tasks.filter((t) => isReviewer(t) || (t.changeReq?.status === 'pending' && t.changeReq.to === S.meId))
-    .sort((a, b) => (a.review?.at || a.changeReq?.at) - (b.review?.at || b.changeReq?.at));
-  return `<section class="dr-hub chk-hub"><h2>${icon('check', 16)} Checking <span class="count">${list.length}</span></h2>
-    ${list.length ? `<div class="dr-cards">${list.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing to check.</p>'}</section>`;
-}
-/** Decision requests waiting for you, at the top of My Planner. */
-function decisionHubHTML() {
-  const asks = decisionsForMe();
-  return `<section class="dr-hub"><h2>⚑ Decision Request <span class="count">${asks.length}</span><a class="dr-all" href="#/decisions">See all</a></h2>
-    ${asks.length ? `<div class="dr-cards">${asks.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing waiting.</p>'}</section>`;
-}
 function renderHub() {
   const plans = [...S.plans].sort((a, b) => (b.pinned - a.pinned) || (b.lastOpened - a.lastOpened));
   const card = (p) => {
@@ -318,8 +305,6 @@ function renderHub() {
   };
   return `<div class="page">
     <header class="page-head"><h1>My Planner</h1></header>
-    ${decisionHubHTML()}
-    ${checkingHubHTML()}
     ${dueSoonHTML()}
     ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
       : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
