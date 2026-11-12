@@ -180,7 +180,7 @@ function renderTabbar() {
   const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
   bar.innerHTML = tab('#/halfplan', 'table', 'S-Team', r === 'halfplan')
     + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
-    + tab('#/hub', 'home', 'Planner', ['hub', 'plan', 'person', 'req', 'from'].includes(r), dueSoonCount())
+    + tab('#/hub', 'home', 'Planner', ['hub', 'plan', 'person', 'req', 'from', 'history'].includes(r), dueSoonCount())
     + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
 }
 /** Decision and approval requests share one shape: who asked whom, when, and the answer. */
@@ -227,6 +227,21 @@ function approvedNavHTML() {
   if (!list.length) return '';
   return `<h3>Approved</h3>${list.map(({ t, k }) => `<a class="nav-item plan approved-item" href="javascript:void 0" data-open-task="${esc(t.id)}" title="${esc(`${REQ_KINDS[k].label} approved by ${person(reqOf(t, k).to)?.name || 'them'}`)}"><span class="dr-flag approved-mark">✓</span><span>${esc(t.title || 'Untitled task')}<small class="muted">${esc(REQ_KINDS[k].label.replace(' Request', ''))} · ${esc(person(reqOf(t, k).to)?.name || 'them')}</small></span></a>`).join('')}`;
 }
+/** Requests you answered (approved or rejected), newest first: the "Approval History". */
+const decidedByMe = () => S.tasks.flatMap((t) => Object.keys(REQ_KINDS)
+  .filter((k) => { const r = reqOf(t, k); return r && ['approved', 'rejected'].includes(r.status) && isMeId(r.to); })
+  .map((k) => ({ t, k }))).sort((a, b) => (reqOf(b.t, b.k).decidedAt || 0) - (reqOf(a.t, a.k).decidedAt || 0));
+function historyListHTML(list) {
+  return list.length ? `<div class="dr-cards">${list.map(({ t, k }) => { const r = reqOf(t, k); return `<div class="dr-item"><div class="dr-who"><b class="${r.status === 'approved' ? 'ok-text' : 'danger-text'}">${r.status === 'approved' ? '✓ Approved' : 'Rejected'}</b> · ${esc(REQ_KINDS[k].label)} from <b>${esc(person(r.by)?.name || 'someone')}</b> · ${esc(fmtDate(new Date(r.decidedAt || r.at).toISOString().slice(0, 10)))}${r.note ? ` · “${esc(r.note)}”` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`; }).join('')}</div>`
+    : '<p class="muted small">Nothing yet.</p>';
+}
+function renderApprovalHistory() {
+  const list = decidedByMe();
+  return `<div class="page">
+    <header class="page-head"><h1>Approval History</h1></header>
+    <section class="dr-hub"><h2>Decided by you <span class="count">${list.length}</span></h2>${historyListHTML(list)}</section>
+  </div>`;
+}
 /** "Delegate From": the people who gave you work, with how much is still open. */
 const sharedWithMe = (p) => !!p.owner && !isMeId(p.owner);
 function delegateFromNavHTML(r, planLink) {
@@ -258,6 +273,7 @@ function renderSidebar() {
       ${reqNavHTML(r, 'decision', 'from')}${reqNavHTML(r, 'decision', 'to')}
       ${reqNavHTML(r, 'approval', 'from')}${reqNavHTML(r, 'approval', 'to')}
       ${approvedNavHTML()}
+      ${decidedByMe().length ? `<h3><a class="${r.view === 'history' ? 'active' : ''}" href="#/history">Approval History</a></h3>` : ''}
       ${S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''}
       ${delegateFromNavHTML(r, planLink)}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
@@ -335,6 +351,7 @@ function renderRequests() {
     </div>
     ${dir !== 'to' ? sec(`${K.label} From`, fromList, who ? `Nothing from ${esc(who.name)} waiting for you.` : 'Nothing waiting for you.') : ''}
     ${dir !== 'from' ? sec(`${K.label} To`, toList, who ? `You haven’t sent ${esc(who.name)} one.` : 'You’re not waiting on anyone.') : ''}
+    ${dir !== 'to' ? (() => { const h = decidedByMe().filter(({ t, k }) => k === kind && (!key || pkey(reqOf(t, k).by) === key)); return h.length ? `<section class="dr-hub"><h2>Approval History <span class="count">${h.length}</span></h2>${historyListHTML(h)}</section>` : ''; })() : ''}
   </div>`;
 }
 /** Work someone delegated to you, still open, soonest due first. */
@@ -695,6 +712,7 @@ function renderMain() {
   if (r.view === 'report') return renderReport();
   if (r.view === 'req') return renderRequests();
   if (r.view === 'from') return renderDelegatedFrom();
+  if (r.view === 'history') return renderApprovalHistory();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan') return renderBrandPlan();
   return renderHub();

@@ -1293,7 +1293,9 @@ dialog { transition: transform .35s var(--spring); }
 /* Sidebar section titles that open the full list */
 #sidebar nav h3 a { color: inherit; text-decoration: none; }
 #sidebar nav h3 a:hover, #sidebar nav h3 a.active { color: var(--ochre); }
-.dr-tools .seg a { text-decoration: none; color: inherit; }
+.seg a { padding: 4px 12px; border-radius: 7px; color: var(--ink-2); text-decoration: none; font-size: calc(13px * var(--scale) * var(--type)); }
+.seg a.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-weight: 700; }
+.ok-text { color: #30a158; }
 .approval-sec { border-left-color: #30a158; }
 
 /* Hover tip for Time Box slots */
