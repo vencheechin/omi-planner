@@ -247,10 +247,10 @@ const sharedWithMe = (p) => !!p.owner && !isMeId(p.owner);
 function delegateFromNavHTML(r, planLink) {
   // Plans someone else shared with you, then anyone who delegated work outside those plans.
   const shared = S.plans.filter(sharedWithMe).sort((a, b) => planLabel(a).localeCompare(planLabel(b)));
-  const list = delegatedFromTasks().filter((t) => !sharedWithMe(planById(t.planId) || {}));
+  const list = delegatedFromTasks();
   const keys = [...new Set(list.map((t) => pkey(t.assignedBy)))].filter(personByKey).sort(byPersonName);
   if (!keys.length && !shared.length) return '';
-  return `<h3>Delegate From</h3>${shared.map(planLink).join('')}${keys.map((k) => `<a class="nav-item plan ${r.view === 'from' && r.id === k ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em>${list.filter((t) => pkey(t.assignedBy) === k).length}</em></a>`).join('')}`;
+  return `<h3>Delegate From</h3>${keys.map((k) => `<a class="nav-item plan ${r.view === 'from' && r.id === k ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em>${list.filter((t) => pkey(t.assignedBy) === k).length}</em></a>`).join('')}${shared.map(planLink).join('')}`;
 }
 function renderSidebar() {
   renderTabbar();
@@ -354,14 +354,36 @@ function renderRequests() {
     ${dir !== 'to' ? (() => { const h = decidedByMe().filter(({ t, k }) => k === kind && (!key || pkey(reqOf(t, k).by) === key)); return h.length ? `<section class="dr-hub"><h2>Approval History <span class="count">${h.length}</span></h2>${historyListHTML(h)}</section>` : ''; })() : ''}
   </div>`;
 }
-/** Work someone delegated to you, still open, soonest due first. */
+/** Your own buckets for work one person delegated to you. Theirs stay as they are. */
+const fromBuckets = (k) => (S.settings.fromBoards || {})[k] || [];
+const fromBucketOf = (t, k) => (t.fromBucketId && fromBuckets(k).some((b) => b.id === t.fromBucketId) ? t.fromBucketId : 'none');
+/** Work someone delegated to you, on a board with your own buckets. */
 function renderDelegatedFrom() {
-  const who = personByKey(ui.route.id);
-  const list = delegatedFromTasks().filter((t) => pkey(t.assignedBy) === ui.route.id)
-    .sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')) || a.priority - b.priority);
+  const k = ui.route.id;
+  const who = personByKey(k);
+  const tasks = delegatedFromTasks().filter((t) => pkey(t.assignedBy) === k)
+    .sort((a, b) => (a.fromOrder ?? 1e9) - (b.fromOrder ?? 1e9) || String(a.due || '9999').localeCompare(String(b.due || '9999')));
+  const cols = [{ id: 'none', name: 'Not sorted' }, ...fromBuckets(k)];
+  const col = (b) => {
+    const list = tasks.filter((t) => fromBucketOf(t, k) === b.id);
+    const mine = b.id !== 'none';
+    return `<section class="col" data-group="${esc(b.id)}" ${mine ? `data-bucket-id="${esc(b.id)}"` : ''}>
+      <header class="col-head" ${mine ? 'data-drag="bucket"' : ''} data-id="${esc(b.id)}">
+        ${mine ? '<span class="grip col-grip" aria-hidden="true" title="Drag to move">⋮⋮</span>' : ''}
+        ${mine ? `<input class="col-title-input" value="${esc(b.name)}" data-change="fromBucketName" data-id="${esc(b.id)}" aria-label="Bucket name">` : `<span class="col-title"><b>${esc(b.name)}</b></span>`}
+        <span class="count">${list.length}</span>
+        ${mine ? `<button class="icon-btn" data-act="fromBucketMenu" data-id="${esc(b.id)}" aria-label="Bucket options for ${esc(b.name)}">${icon('more')}</button>` : ''}
+      </header>
+      <div class="col-body" data-drop="tasks">${list.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>
+    </section>`;
+  };
   return `<div class="page">
     <header class="page-head"><h1>Delegate From${who ? `: ${esc(who.name)}` : ''}</h1></header>
-    ${list.length ? `<div class="dr-cards">${list.map((t) => cardHTML(t, { showPlan: true })).join('')}</div>` : '<p class="muted small">Nothing open from them.</p>'}
+    <p class="muted small from-note">Your own buckets: arrange them however suits you. ${esc(who?.name || 'They')} won’t see them, and their buckets stay as they are.</p>
+    <div class="board from-board" data-by="from">
+      ${cols.map(col).join('')}
+      <div class="col add-col"><button class="add-bucket" data-act="fromAddBucket">${icon('plus', 14)} Add new bucket</button></div>
+    </div>
   </div>`;
 }
 /** Your open tasks from every plan that are late, due today or due this week. */

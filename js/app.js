@@ -374,6 +374,7 @@ function settingsHTML() {
     
     <ul class="people-list">${S.people.map((p) => `<li>${avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${p.id === S.meId ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="delPerson" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
     <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form></section>
+  <section class="set-sec"><h3>Reporting Lines</h3>${reportingLinesHTML()}</section>
   <section class="set-sec"><h3>Messages and Language</h3>${chatSettingsHTML()}</section>
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
@@ -453,6 +454,28 @@ const actions = {
   },
 
   // buckets
+  fromAddBucket: async () => {
+    const name = await promptDlg('Add bucket', 'Bucket name', '', 'Add bucket');
+    if (name) setFromBuckets(ui.route.id, [...fromBuckets(ui.route.id), { id: uid(), name: name.slice(0, 60) }]);
+  },
+  fromBucketMenu: (el) => {
+    const k = ui.route.id;
+    const id = el.dataset.id;
+    const all = fromBuckets(k);
+    const i = all.findIndex((b) => b.id === id);
+    const move = (d) => { const a = [...all]; [a[i], a[i + d]] = [a[i + d], a[i]]; setFromBuckets(k, a); };
+    openMenu(el, [
+      ...(i > 0 ? [{ label: 'Move left', icon: 'move', run: () => move(-1) }] : []),
+      ...(i < all.length - 1 ? [{ label: 'Move right', icon: 'move', run: () => move(1) }] : []),
+      { label: 'Delete bucket', icon: 'trash', danger: true, run: () => {
+        const name = all[i].name;
+        // Its tasks go back to "Not sorted"; nothing is deleted.
+        S.tasks.forEach((t) => { if (t.fromBucketId === id) t.fromBucketId = null; });
+        setFromBuckets(k, all.filter((b) => b.id !== id));
+        toast(`Deleted “${name}”. Its tasks are back in Not sorted.`);
+      } },
+    ]);
+  },
   addBucket: async () => {
     const plan = currentPlan();
     const name = await promptDlg('Add bucket', 'Bucket name', '', 'Add bucket');
@@ -1112,6 +1135,7 @@ const actions = {
     const p = stPlans().find((x) => x.id === el.dataset.id);
     const set = (to) => { p.approval = { status: 'submitted', by: S.meId, to, at: Date.now() }; commit(); toast(`Sent to ${person(to)?.name || 'them'} for approval.`); };
     const ids = stApprovers();
+    if (!ids.length) { toast('Nobody is above you in Settings › Reporting Lines, so there’s no one to send it to.', { error: true }); return; }
     if (ids.length === 1) return set(ids[0]);
     openMenu(el, ids.map((id) => ({ label: person(id)?.name || 'Someone', icon: 'user', run: () => set(id) })));
   },
@@ -1466,6 +1490,7 @@ const changes = {
     render();
   },
   stSwitch: (el) => { ui.stPlanId = el.value; render(); },
+  fromBucketName: (el) => { const k = ui.route.id; const v = el.value.trim(); if (!v) { render(); return; } setFromBuckets(k, fromBuckets(k).map((b) => (b.id === el.dataset.id ? { ...b, name: v.slice(0, 60) } : b))); },
   decSort: (el) => { S.settings.decisionSort = el.value; Store.save(); render(); },
   orgReportsTo: (el) => { const rt = { ...(org().reportsTo || {}) }; if (el.value) rt[el.dataset.p] = el.value; else delete rt[el.dataset.p]; if (el.value && isAbove(el.dataset.p, el.value)) { toast('That would make a loop.'); refreshSettings(); return; } org().reportsTo = rt; commit(); refreshSettings(); },
   stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },
@@ -1802,6 +1827,13 @@ function dragEnd(drop) {
   if (s.type === 'task') {
     if (s.target.date) dropOnDate(s.id, s.target.date, s.grabDate);
     else dropOnGroup(s.id, s.fromGroup, s.target.group, s.target.beforeId);
+  } else if (s.type === 'bucket' && ui.route.view === 'from') {
+    const k = ui.route.id;
+    const seq = $$('.board .col[data-bucket-id]').map((c) => c.dataset.bucketId).filter((x) => x !== s.id);
+    const at = s.target.beforeId ? seq.indexOf(s.target.beforeId) : seq.length;
+    seq.splice(at < 0 ? seq.length : at, 0, s.id);
+    const all = fromBuckets(k);
+    setFromBuckets(k, seq.map((x) => all.find((b) => b.id === x)).filter(Boolean));
   } else if (s.type === 'bucket') {
     const plan = currentPlan();
     const seq = $$('.board .col[data-bucket-id]').map((c) => c.dataset.bucketId).filter((k) => k !== s.id);
@@ -1838,6 +1870,18 @@ function dragEnd(drop) {
 }
 function dropOnGroup(id, from, to, beforeId) {
   const t = taskById(id);
+  if (ui.route.view === 'from') {
+    // Your own buckets for delegated work: only your copy changes.
+    const k = ui.route.id;
+    t.fromBucketId = to === 'none' ? null : to;
+    const list = delegatedFromTasks().filter((x) => pkey(x.assignedBy) === k && x.id !== id && fromBucketOf(x, k) === to)
+      .sort((a, b) => (a.fromOrder ?? 1e9) - (b.fromOrder ?? 1e9));
+    const i = beforeId ? list.findIndex((x) => x.id === beforeId) : list.length;
+    list.splice(i < 0 ? list.length : i, 0, t);
+    list.forEach((x, n) => { x.fromOrder = n; });
+    commit();
+    return;
+  }
   if (String(to).startsWith('from:')) {
     if (from !== to) { if (to !== `from:${t.assignedBy}` || !setBucketFor(t, '')) return; }
     const list = assignedToMeGroups(currentPlan()).find((g) => g.key === to)?.tasks.filter((x) => x.id !== id) || [];
@@ -2085,6 +2129,12 @@ function route() {
   if (c === 'task' && taskById(d)) openTask(d);
 }
 
+/** Saves your own buckets for one delegator (they follow you to your other devices). */
+function setFromBuckets(k, list) {
+  S.settings.fromBoards = { ...(S.settings.fromBoards || {}), [k]: list };
+  if (!list.length) delete S.settings.fromBoards[k];
+  commit();
+}
 // ---------- Startup ----------
 // Hover tip (mouse only): shows a Time Box slot's start and end time next to the pointer.
 if (matchMedia('(hover: hover)').matches) {

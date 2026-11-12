@@ -88,6 +88,16 @@ function isAbove(boss, id) {
 }
 /** You delegate downwards only, once Admin has set reporting lines (until then, to anyone). */
 const canDelegateTo = (id) => pkey(id) === pkey(S.meId) || !hierarchyOn() || isAbove(S.meId, id);
+/** Decision and approval requests and S-Team plans go up: to anyone you report to (until lines are set, to anyone). */
+const canSendUpTo = (id) => pkey(id) !== pkey(S.meId) && (!hierarchyOn() || isAbove(id, S.meId));
+/** Reporting lines, as a Settings section: admins edit, everyone else can see them. */
+function reportingLinesHTML() {
+  const people = [...new Map(S.people.map((x) => [pkey(x.id), x])).values()].sort((a, b) => a.name.localeCompare(b.name));
+  const edit = stAdmin();
+  return `<p class="small muted">Requests go up: you send Decision Requests, Approval Requests and S-Team Plans to the people you report to. Delegating goes down, to the people who report to you.${edit ? '' : ' Only an admin can change these.'}</p>
+    <div class="adm-block">${people.map((x) => { const m = org().reportsTo?.[pkey(x.id)] || ''; return `<div class="adm-row"><span>${esc(x.name)}</span>
+      <label class="mini">Reports to <select data-change="orgReportsTo" data-p="${esc(pkey(x.id))}" ${edit ? '' : 'disabled'}><option value="">— Top</option>${people.filter((y) => pkey(y.id) !== pkey(x.id)).map((y) => `<option value="${esc(pkey(y.id))}" ${pkey(y.id) === m ? 'selected' : ''}>${esc(y.name)}</option>`).join('')}</select></label></div>`; }).join('')}</div>`;
+}
 /** Plans from before there were several: the single shared plan becomes "legacy", the same id on every device. */
 function migrateStPlans(raw, meId) {
   const list = (Array.isArray(raw.stPlans) ? raw.stPlans : []).filter((p) => p && p.id).map(normalizeStPlan);
@@ -331,6 +341,13 @@ function stApprovers() {
   if (typeof Cloud !== 'undefined' && Cloud.team) ids = (Cloud.team.admins || []).map((e) => S.people.find((p) => p.email === e)?.id).filter(Boolean);
   else ids = [...(org().admins || [])];
   ids = ids.filter((id) => id !== S.meId && person(id));
+  if (hierarchyOn()) {
+    // Up the line: your manager first, then whoever is above them.
+    const up = [];
+    const seen = new Set();
+    for (let m = managerOf(S.meId); m && !seen.has(m); m = org().reportsTo?.[m]) { seen.add(m); const p = personByKey(m); if (p) up.push(p.id); }
+    return up;
+  }
   return ids.length ? ids : S.people.filter((p) => p.id !== S.meId).map((p) => p.id);
 }
 const STATUS_TEXT = { submitted: 'Waiting for approval', approved: 'Approved', 'change-requested': 'Change requested' };
@@ -396,9 +413,6 @@ function adminSettingsHTML() {
           <button class="icon-btn" data-act="stDeptDel" data-d="${esc(d.id)}" aria-label="Delete ${esc(d.name)}">${icon('trash', 14)}</button></div>
         <div class="adm-chips"><span class="small muted">Members</span>${(d.members || []).map((id) => chip(id, 'stDeptDelMember', `data-d="${esc(d.id)}"`)).join('')}${pick('stDeptAddMember', `data-d="${esc(d.id)}"`, d.members || [])}</div></div>`).join('')}
       <button class="btn ghost sm" data-act="stDeptAdd">${icon('plus', 13)} Department</button></div>
-    <div class="adm-block"><b>Who Reports to Whom</b>
-      ${[...new Map(people.map((x) => [pkey(x.id), x])).values()].map((x) => { const m = org().reportsTo?.[pkey(x.id)] || ''; return `<div class="adm-row"><span>${esc(x.name)}</span>
-        <label class="mini">Reports to <select data-change="orgReportsTo" data-p="${esc(pkey(x.id))}"><option value="">— Top</option>${[...new Map(people.map((y) => [pkey(y.id), y])).values()].filter((y) => pkey(y.id) !== pkey(x.id)).map((y) => `<option value="${esc(pkey(y.id))}" ${pkey(y.id) === m ? 'selected' : ''}>${esc(y.name)}</option>`).join('')}</select></label></div>`; }).join('')}</div>
     <div class="adm-block"><b>Who Can See Each S-Team Plan</b>
       ${stPlans().filter((p) => !p.deleted).map((p) => {
         const auto = stAudience({ ...p, viewers: [] });

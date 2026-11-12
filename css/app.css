@@ -1309,3 +1309,6 @@ dialog { transition: transform .35s var(--spring); }
 .approved-item > span:last-child, .approved-item small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .approved-item small { font-size: calc(11.5px * var(--scale) * var(--type)); }
 .approved-mark { color: #30a158; font-weight: 800; }
+
+/* Delegate From board */
+.from-note { margin: -6px 0 14px; }

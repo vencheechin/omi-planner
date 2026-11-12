@@ -551,8 +551,13 @@ function pickRequestee(el, kind) {
   const t = taskById(el.dataset.id);
   const seen = new Map();
   for (const p of S.people) { const k = pkey(p.id); if (k !== pkey(S.meId) && (!seen.has(k) || String(p.id).startsWith('e:'))) seen.set(k, p); }
-  const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
-  if (!people.length) { toast('Add the person in Settings › People first.', { error: true }); return; }
+  // Requests go up the reporting line: to your manager, or anyone above them.
+  const people = [...seen.values()].filter((p) => canSendUpTo(p.id))
+    .sort((a, b) => (pkey(b.id) === managerOf(S.meId)) - (pkey(a.id) === managerOf(S.meId)) || a.name.localeCompare(b.name));
+  if (!people.length) {
+    toast(hierarchyOn() ? 'You can send this to the people you report to. Nobody is above you in Settings › Reporting Lines.' : 'Add the person in Settings › People first.', { error: true });
+    return;
+  }
   openMenu(el, people.map((p) => ({ label: p.name, icon: 'user', run: () => {
     // A draft until you press Send, so you can fill it in first.
     t[REQ_KINDS[kind].field] = { to: p.id, by: S.meId, at: Date.now(), status: 'draft' };

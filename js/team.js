@@ -323,6 +323,8 @@ function buildTeamFile() {
     delete o.remFired;
     delete o.myOrder;
     delete o.myBucketId;
+    delete o.fromBucketId;
+    delete o.fromOrder;
     return o;
   });
   const planIds = new Set(tasks.map((t) => t.planId));
