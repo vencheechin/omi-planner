@@ -1924,6 +1924,7 @@ function openTask(id) {
   let read = false;
   S.inbox.forEach((n) => { if (n.taskId === id && !n.read) { n.read = true; read = true; } });
   if (read) { Store.save(); updateBell(); }
+  if (taskById(id)) markApprovedSeen(taskById(id));
   renderTask();
   $('#taskDialog .task-scroll').scrollTop = 0;
 }

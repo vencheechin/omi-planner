@@ -1301,3 +1301,9 @@ dialog { transition: transform .35s var(--spring); }
   color: var(--surface); background: color-mix(in srgb, var(--ink) 92%, transparent); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); max-width: 300px; line-height: 1.35;
   opacity: 0; transform: translateY(2px); transition: opacity .12s ease, transform .12s ease; }
 .hover-tip.on { opacity: 1; transform: none; }
+
+/* Approved: requests you sent that were approved */
+.approved-item > span:last-child { display: grid; min-width: 0; }
+.approved-item > span:last-child, .approved-item small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.approved-item small { font-size: calc(11.5px * var(--scale) * var(--type)); }
+.approved-mark { color: #30a158; font-weight: 800; }

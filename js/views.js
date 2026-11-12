@@ -180,7 +180,7 @@ function renderTabbar() {
   const tab = (href, ic, label, on, n) => `<a class="tab ${on ? 'on' : ''}" href="${href}">${icon(ic, 22)}<span>${label}</span>${n ? `<em>${n}</em>` : ''}</a>`;
   bar.innerHTML = tab('#/halfplan', 'table', 'S-Team', r === 'halfplan')
     + tab('#/timebox', 'clock', 'Time Box', r === 'timebox', timeboxQueue().length)
-    + tab('#/hub', 'home', 'My Planner', ['hub', 'plan', 'person', 'req', 'from'].includes(r), dueSoonCount())
+    + tab('#/hub', 'home', 'Planner', ['hub', 'plan', 'person', 'req', 'from'].includes(r), dueSoonCount())
     + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
 }
 /** Decision and approval requests share one shape: who asked whom, when, and the answer. */
@@ -210,20 +210,40 @@ function reqNavHTML(r, kind, dir) {
     return `<a class="nav-item plan ${on(k) ? 'active' : ''}" href="#/req/${kind}/${dir}/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em class="${dir === 'from' ? 'to-check' : ''}" title="${dir === 'from' ? 'Waiting for you' : 'Waiting on them'}">${n}</em></a>`;
   }).join('')}`;
 }
+/** Requests you sent that were approved and you haven't opened since: the "Approved" section. */
+const approvedKey = (t, kind) => `${t.id}:${kind}:${reqOf(t, kind).decidedAt}`;
+const approvedForMe = () => S.tasks.flatMap((t) => Object.keys(REQ_KINDS)
+  .filter((k) => { const r = reqOf(t, k); return r?.status === 'approved' && isMeId(r.by) && !(S.settings.approvedSeen || []).includes(approvedKey(t, k)); })
+  .map((k) => ({ t, k }))).sort((a, b) => reqOf(b.t, b.k).decidedAt - reqOf(a.t, a.k).decidedAt);
+/** Opening an approved request clears it from "Approved". */
+function markApprovedSeen(t) {
+  const keys = Object.keys(REQ_KINDS).filter((k) => reqOf(t, k)?.status === 'approved' && isMeId(reqOf(t, k).by)).map((k) => approvedKey(t, k));
+  const seen = S.settings.approvedSeen || [];
+  const add = keys.filter((k) => !seen.includes(k));
+  if (add.length) { S.settings.approvedSeen = [...seen, ...add].slice(-300); Store.save(); renderSidebar(); }
+}
+function approvedNavHTML() {
+  const list = approvedForMe();
+  if (!list.length) return '';
+  return `<h3>Approved</h3>${list.map(({ t, k }) => `<a class="nav-item plan approved-item" href="javascript:void 0" data-open-task="${esc(t.id)}" title="${esc(`${REQ_KINDS[k].label} approved by ${person(reqOf(t, k).to)?.name || 'them'}`)}"><span class="dr-flag approved-mark">✓</span><span>${esc(t.title || 'Untitled task')}<small class="muted">${esc(REQ_KINDS[k].label.replace(' Request', ''))} · ${esc(person(reqOf(t, k).to)?.name || 'them')}</small></span></a>`).join('')}`;
+}
 /** "Delegate From": the people who gave you work, with how much is still open. */
-function delegateFromNavHTML(r) {
-  const list = delegatedFromTasks();
+const sharedWithMe = (p) => !!p.owner && !isMeId(p.owner);
+function delegateFromNavHTML(r, planLink) {
+  // Plans someone else shared with you, then anyone who delegated work outside those plans.
+  const shared = S.plans.filter(sharedWithMe).sort((a, b) => planLabel(a).localeCompare(planLabel(b)));
+  const list = delegatedFromTasks().filter((t) => !sharedWithMe(planById(t.planId) || {}));
   const keys = [...new Set(list.map((t) => pkey(t.assignedBy)))].filter(personByKey).sort(byPersonName);
-  if (!keys.length) return '';
-  return `<h3>Delegate From</h3>${keys.map((k) => `<a class="nav-item plan ${r.view === 'from' && r.id === k ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em>${list.filter((t) => pkey(t.assignedBy) === k).length}</em></a>`).join('')}`;
+  if (!keys.length && !shared.length) return '';
+  return `<h3>Delegate From</h3>${shared.map(planLink).join('')}${keys.map((k) => `<a class="nav-item plan ${r.view === 'from' && r.id === k ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em>${list.filter((t) => pkey(t.assignedBy) === k).length}</em></a>`).join('')}`;
 }
 function renderSidebar() {
   renderTabbar();
   const r = ui.route;
   const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view ? 'active' : ''}" href="#/${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
   const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
-  const pinned = S.plans.filter((p) => p.pinned);
-  const recent = S.plans.filter((p) => !p.pinned).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
+  const pinned = S.plans.filter((p) => p.pinned && !sharedWithMe(p));
+  const recent = S.plans.filter((p) => !p.pinned && !sharedWithMe(p)).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
 
   const toCheck = S.tasks.filter(isReviewer).length;
   const personLink = (pp) => {
@@ -234,11 +254,12 @@ function renderSidebar() {
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
-      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'My Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
+      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
       ${reqNavHTML(r, 'decision', 'from')}${reqNavHTML(r, 'decision', 'to')}
       ${reqNavHTML(r, 'approval', 'from')}${reqNavHTML(r, 'approval', 'to')}
+      ${approvedNavHTML()}
       ${S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''}
-      ${delegateFromNavHTML(r)}
+      ${delegateFromNavHTML(r, planLink)}
       ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
       ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
     </nav>`;
@@ -358,7 +379,7 @@ function renderHub() {
     </article>`;
   };
   return `<div class="page">
-    <header class="page-head"><h1>My Planner</h1></header>
+    <header class="page-head"><h1>Planner</h1></header>
     ${dueSoonHTML()}
     ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
       : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
