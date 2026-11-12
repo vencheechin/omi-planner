@@ -758,7 +758,21 @@ const actions = {
   toggleChartTable: () => { ui.chartTable = !ui.chartTable; render(); },
 
   // task panel
-  closeTask: () => { ui.openTask = null; closePop(); renderTask(); },
+  closeTask: async () => {
+    // An unsent decision request: send it, or leave without sending (what you typed stays).
+    const t = openTaskObj();
+    if (t && isDecisionDraft(t)) {
+      const to = person(t.decisionReq.to)?.name || 'them';
+      const choice = await choiceDlg('Exit without sending?', `<p>Your decision request to <b>${esc(to)}</b> hasn’t been sent yet.</p>`, [
+        { v: 'send', label: 'Send now', primary: true },
+        { v: 'exit', label: 'Exit without sending' },
+      ]);
+      if (!choice) return; // dismissed: stay on the task
+      if (choice === 'send') sendDecision(t, { quiet: false });
+      else { t.decisionReq = null; commit(); }
+    }
+    ui.openTask = null; closePop(); renderTask();
+  },
   taskMenu: (el) => openMenu(el, taskMenuItems(openTaskObj(), el)),
   decisionSend: (el) => {
     const t = taskById(el.dataset.id);
@@ -768,14 +782,15 @@ const actions = {
     const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
     if (!people.length) { toast('Add the person who decides in Settings › People first.', { error: true }); return; }
     openMenu(el, people.map((p) => ({ label: p.name, icon: 'user', run: () => {
-      t.decisionReq = { to: p.id, by: S.meId, at: Date.now(), status: 'pending' };
+      // A draft until you press Send, so you can fill it in first.
+      t.decisionReq = { to: p.id, by: S.meId, at: Date.now(), status: 'draft' };
       if (t.workType !== 'decision') t.workType = 'decision';
-      t.shared = true;
-      addEvent(t, 'decision', { to: p.id });
       commit();
-      toast(`Decision request sent to ${p.name}. Fill in the issue, recommendation and impact below.`);
+      toast(`Fill in the issue, recommendation and impact, then tap Send.`);
     } })));
   },
+  decisionSendNow: (el) => sendDecision(taskById(el.dataset.id)),
+  decisionDiscard: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request not sent.'); },
   decisionApprove: (el) => {
     const t = taskById(el.dataset.id);
     t.decisionReq = { ...t.decisionReq, status: 'approved', decidedAt: Date.now() };
@@ -1991,6 +2006,7 @@ function bindShell() {
   const d = $('#taskDialog');
   d.addEventListener('cancel', (e) => {
     if (ui.pop) { e.preventDefault(); closePop(); return; }
+    if (openTaskObj() && isDecisionDraft(openTaskObj())) { e.preventDefault(); actions.closeTask(); return; }
     ui.openTask = null;
   });
   d.addEventListener('close', () => { ui.openTask = null; closePop(); });

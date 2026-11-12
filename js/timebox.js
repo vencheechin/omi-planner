@@ -543,17 +543,29 @@ function saveBlockFromMenu(form, data) {
   toast(`Saved “${b.name}”.`);
 }
 
+const isDecisionDraft = (t) => t?.decisionReq?.status === 'draft' && pkey(t.decisionReq.by) === pkey(S.meId);
+/** Sends a drafted decision request: they're notified and it shows in their Decision Request list. */
+function sendDecision(t) {
+  if (!t?.decisionReq) return;
+  t.decisionReq = { ...t.decisionReq, at: Date.now(), status: 'pending' };
+  t.shared = true;
+  addEvent(t, 'decision', { to: t.decisionReq.to });
+  commit();
+  toast(`Decision request sent to ${person(t.decisionReq.to)?.name || 'them'}.`);
+}
 /** Who the request is with, and the answer so far. */
 function decisionStatusHTML(t) {
   const r = t.decisionReq;
   if (!r) return '';
-  const label = { pending: 'Waiting', approved: 'Approved', rejected: 'Rejected' }[r.status] || r.status;
+  if (r.status === 'draft' && !isDecisionDraft(t)) return '';
+  const label = { draft: 'Not sent', pending: 'Waiting', approved: 'Approved', rejected: 'Rejected' }[r.status] || r.status;
   return `<span class="dr-status dr-${esc(r.status)}">${esc(label)} · ${esc(r.to === S.meId ? 'you' : person(r.to)?.name || 'someone')}</span>`;
 }
 /** Approve / Reject for the person deciding; withdraw for the sender while it waits. */
 function decisionActionsHTML(t) {
   const r = t.decisionReq;
   if (!r) return '';
+  if (isDecisionDraft(t)) return '';
   if (r.status === 'pending' && r.to === S.meId) return `<div class="review-box"><p><b>${esc(person(r.by)?.name || 'A teammate')}</b> asked for your decision on ${esc(fmtDateTime(r.at))}.</p>
     <div class="row"><button class="btn primary sm" data-act="decisionApprove" data-id="${esc(t.id)}">${icon('check', 14)} Approve</button><button class="btn ghost sm danger-text" data-act="decisionReject" data-id="${esc(t.id)}">Reject</button></div></div>`;
   if (r.status === 'pending' && r.by === S.meId) return `<div class="review-box"><p>Sent to <b>${esc(person(r.to)?.name || 'someone')}</b> on ${esc(fmtDateTime(r.at))}.</p>
@@ -624,6 +636,9 @@ function timeboxHTML(t) {
         : t.urgency === 'emergency'
           ? `<button class="btn primary sm" data-act="handleNow" data-id="${esc(t.id)}">Handle now (interrupts focus)</button>`
           : `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}">Schedule in the Decision Window</button>`}</div>
+      ${isDecisionDraft(t) ? `<div class="dr-send"><p class="small">To <b>${esc(person(t.decisionReq.to)?.name || 'someone')}</b> · not sent yet</p>
+        <button class="btn ghost sm" data-act="decisionDiscard" data-id="${esc(t.id)}">Discard</button>
+        <button class="btn primary" data-act="decisionSendNow" data-id="${esc(t.id)}">${icon('send', 15)} Send</button></div>` : ''}
     </section>` : ''}`;
 }
 
