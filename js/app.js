@@ -1018,6 +1018,9 @@ const actions = {
     closePop();
     if (kind === 'task') { taskById(id).tbColor = v; commit(); }
     else if (kind === 'bucket') { const b = currentPlan()?.buckets.find((x) => x.id === id); if (b) { b.color = v || ''; commit(); } }
+    else if (kind === 'bprow') { const [g, r] = id.split('|'); const row = bpRowOf(g, r); if (row) { row.color = v || ''; commit(); } }
+    else if (kind === 'bpgroup') { const g = bpGroup(id); if (g) { g.color = v || ''; commit(); } }
+    else if (kind === 'bpmonth') { const c = { start: bpCfg().start, h1: bpCfg().h1, h2: bpCfg().h2, ...(bp().cfg || {}) }; c.mcol = { ...(c.mcol || {}), [id]: v || '' }; if (!v) delete c.mcol[id]; bp().cfg = c; commit(); }
     else if (kind === 'from') { const p = currentPlan(); p.fromColor = { ...(p.fromColor || {}), [id]: v || '' }; commit(); }
     else { TB().blocks.find((x) => x.id === id).color = v || null; commit(); refreshSettings(); }
   },
@@ -1093,6 +1096,15 @@ const actions = {
     bp().groups.push({ id: uid(), name, rows: [] });
     commit();
   },
+  bpMenu: (el) => {
+    const { g, r } = el.dataset;
+    const target = r ? bpRowOf(g, r) : bpGroup(g);
+    openMenu(el, [
+      { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML(r ? 'bprow' : 'bpgroup', r ? `${g}|${r}` : g, target?.color, 'transparent', 'None')) },
+      { label: 'Delete', icon: 'trash', danger: true, run: () => actions[r ? 'bpDelRow' : 'bpDelGroup'](el) },
+    ]);
+  },
+  bpMonthColour: (el) => openPop(el, () => colourListHTML('bpmonth', el.dataset.m, bp().cfg?.mcol?.[el.dataset.m], 'transparent', 'None')),
   bpDelGroup: async (el) => {
     const g = bpGroup(el.dataset.g);
     if (g.rows.length && !await confirmDlg(`Delete “${g.name}”?`, `Its ${g.rows.length} brand${g.rows.length === 1 ? '' : 's'} and their months go too.`, 'Delete')) return;
@@ -1235,7 +1247,7 @@ const actions = {
 // ---------- Form submits ----------
 const submits = {
   bpPeriodSave: (form, data) => {
-    bp().cfg = { start: Number(data.get('start')), h1: Number(data.get('h1')), h2: Number(data.get('h2')) };
+    bp().cfg = { ...(bp().cfg || {}), start: Number(data.get('start')), h1: Number(data.get('h1')), h2: Number(data.get('h2')) };
     ui.bpHalf = null;
     closePop();
     commit();
@@ -1653,6 +1665,18 @@ function dragMove(x, y) {
   const under = document.elementFromPoint(x, y);
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   s.target = null;
+  if (s.type === 'bprow') {
+    $$('.bp-drop-before, .bp-drop-after').forEach((n) => n.classList.remove('bp-drop-before', 'bp-drop-after'));
+    const tr = under?.closest('.bp-table tbody tr');
+    if (!tr) return;
+    if (tr.classList.contains('bp-row')) {
+      const r = tr.getBoundingClientRect();
+      const after = y > r.top + r.height / 2;
+      tr.classList.add(after ? 'bp-drop-after' : 'bp-drop-before');
+      s.target = { g: tr.dataset.g, r: tr.dataset.r, after };
+    } else if (tr.classList.contains('bp-group')) { tr.classList.add('bp-drop-after'); s.target = { g: tr.dataset.g, r: null, after: false }; }
+    return;
+  }
   if (s.type === 'bpitem') {
     const cell = under?.closest('.bp-cell');
     if (cell) { cell.classList.add('drop'); s.target = { g: cell.dataset.g, r: cell.dataset.r, m: cell.dataset.m }; }
@@ -1785,6 +1809,22 @@ function dragEnd(drop) {
   document.body.classList.remove('dragging');
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   if (s.type === 'worktype') return;
+  if (s.type === 'bprow') {
+    $$('.bp-drop-before, .bp-drop-after').forEach((n) => n.classList.remove('bp-drop-before', 'bp-drop-after'));
+    const [g, r] = String(s.id).split('|');
+    const t = s.target;
+    if (!drop || !t || t.r === r) { render(); return; }
+    const from = bpGroup(g);
+    const to = bpGroup(t.g);
+    const row = bpRowOf(g, r);
+    if (!from || !to || !row) { render(); return; }
+    from.rows = from.rows.filter((x) => x !== row);
+    let i = t.r ? to.rows.findIndex((x) => x.id === t.r) : 0;
+    if (i < 0) i = to.rows.length; else if (t.r && t.after) i += 1;
+    to.rows.splice(i, 0, row);
+    commit();
+    return;
+  }
   if (s.type === 'bpitem') {
     const [g, r, m, n] = String(s.id).split('|');
     const t = s.target;

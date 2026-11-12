@@ -106,15 +106,21 @@ function migrateStPlans(raw, meId) {
   }
   return list;
 }
+const bpHex = (c) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : '');
+/** Half-year settings, plus a colour for any month (by YYYY-MM). */
+function bpNormCfg(c) {
+  const mcol = Object.fromEntries(Object.entries(c?.mcol && typeof c.mcol === 'object' ? c.mcol : {}).filter(([k, v]) => /^\d{4}-\d{2}$/.test(k) && bpHex(v)));
+  return { start: Number(c.start) || 4, h1: Number(c.h1) || 6, h2: Number(c.h2) || 6, ...(Object.keys(mcol).length ? { mcol } : {}) };
+}
 function normalizeBrandPlan(b) {
   if (!b || !Array.isArray(b.groups)) return { groups: [], ...(b && b._v ? { _v: b._v } : {}), ...(b && b.cfg ? { cfg: b.cfg } : {}) };
   return {
     ...(b._v && typeof b._v === 'object' ? { _v: b._v } : {}),
-    ...(b.cfg && typeof b.cfg === 'object' ? { cfg: { start: Number(b.cfg.start) || 4, h1: Number(b.cfg.h1) || 6, h2: Number(b.cfg.h2) || 6 } } : {}),
+    ...(b.cfg && typeof b.cfg === 'object' ? { cfg: bpNormCfg(b.cfg) } : {}),
     groups: b.groups.filter((g) => g && g.id).map((g) => ({
-      id: String(g.id), name: String(g.name || 'Group'),
+      id: String(g.id), name: String(g.name || 'Group'), color: bpHex(g.color),
       rows: (Array.isArray(g.rows) ? g.rows : []).filter((r) => r && r.id).map((r) => ({
-        id: String(r.id), brand: String(r.brand || ''), pic: String(r.pic || ''),
+        id: String(r.id), brand: String(r.brand || ''), pic: String(r.pic || ''), color: bpHex(r.color),
         cells: Object.fromEntries(Object.entries(r.cells && typeof r.cells === 'object' ? r.cells : {})
           .filter(([k, c]) => /^\d{4}-\d{2}$/.test(k) && c)
           .map(([k, c]) => [k, { items: cellItems(c) }]).filter(([, c]) => c.items.length)),
@@ -209,6 +215,8 @@ function renderBrandPlan() {
   const h = bpHalf();
   const months = bpMonths(h);
   const groups = bp().groups;
+  const mcol = bp().cfg?.mcol || {};
+  const more = (attrs, label) => (ro ? '' : `<button class="icon-btn" data-act="bpMenu" ${attrs} aria-label="${esc(label)}" title="More">${icon('more', 15)}</button>`);
   const cell = (g, r, k) => {
     const items = cellItems(r.cells[k]);
     const one = items.length === 1 ? items[0] : null;
@@ -217,7 +225,8 @@ function renderBrandPlan() {
     const body = one
       ? `<div class="bp-one" ${drag(0)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}</div>`
       : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''}" ${drag(n)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
-    return `<td class="bp-cell ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''}" ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${r.brand}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
+    const tint = r.color || mcol[k] || '';
+    return `<td class="bp-cell ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${r.brand}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
   };
   return `<div class="page bp-page">
     <header class="bp-head">
@@ -234,15 +243,15 @@ function renderBrandPlan() {
       ${ro ? '' : `<button class="icon-btn" data-act="bpPeriod" aria-label="Half year months" title="Half year months">${icon('gear', 17)}</button>`}
     </header>
     ${groups.length ? `<div class="bp-scroll"><table class="bp-table ${ro ? 'ro' : ''}" style="--bp-cols:${months.length}">
-      <thead><tr><th class="bp-brand">Brand</th><th class="bp-pic">PIC</th>${months.map((k) => `<th>${esc(bpMonthLabel(k))}</th>`).join('')}<th class="bp-x"></th></tr></thead>
+      <thead><tr><th class="bp-brand">Brand</th><th class="bp-pic">PIC</th>${months.map((k) => `<th class="bp-month ${mcol[k] ? 'tinted' : ''}" ${mcol[k] ? `style="--tc:${mcol[k]}"` : ''}>${ro ? esc(bpMonthLabel(k)) : `<button class="bp-mbtn" data-act="bpMonthColour" data-m="${k}" title="Colour for ${esc(bpMonthLabel(k))}">${esc(bpMonthLabel(k))}</button>`}</th>`).join('')}<th class="bp-x"></th></tr></thead>
       <tbody>${groups.map((g) => `
-        <tr class="bp-group"><th colspan="2" class="bp-brand"><input value="${esc(g.name)}" data-change="bpGroupName" data-g="${esc(g.id)}" aria-label="Group name" ${ro ? 'disabled' : ''}></th><td colspan="${months.length}"></td>
-          <td class="bp-x">${ro ? '' : `<button class="icon-btn" data-act="bpDelGroup" data-g="${esc(g.id)}" aria-label="Delete group ${esc(g.name)}">${icon('close', 13)}</button>`}</td></tr>
-        ${g.rows.map((r) => `<tr>
-          <th class="bp-brand"><input value="${esc(r.brand)}" placeholder="Brand" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="Brand" ${ro ? 'disabled' : ''}></th>
+        <tr class="bp-group ${g.color ? 'tinted' : ''}" ${g.color ? `style="--tc:${g.color}"` : ''} data-g="${esc(g.id)}"><th colspan="2" class="bp-brand"><input value="${esc(g.name)}" data-change="bpGroupName" data-g="${esc(g.id)}" aria-label="Group name" ${ro ? 'disabled' : ''}></th><td colspan="${months.length}"></td>
+          <td class="bp-x">${more(`data-g="${esc(g.id)}"`, `Options for ${g.name}`)}</td></tr>
+        ${g.rows.map((r) => `<tr class="bp-row ${r.color ? 'tinted' : ''}" ${r.color ? `style="--tc:${r.color}"` : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}">
+          <th class="bp-brand">${ro ? '' : `<span class="bp-grip" data-drag="bprow" data-id="${esc(`${g.id}|${r.id}`)}" title="Drag to move" aria-hidden="true">⋮⋮</span>`}<input value="${esc(r.brand)}" placeholder="Brand" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="Brand" ${ro ? 'disabled' : ''}></th>
           <td class="bp-pic"><input value="${esc(r.pic)}" placeholder="PIC" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ro ? 'disabled' : ''}></td>
           ${months.map((k) => cell(g, r, k)).join('')}
-          <td class="bp-x">${ro ? '' : `<button class="icon-btn" data-act="bpDelRow" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="Delete ${esc(r.brand || 'brand')}">${icon('close', 13)}</button>`}</td></tr>`).join('')}
+          <td class="bp-x">${more(`data-g="${esc(g.id)}" data-r="${esc(r.id)}"`, `Options for ${r.brand || 'brand'}`)}</td></tr>`).join('')}
         ${ro ? '' : `<tr class="bp-add"><td colspan="${months.length + 3}"><button class="btn ghost sm" data-act="bpAddRow" data-g="${esc(g.id)}">${icon('plus', 13)} Brand</button></td></tr>`}`).join('')}
       </tbody></table></div>` : `<div class="empty"><h2>No brands yet</h2>${ro ? '' : '<div class="row" style="justify-content:center"><button class="btn primary" data-act="bpExample">Start with OMI and LHS</button></div>'}</div>`}
     ${ro ? '' : `<div class="row"><button class="btn ghost sm" data-act="bpAddGroup">${icon('plus', 13)} Group</button></div>`}
@@ -317,7 +326,7 @@ function applyStPlan(id, d) {
     else
     if (f === 'meta') { if (d.meta && typeof d.meta === 'object') { const m = normalizeStPlan({ id, ...d.meta, groups: [] }); Object.assign(b, { name: m.name, kind: m.kind, dept: m.dept, owner: m.owner, viewers: m.viewers, deleted: m.deleted }); } }
     else if (f === 'order') order = Array.isArray(d.order) ? d.order : null;
-    else if (f === 'cfg') b.cfg = d.cfg && typeof d.cfg === 'object' ? { start: Number(d.cfg.start) || 4, h1: Number(d.cfg.h1) || 6, h2: Number(d.cfg.h2) || 6 } : null;
+    else if (f === 'cfg') b.cfg = d.cfg && typeof d.cfg === 'object' ? bpNormCfg(d.cfg) : null;
     else {
       const id = f.slice(2);
       const i = b.groups.findIndex((g) => g.id === id);
