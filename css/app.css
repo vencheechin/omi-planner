@@ -1683,3 +1683,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
   .tb-grid.xl .tb-gutter span { font-size: calc(15px * var(--scale) * var(--type)); font-weight: 600; color: var(--ink); }
   .tb-grid.xl .tb-gutter span:not(.hour) { font-size: calc(12.5px * var(--scale) * var(--type)); font-weight: 400; color: var(--ink-2); }
 }
+
+/* Phones: header controls wrap rather than run off the edge */
+@media (max-width: 760px) { .tb-head, .tb-head .tb-nav { flex-wrap: wrap; row-gap: 6px; } .tb-head .tb-nav { max-width: 100%; } }
+@media (max-width: 760px) { .tb-page .tb-head .row.tb-nav { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; row-gap: 6px; } }

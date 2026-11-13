@@ -366,7 +366,9 @@ function systemTextScale() {
 function applySizes() {
   const text = clampNum(S.settings.textScale, 0.8, 1.5, SIZE_DEFAULTS.textScale);
   const bucket = clampNum(S.settings.bucketSize, 12, 32, SIZE_DEFAULTS.bucketSize);
-  document.documentElement.style.setProperty('--scale', Math.round(text * systemTextScale() * 1000) / 1000);
+  // On phones, 100% matches iPhone apps: body text at 17pt (the app's base is 14px), then the phone's own Text Size on top.
+  const phoneBase = matchMedia('(max-width: 760px)').matches ? 17 / 14 : 1;
+  document.documentElement.style.setProperty('--scale', Math.round(text * phoneBase * systemTextScale() * 1000) / 1000);
   document.documentElement.style.setProperty('--bucket-fs', `${bucket}px`);
   try { localStorage.setItem(lsKey('planner-sizes'), JSON.stringify({ text, bucket })); } catch { /* sizes still apply this session */ }
 }
