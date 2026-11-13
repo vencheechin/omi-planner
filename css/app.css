@@ -1748,3 +1748,5 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 :root[data-theme="dark"] .bp-cell, :root[data-theme="dark"] .bp-ctext { color: var(--ink); }
 :root[data-theme="dark"] .bp-cpic { opacity: 1; color: color-mix(in srgb, var(--ink) 80%, transparent); }
 :root[data-theme="dark"] .bp-group th, :root[data-theme="dark"] .bp-group td { background: color-mix(in srgb, var(--ochre, #b5894d) 22%, var(--surface)); }
+
+.set-tabs .set-admin { display: inline-flex; align-items: center; gap: 5px; color: var(--highlight); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--highlight) 55%, transparent); }

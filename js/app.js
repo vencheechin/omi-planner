@@ -400,7 +400,7 @@ function settingsTabsHTML() {
     return (SETTINGS_TABS.find(([, , names]) => names.some((n) => name.startsWith(n))) || SETTINGS_TABS[0])[0];
   };
   const parts = settingsHTML().split('<section class="set-sec">').filter((p) => p.trim());
-  return `<nav class="set-tabs" role="tablist">${SETTINGS_TABS.map(([k, label]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}" data-act="settingsTab" data-v="${k}">${label}</button>`).join('')}</nav>
+  return `<nav class="set-tabs" role="tablist">${SETTINGS_TABS.map(([k, label]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}" data-act="settingsTab" data-v="${k}">${label}</button>`).join('')}${stAdmin() ? `<button class="set-admin" data-act="openAdmin" title="Open the Admin Portal">${icon('shield', 14)} Admin Portal</button>` : ''}</nav>
     ${parts.map((p) => `<section class="set-sec" ${tabOf(p) === cur ? '' : 'hidden'}>${p}`).join('')}`;
 }
 function settingsHTML() {
