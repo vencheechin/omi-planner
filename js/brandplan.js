@@ -233,6 +233,7 @@ function renderBrandPlan() {
   const months = bpMonths(h);
   const groups = bp().groups;
   const mcol = bp().cfg?.mcol || {};
+  const thisMonth = todayISO().slice(0, 7);
   const more = (attrs, label) => (ro ? '' : `<button class="icon-btn" data-act="bpMenu" ${attrs} aria-label="${esc(label)}" title="More">${icon('more', 15)}</button>`);
   const cell = (g, r, k) => {
     const items = cellItems(r.cells[k]);
@@ -244,7 +245,7 @@ function renderBrandPlan() {
       ? `<div class="bp-one" ${drag(0)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}</div>`
       : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''}" ${drag(n)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
     const tint = r.color || mcol[k] || '';
-    return `<td class="bp-cell ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
+    return `<td class="bp-cell ${k === thisMonth ? 'bp-now' : ''} ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
   };
   const rowHTML = (g, r, parent) => {
     const sub = !!parent;
@@ -271,7 +272,7 @@ function renderBrandPlan() {
       ${ro ? '' : `<button class="icon-btn" data-act="bpPeriod" aria-label="Half year months" title="Half year months">${icon('gear', 17)}</button>`}
     </header>
     ${groups.length ? `<div class="bp-scroll"><table class="bp-table ${ro ? 'ro' : ''}" style="--bp-cols:${months.length}">
-      <thead><tr><th class="bp-brand">Brand</th><th class="bp-pic">PIC</th>${months.map((k) => `<th class="bp-month ${mcol[k] ? 'tinted' : ''}" ${mcol[k] ? `style="--tc:${mcol[k]}"` : ''}>${ro ? esc(bpMonthLabel(k)) : `<button class="bp-mbtn" data-act="bpMonthColour" data-m="${k}" title="Colour for ${esc(bpMonthLabel(k))}">${esc(bpMonthLabel(k))}</button>`}</th>`).join('')}<th class="bp-x"></th></tr></thead>
+      <thead><tr><th class="bp-brand">Brand</th><th class="bp-pic">PIC</th>${months.map((k) => `<th class="bp-month ${k === thisMonth ? 'bp-now' : ''} ${mcol[k] ? 'tinted' : ''}" ${mcol[k] ? `style="--tc:${mcol[k]}"` : ''} ${k === thisMonth ? 'aria-current="date"' : ''}>${ro ? esc(bpMonthLabel(k)) : `<button class="bp-mbtn" data-act="bpMonthColour" data-m="${k}" title="Colour for ${esc(bpMonthLabel(k))}">${esc(bpMonthLabel(k))}</button>`}${k === thisMonth ? '<span class="bp-now-tag">This month</span>' : ''}</th>`).join('')}<th class="bp-x"></th></tr></thead>
       <tbody>${groups.map((g) => `
         <tr class="bp-group ${g.color ? 'tinted' : ''}" ${g.color ? `style="--tc:${g.color}"` : ''} data-g="${esc(g.id)}"><th colspan="2" class="bp-brand"><input value="${esc(g.name)}" data-change="bpGroupName" data-g="${esc(g.id)}" aria-label="Group name" ${ro ? 'disabled' : ''}></th><td colspan="${months.length}"></td>
           <td class="bp-x">${more(`data-g="${esc(g.id)}"`, `Options for ${g.name}`)}</td></tr>

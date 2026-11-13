@@ -193,7 +193,9 @@ function taskMenuItems(t, anchor) {
       label: 'Delete', icon: 'trash', danger: true,
       run: () => {
         if (ui.openTask === t.id) ui.openTask = null;
-        undoable(`Deleted "${t.title || 'Untitled task'}"`, () => { if (isBox(t)) releaseBox(t); S.tasks = S.tasks.filter((x) => x.id !== t.id); });
+        binTask(t);
+        commit();
+        toast(`Deleted “${t.title || 'Untitled task'}”. It's in the recycle bin.`, { action: { label: 'Restore', run: () => { const e = binList().find((x) => x.kind === 'task' && x.data.id === t.id); if (e && !binRestore(e.id)) commit(); } } });
       },
     },
   ];
@@ -1246,8 +1248,7 @@ const actions = {
     const parent = bpParentOf(el.dataset.g, el.dataset.r);
     const n = r.items?.length || 0;
     if (!await confirmDlg(`Delete ${r.brand || (parent ? 'this item' : 'this brand')}?`, n ? `Its ${n} item${n === 1 ? '' : 's'} and all their months go too.` : Object.keys(r.cells).length ? 'Its months go too.' : 'It has nothing planned yet.', 'Delete')) return;
-    if (parent) parent.items = parent.items.filter((x) => x !== r);
-    else g.rows = g.rows.filter((x) => x !== r);
+    binStRow(g.id, r.id);
     commit();
   },
   bpCell: (el) => {
@@ -1822,6 +1823,8 @@ function dragMove(x, y) {
   const under = document.elementFromPoint(x, y);
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   s.target = null;
+  // Over the recycle bin (bottom of the left menu, or floating on a phone).
+  if (typeof binHover === 'function' && binHover(s, x, y)) return;
   if (s.type === 'bprow') {
     $$('.bp-drop-before, .bp-drop-after').forEach((n) => n.classList.remove('bp-drop-before', 'bp-drop-after'));
     const tr = under?.closest('.bp-table tbody tr');
@@ -1858,10 +1861,6 @@ function dragMove(x, y) {
   if (s.type === 'task' || s.type === 'block') {
     const hits = document.elementsFromPoint(x, y);
     $$('.merge-target').forEach((n) => n.classList.remove('merge-target'));
-    // Over the recycle bin.
-    const bin = hits.find((n) => n.classList?.contains('tb-bin'));
-    $$('.tb-bin.over').forEach((n) => n.classList.remove('over'));
-    if (bin) { bin.classList.add('over'); s.tbph?.remove(); s.ph?.remove(); s.target = { toBin: true }; return; }
     // Over another block: offer to squeeze this task into the same time box.
     const onto = hits.find((n) => n.classList?.contains('tb-block') && n.dataset.id !== s.id);
     if (onto && !isBox(taskById(s.id))) {
@@ -1991,6 +1990,8 @@ async function dragEnd(drop) {
   document.body.classList.remove('dragging');
   $$('.drop').forEach((n) => n.classList.remove('drop'));
   if (s.type === 'worktype') return;
+  $$('.side-bin.over').forEach((n) => n.classList.remove('over'));
+  if (drop && s.target?.toBin) { await binDrop(s); return; }
   if (s.type === 'bprow') {
     $$('.bp-drop-before, .bp-drop-after').forEach((n) => n.classList.remove('bp-drop-before', 'bp-drop-after'));
     const [g, r] = String(s.id).split('|');
@@ -2039,30 +2040,6 @@ async function dragEnd(drop) {
     return;
   }
   $$('.tb-side.drop-back').forEach((n) => n.classList.remove('drop-back'));
-  $$('.tb-bin.over').forEach((n) => n.classList.remove('over'));
-  if (drop && s.target?.toBin) {
-    const id = String(s.id);
-    const what = taskById(id.split('~')[0]);
-    if (!await confirmDlg(s.type === 'task' && what && !isScheduled(what) ? 'Take it off Time Box Allocation?' : 'Remove this time box?', `“${what?.title || 'Untitled task'}”. You can use Undo at the top if you change your mind.`, 'Remove')) { render(); return; }
-    const [tid, sid] = id.includes('~') ? id.split('~') : [id, null];
-    const t = taskById(tid);
-    if (!t) { render(); return; }
-    const before = { slotDate: t.slotDate, slotStart: t.slotStart, estimate: t.estimate, tbSessions: sessionsOf(t), tbQueued: t.tbQueued, tbRank: t.tbRank };
-    const restore = () => { Object.assign(t, before); commit(); };
-    if (s.type === 'task' && !isScheduled(t)) {
-      // A waiting task from the list: off the list (the task itself stays in its plan).
-      t.tbQueued = false; delete t.tbRank;
-      commit();
-      toast(`Took “${t.title || 'Untitled task'}” off Time Box Allocation.`, { undo: restore });
-      return;
-    }
-    if (isBox(t) && !sid) { render(); toast('Open the box to take its tasks out.'); return; }
-    removeBooking(t, sid);
-    commit();
-    const left = bookingsOf(t).length;
-    toast(left ? `Time box removed. ${left} other time box${left === 1 ? '' : 'es'} for “${t.title || 'Untitled task'}” stay${left === 1 ? 's' : ''}.` : 'Time box removed.', { undo: restore });
-    return;
-  }
   if (drop && s.type === 'block' && s.target?.toList) {
     const id = String(s.id);
     if (id.includes('~')) {

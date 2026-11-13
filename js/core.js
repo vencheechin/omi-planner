@@ -190,6 +190,7 @@ function normalizeState(raw) {
     sync: { ...freshSync(), ...(raw.sync && typeof raw.sync === 'object' ? raw.sync : {}) },
     personPlans: Array.isArray(raw.personPlans) ? raw.personPlans.filter((pp) => pp && pp.id && people.some((x) => x.id === pp.personId)) : [],
     inbox: Array.isArray(raw.inbox) ? raw.inbox.filter((n) => n && n.id) : [],
+    trash: Array.isArray(raw.trash) ? raw.trash.filter((e) => e && e.id && e.kind && e.data).slice(0, 300) : [],
   };
 }
 

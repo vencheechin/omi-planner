@@ -294,7 +294,9 @@ function renderSidebar() {
         const at = (k) => (order.includes(k) ? order.indexOf(k) : 100 + secs.findIndex(([x]) => x === k));
         return secs.sort((a, b) => at(a[0]) - at(b[0])).map(([k, html]) => `<div class="nav-sec" data-seckey="${k}">${html}</div>`).join('');
       })()}</div>
-    </nav>`;
+    </nav>
+    ${typeof binButtonHTML === 'function' ? `<div class="nav-foot">${binButtonHTML()}</div>` : ''}`;
+  if (typeof binRefresh === 'function') binRefresh();
   document.body.classList.toggle('nav-open', ui.navOpen);
   document.title = plannerName();
 }
