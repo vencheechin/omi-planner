@@ -14,6 +14,13 @@ const BP_STATUS = [
 ];
 // ---------- Many plans: one per department (run by its DIC) and one per person ----------
 const stPlans = () => (S.stPlans = Array.isArray(S.stPlans) ? S.stPlans : []);
+/** Which table is on screen: the S-Team Plan or the PD Plan (both are kept as S-Team plan records). */
+const stMod = () => (ui.route?.view === 'pdplan' ? 'pd' : 'st');
+const stModOf = (p) => (p?.module === 'pd' ? 'pd' : 'st');
+/** Your access to a PD Plan, as set by an admin: 'view', 'suggest', 'edit' or ''. */
+const stAccessOf = (p) => (p?.access || {})[pkey(S.meId)] || '';
+/** Suggest-only people can propose changes; someone who can edit accepts them. */
+const stCanSuggest = (p) => !!p && stModOf(p) === 'pd' && !p.deleted && !stCanEdit(p) && stAccessOf(p) === 'suggest';
 const org = () => (S.org = S.org && typeof S.org === 'object' ? S.org : { depts: [], admins: [] });
 const deptById = (id) => (org().depts || []).find((d) => d.id === id);
 const possessive = (n) => `${n}${/s$/i.test(n) ? "'" : "'s"}`;
@@ -28,6 +35,7 @@ function stAdmin() {
 }
 function stCanSee(p) {
   if (!p || p.deleted) return false;
+  if (stModOf(p) === 'pd') return stAdmin() || p.owner === S.meId || !!stAccessOf(p);
   if (stAdmin() || p.owner === S.meId || (p.viewers || []).includes(S.meId)) return true;
   const d = p.kind === 'dept' && deptById(p.dept);
   return !!d && (d.dic === S.meId || (d.members || []).includes(S.meId));
@@ -37,6 +45,7 @@ const stLocked = (p) => ['submitted', 'approved', 'change-requested'].includes(p
 function stCanEdit(p) {
   if (!p) return false;
   if (stAdmin()) return true;
+  if (stModOf(p) === 'pd') return p.owner === S.meId || stAccessOf(p) === 'edit';
   if (stLocked(p)) return false;
   if (p.owner === S.meId) return true;
   const d = p.kind === 'dept' && deptById(p.dept);
@@ -47,11 +56,12 @@ function stAudience(p) {
   const ids = new Set([p.owner, ...(p.viewers || [])]);
   const d = p.kind === 'dept' && deptById(p.dept);
   if (d) { if (d.dic) ids.add(d.dic); (d.members || []).forEach((m) => ids.add(m)); }
+  Object.keys(p.access || {}).forEach((k) => { const x = personByKey(k); if (x) ids.add(x.id); });
   return [...ids].filter(Boolean);
 }
-const stName = (p) => (p.kind === 'dept' ? (deptById(p.dept) ? `${deptById(p.dept).name} S-Team Plan` : (p.name || 'S-Team Plan')) : `${possessive(person(p.owner)?.name || 'Someone')} S-Team Plan`);
+const stName = (p) => (stModOf(p) === 'pd' ? (p.name || 'PD Plan') : p.kind === 'dept' ? (deptById(p.dept) ? `${deptById(p.dept).name} S-Team Plan` : (p.name || 'S-Team Plan')) : `${possessive(person(p.owner)?.name || 'Someone')} S-Team Plan`);
 function stVisible() {
-  return stPlans().filter(stCanSee).sort((a, b) => (a.kind === b.kind ? stName(a).localeCompare(stName(b)) : a.kind === 'dept' ? -1 : 1));
+  return stPlans().filter((p) => stModOf(p) === stMod() && stCanSee(p)).sort((a, b) => (a.kind === b.kind ? stName(a).localeCompare(stName(b)) : a.kind === 'dept' ? -1 : 1));
 }
 function stCurrent() {
   const v = stVisible();
@@ -65,8 +75,18 @@ function normalizeStPlan(p) {
     id: String(p.id), kind: p.kind === 'personal' ? 'personal' : 'dept', dept: p.dept || null, owner: p.owner || null, name: String(p.name || ''),
     viewers: Array.isArray(p.viewers) ? p.viewers.filter((x) => typeof x === 'string') : [], deleted: !!p.deleted,
     approval: p.approval && typeof p.approval === 'object' ? p.approval : null,
+    ...(p.module === 'pd' ? { module: 'pd' } : {}),
+    ...(p.access && typeof p.access === 'object' ? { access: Object.fromEntries(Object.entries(p.access).filter(([k, v]) => typeof k === 'string' && ['view', 'suggest', 'edit'].includes(v))) } : {}),
+    ...(Array.isArray(p.sugg) ? { sugg: normalizeSugg(p.sugg) } : {}),
     ...normalizeBrandPlan(p),
   };
+}
+/** Suggested edits waiting on a PD Plan. */
+function normalizeSugg(list) {
+  return (Array.isArray(list) ? list : []).filter((s) => s && s.id && s.r && (s.kind === 'cell' ? /^\d{4}-\d{2}$/.test(s.m || '') : ['brand', 'pic'].includes(s.field)))
+    .map((s) => ({ id: String(s.id), kind: s.kind === 'cell' ? 'cell' : 'field', by: String(s.by || ''), byName: String(s.byName || ''), at: Number(s.at) || 0, g: String(s.g || ''), r: String(s.r),
+      ...(s.kind === 'cell' ? { m: s.m, value: cellItems({ items: Array.isArray(s.value) ? s.value : [] }), old: cellItems({ items: Array.isArray(s.old) ? s.old : [] }) } : { field: s.field, value: String(s.value || ''), old: String(s.old || '') }) }))
+    .slice(-500);
 }
 function normalizeOrg(o) {
   if (!o || typeof o !== 'object') return { depts: [], admins: [] };
@@ -221,6 +241,13 @@ const bpMonthLabel = (k) => new Date(Number(k.slice(0, 4)), Number(k.slice(5)) -
 
 function renderBrandPlan() {
   const p = stCurrent();
+  const pd = stMod() === 'pd';
+  if (!p && pd) {
+    return `<div class="page bp-page"><header class="bp-head"><h1>PD Plan</h1></header>
+      <div class="empty"><h2>No PD Plan yet</h2>${stAdmin()
+        ? `<p class="muted">Start from a copy of your S-Team Plan, then choose who can view, suggest or edit.</p><div class="row" style="justify-content:center"><button class="btn primary" data-act="pdNew">${icon('plus', 14)} Create PD Plan</button></div>`
+        : '<p class="muted">An admin hasn\'t shared a PD Plan with you yet.</p>'}</div></div>`;
+  }
   if (!p) {
     const mine = stPlans().some((x) => x.kind === 'personal' && x.owner === S.meId && !x.deleted);
     return `<div class="page bp-page"><header class="bp-head"><h1>S-Team Plan</h1></header>
@@ -229,6 +256,13 @@ function renderBrandPlan() {
         ${stAdmin() ? `<button class="btn ghost" data-act="stNewDept">${icon('plus', 14)} Department S-Team Plan</button>` : ''}</div></div></div>`;
   }
   const ro = !stCanEdit(p);
+  // Suggest-only people can type into the plan; their changes become suggestions.
+  const sug = stCanSuggest(p);
+  const ed = !ro || sug;
+  const suggs = pd ? (p.sugg || []) : [];
+  const mySuggs = suggs.filter((s) => s.by === pkey(S.meId));
+  const shownSuggs = ro ? mySuggs : suggs;
+  const suggAt = (rid, m, field) => shownSuggs.some((s) => s.r === rid && (m ? s.m === m : s.field === field));
   const h = bpHalf();
   const months = bpMonths(h);
   const groups = bp().groups;
@@ -245,14 +279,15 @@ function renderBrandPlan() {
       ? `<div class="bp-one" ${drag(0)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}</div>`
       : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''}" ${drag(n)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
     const tint = r.color || mcol[k] || '';
-    return `<td class="bp-cell ${k === thisMonth ? 'bp-now' : ''} ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
+    const hasSugg = suggAt(r.id, k);
+    return `<td class="bp-cell ${hasSugg ? 'bp-sugg' : ''} ${k === thisMonth ? 'bp-now' : ''} ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ed ? 'data-act="bpCell"' : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}${hasSugg ? ' (edit suggested)' : ''}`)}">${body}${hasSugg ? `<span class="bp-sugg-tag" title="Edit suggested">${icon('pencil', 10)}</span>` : ''}</td>`;
   };
   const rowHTML = (g, r, parent) => {
     const sub = !!parent;
     const view = sub ? { ...r, _parent: parent } : r;
     return `<tr class="bp-row ${sub ? 'bp-itemrow' : ''} ${r.items?.length ? 'has-items' : ''} ${r.color ? 'tinted' : ''}" ${r.color ? `style="--tc:${r.color}"` : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}">
-          <th class="bp-brand">${ro ? '' : `<span class="bp-grip" data-drag="bprow" data-id="${esc(`${g.id}|${r.id}`)}" title="Drag to move" aria-hidden="true">⋮⋮</span>`}<input value="${esc(r.brand)}" placeholder="${sub ? 'Item' : 'Brand'}" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="${sub ? `Item under ${esc(parent.brand || 'brand')}` : 'Brand'}" ${ro ? 'disabled' : ''}>${ro || sub ? '' : `<button class="bp-additem" data-act="bpAddItem" data-g="${esc(g.id)}" data-r="${esc(r.id)}" title="Add an item under ${esc(r.brand || 'this brand')}" aria-label="Add item">${icon('plus', 12)}</button>`}</th>
-          <td class="bp-pic"><input value="${esc(r.pic)}" placeholder="PIC" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ro ? 'disabled' : ''}></td>
+          <th class="bp-brand">${ro ? '' : `<span class="bp-grip" data-drag="bprow" data-id="${esc(`${g.id}|${r.id}`)}" title="Drag to move" aria-hidden="true">⋮⋮</span>`}<input value="${esc(r.brand)}" placeholder="${sub ? 'Item' : 'Brand'}" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="${sub ? `Item under ${esc(parent.brand || 'brand')}` : 'Brand'}" ${ed ? '' : 'disabled'} ${suggAt(r.id, null, 'brand') ? 'class="bp-sugg-in" title="Edit suggested"' : ''}>${ro || sub ? '' : `<button class="bp-additem" data-act="bpAddItem" data-g="${esc(g.id)}" data-r="${esc(r.id)}" title="Add an item under ${esc(r.brand || 'this brand')}" aria-label="Add item">${icon('plus', 12)}</button>`}</th>
+          <td class="bp-pic"><input value="${esc(r.pic)}" placeholder="PIC" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ed ? '' : 'disabled'} ${suggAt(r.id, null, 'pic') ? 'class="bp-sugg-in" title="Edit suggested"' : ''}></td>
           ${months.map((k) => cell(g, view, k)).join('')}
           <td class="bp-x">${more(`data-g="${esc(g.id)}" data-r="${esc(r.id)}"`, `Options for ${r.brand || (sub ? 'item' : 'brand')}`)}</td></tr>
         ${(r.items || []).map((it) => rowHTML(g, it, r)).join('')}`;
@@ -260,10 +295,13 @@ function renderBrandPlan() {
   return `<div class="page bp-page">
     <header class="bp-head">
       <div><h1>${esc(stName(p))} <span class="bp-sub">${esc(bpPeriodLabel(h, months))}</span></h1>
-        ${ro ? `<p class="small muted">${icon('lock', 11)} ${stLocked(p) && !stAdmin() ? 'Locked' : 'View only'}</p>` : ''}${approvalBarHTML(p)}</div>
+        ${sug ? `<p class="small pd-mode">${icon('pencil', 11)} Suggest mode: your changes go to the plan's editors to accept.</p>` : ro ? `<p class="small muted">${icon('lock', 11)} ${!pd && stLocked(p) && !stAdmin() ? 'Locked' : 'View only'}</p>` : ''}${pd ? '' : approvalBarHTML(p)}
+        ${shownSuggs.length ? `<button class="btn sm pd-sugg-btn" data-act="pdSuggestions">${icon('pencil', 13)} ${ro ? 'My suggestions' : 'Suggested edits'} <em>${shownSuggs.length}</em></button>` : ''}</div>
       <div class="spacer"></div>
-      <select class="st-switch" data-change="stSwitch" aria-label="Which S-Team Plan">${stVisible().map((x) => `<option value="${esc(x.id)}" ${x.id === p.id ? 'selected' : ''}>${esc(stName(x))}</option>`).join('')}</select>
-      <button class="icon-btn" data-act="stNew" aria-label="New S-Team Plan" title="New S-Team Plan">${icon('plus', 17)}</button>
+      ${stVisible().length > 1 ? `<select class="st-switch" data-change="stSwitch" aria-label="Which plan">${stVisible().map((x) => `<option value="${esc(x.id)}" ${x.id === p.id ? 'selected' : ''}>${esc(stName(x))}</option>`).join('')}</select>` : ''}
+      ${pd ? (stAdmin() ? `<button class="btn ghost sm" data-act="pdAccess" title="Choose who can view, suggest or edit">${icon('user', 14)} Access</button><button class="icon-btn" data-act="pdRename" aria-label="Rename" title="Rename">${icon('pencil', 16)}</button><button class="icon-btn" data-act="pdNew" aria-label="New PD Plan" title="New PD Plan">${icon('plus', 17)}</button>` : '')
+        : `<button class="icon-btn" data-act="stNew" aria-label="New S-Team Plan" title="New S-Team Plan">${icon('plus', 17)}</button>`}
+      <button class="btn ghost sm" data-act="bpExcel" title="Download the months on screen as an Excel file">${icon('download', 14)} Excel</button>
       <div class="seg">${[['half', 'Half Year'], ['year', 'Full Year'], ['custom', 'Custom']].map(([v, l]) => `<button class="${h.mode === v ? 'on' : ''}" data-act="bpMode" data-v="${v}">${l}</button>`).join('')}</div>
       ${h.mode === 'half' ? `<div class="seg">${[1, 2].map((n) => `<button class="${h.half === n ? 'on' : ''}" data-act="bpHalf" data-v="${n}">H${n}</button>`).join('')}</div>` : ''}
       ${h.mode === 'custom'
@@ -299,7 +337,7 @@ function bpCellPicker(g, r, k) {
   return `<form class="picker bp-pick" data-autosave data-submit="bpCellSave" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}">
     <h4>${bpParentOf(g.id, r.id) ? `${esc(bpParentOf(g.id, r.id).brand || 'Brand')} · ` : ''}${esc(r.brand || 'Brand')} · ${esc(bpMonthLabel(k))}</h4>
     <div class="bp-items">${(items.length ? items : [{ text: '', pic: '', status: '' }]).map(bpItemRow).join('')}</div>
-    <div class="row"><button class="btn ghost sm" type="button" data-role="add">${icon('plus', 13)} Task</button><button class="btn ghost sm" type="button" data-act="bpCellClear">Clear</button><span class="spacer"></span><button class="btn primary sm">Save</button></div></form>`;
+    <div class="row"><button class="btn ghost sm" type="button" data-role="add">${icon('plus', 13)} Task</button><button class="btn ghost sm" type="button" data-act="bpCellClear">Clear</button><span class="spacer"></span><button class="btn primary sm">${stCanEdit(stCurrent()) ? 'Save' : 'Suggest'}</button></div></form>`;
 }
 /** Reads the editor's task rows. */
 const bpReadItems = (form) => $$('.bp-item', form).map((row) => ({
@@ -308,13 +346,13 @@ const bpReadItems = (form) => $$('.bp-item', form).map((row) => ({
   progress: Number(row.querySelector('[name=progress]').value) || 0,
 })).filter((i) => i.text || i.pic || i.status || i.progress);
 // ---------- Sharing: each plan is its own record (one field per group, plus order, period and who) ----------
-const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted });
-const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])) });
+const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted, ...(p.module === 'pd' ? { module: 'pd', access: p.access || {} } : {}) });
+const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function stFields(p) {
   const f = new Set(p.groups.map((g) => `g:${g.id}`));
   [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:')) f.add(k); });
-  return ['meta', 'approval', 'order', 'cfg', ...f];
+  return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
 const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {} });
@@ -346,10 +384,11 @@ function applyStPlan(id, d) {
   let changed = false;
   let order = null;
   for (const [f, rv] of Object.entries(v)) {
-    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if (f === 'sugg') { b.sugg = normalizeSugg(d.sugg); b._v[f] = rv; changed = true; continue; }
     if (f === 'approval') { const before = b.approval?.status; b.approval = d.approval && typeof d.approval === 'object' ? d.approval : null; stApprovalNotice(b, before); }
     else
-    if (f === 'meta') { if (d.meta && typeof d.meta === 'object') { const m = normalizeStPlan({ id, ...d.meta, groups: [] }); Object.assign(b, { name: m.name, kind: m.kind, dept: m.dept, owner: m.owner, viewers: m.viewers, deleted: m.deleted }); } }
+    if (f === 'meta') { if (d.meta && typeof d.meta === 'object') { const m = normalizeStPlan({ id, ...d.meta, groups: [] }); Object.assign(b, { name: m.name, kind: m.kind, dept: m.dept, owner: m.owner, viewers: m.viewers, deleted: m.deleted }); if (m.module === 'pd') { b.module = 'pd'; b.access = m.access || {}; } } }
     else if (f === 'order') order = Array.isArray(d.order) ? d.order : null;
     else if (f === 'cfg') b.cfg = d.cfg && typeof d.cfg === 'object' ? bpNormCfg(d.cfg) : null;
     else {

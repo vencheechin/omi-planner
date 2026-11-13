@@ -1252,7 +1252,7 @@ const actions = {
     commit();
   },
   bpCell: (el) => {
-    if (!stCanEdit(stCurrent())) return;
+    if (!stCanEdit(stCurrent()) && !stCanSuggest(stCurrent())) return;
     // Saving the previous cell redraws the table; open beside the new copy of the cell you clicked.
     if (!el.isConnected) el = $(`.bp-cell[data-r="${CSS.escape(el.dataset.r)}"][data-m="${el.dataset.m}"]`) || el;
     const g = bpGroup(el.dataset.g);
@@ -1274,7 +1274,15 @@ const actions = {
     $('[data-role="add"]', form).onclick = () => { list.insertAdjacentHTML('beforeend', bpItemRow({ text: '', pic: '', status: '' }, n++)); list.lastElementChild.querySelector('[name=text]').focus(); };
     $('[name=text]', list)?.focus();
   },
-  bpCellClear: (el) => { const f = el.closest('form'); delete bpRowOf(f.dataset.g, f.dataset.r).cells[f.dataset.m]; closePop(); commit(); },
+  bpCellClear: (el) => {
+    const f = el.closest('form');
+    const r = bpRowOf(f.dataset.g, f.dataset.r);
+    const p = stCurrent();
+    closePop();
+    if (!stCanEdit(p)) { if (stCanSuggest(p) && pdSuggest(p, { kind: 'cell', g: f.dataset.g, r: f.dataset.r, m: f.dataset.m, value: [], old: cellItems(r.cells[f.dataset.m]) })) { commit(); toast('Suggestion sent.'); } return; }
+    delete r.cells[f.dataset.m];
+    commit();
+  },
   stSubmit: (el) => {
     const p = stPlans().find((x) => x.id === el.dataset.id);
     const set = (to) => { p.approval = { status: 'submitted', by: S.meId, to, at: Date.now() }; commit(); toast(`Sent to ${person(to)?.name || 'them'} for approval.`); };
@@ -1387,6 +1395,15 @@ const submits = {
   bpCellSave: (form) => {
     const r = bpRowOf(form.dataset.g, form.dataset.r);
     const items = bpReadItems(form);
+    const p = stCurrent();
+    if (!stCanEdit(p)) {
+      if (!stCanSuggest(p)) { closePop(); return; }
+      const added = pdSuggest(p, { kind: 'cell', g: form.dataset.g, r: form.dataset.r, m: form.dataset.m, value: items, old: cellItems(r.cells[form.dataset.m]) });
+      closePop();
+      commit();
+      if (added) toast('Suggestion sent. Someone who can edit will accept or reject it.');
+      return;
+    }
     if (items.length) r.cells[form.dataset.m] = { items }; else delete r.cells[form.dataset.m];
     closePop();
     commit();
@@ -1669,7 +1686,17 @@ const changes = {
   stDeptAddMember: (el) => { if (!el.value) return; const d = deptById(el.dataset.d); d.members = [...new Set([...(d.members || []), el.value])]; org().depts = [...org().depts]; stTouchAll(); commit(); refreshSettings(); },
   stViewerAdd: (el) => { if (!el.value) return; const p = stPlans().find((x) => x.id === el.dataset.plan); p.viewers = [...new Set([...(p.viewers || []), el.value])]; commit(); refreshSettings(); },
   bpGroupName: (el) => { bpGroup(el.dataset.g).name = el.value.trim() || 'Group'; commit(); },
-  bpRow: (el) => { bpRowOf(el.dataset.g, el.dataset.r)[el.dataset.k] = el.value.trim(); commit(); },
+  bpRow: (el) => {
+    const r = bpRowOf(el.dataset.g, el.dataset.r);
+    const p = stCurrent();
+    if (!stCanEdit(p)) {
+      // Suggest-only: the plan stays as it is until someone accepts.
+      if (stCanSuggest(p) && pdSuggest(p, { kind: 'field', g: el.dataset.g, r: el.dataset.r, field: el.dataset.k, value: el.value.trim(), old: r[el.dataset.k] || '' })) { commit(); toast('Suggestion sent. Someone who can edit will accept or reject it.'); } else render();
+      return;
+    }
+    r[el.dataset.k] = el.value.trim();
+    commit();
+  },
   ckGroup: (el) => { S.settings.ckGroup = el.value; commit(); },
   healthSel: (el) => setHealth(taskById(el.dataset.id), el.value, true),
   tbField: async (el) => {
@@ -2387,7 +2414,7 @@ function route() {
   Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
     : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
-    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : a === 'growth' ? { view: 'growth' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : a === 'growth' ? { view: 'growth' } : ['report', 'timebox', 'halfplan', 'pdplan'].includes(a) ? { view: a } : { view: 'hub' };
   // My Planner with just one plan opens that plan; with more, you pick one.
   if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
     history.replaceState(null, '', `#/plan/${S.plans[0].id}`);

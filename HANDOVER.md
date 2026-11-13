@@ -62,6 +62,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/fitness.js` | Fitness: weekly targets, movement breaks. |
 | `js/growth.js` | Growth: books, reading time, recommendations, book-cover scanning. |
 | `js/alarm.js` | Time's-up alerts and ringtones (generated with the Web Audio API, no audio files). |
+| `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/bin.js` | Recycle bin: drop or delete tasks, time boxes and S-Team rows; restore them one at a time. |
 | `js/history.js` | Undo/Redo and "confirm before deleting". |
 | `js/resize.js` | Resizable columns, reorderable left menu, phone swipe between Calendar and Allocation. |

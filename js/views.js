@@ -270,7 +270,8 @@ function renderSidebar() {
     <nav aria-label="Main">
       <div class="nav-main">${(() => {
         // The main links, in the order you dragged them into (new ones go at the end).
-        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ['hub', link('hub', 'Planner', 'home', dueSoonCount())],
+        const pdOn = stAdmin() || stPlans().some((x) => x.module === 'pd' && stCanSee(x));
+        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Plan', 'flag')]] : []), ['hub', link('hub', 'Planner', 'home', dueSoonCount())],
           ['timebox', link('timebox', 'Time Box', 'clock', timeboxQueue().length)], ['report', link('report', 'Assignments', 'chart', toCheck)],
           ['fitness', link('fitness', 'Fitness', 'pulse')], ['growth', link('growth', 'Growth', 'book', typeof recsForMe === 'function' ? recsForMe().length : 0)],
           ...(stAdmin() ? [['admin', link('admin', 'Admin Portal', 'shield')]] : [])];
@@ -758,6 +759,6 @@ function renderMain() {
   if (r.view === 'fitness') return renderFitness();
   if (r.view === 'growth') return renderGrowth();
   if (r.view === 'timebox') return renderPlanner();
-  if (r.view === 'halfplan') return renderBrandPlan();
+  if (r.view === 'halfplan' || r.view === 'pdplan') return renderBrandPlan();
   return renderHub();
 }

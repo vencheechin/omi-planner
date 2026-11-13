@@ -7,7 +7,7 @@
 const USAGE_NAMES = {
   // Pages
   'page:my-day': 'My Day page', 'page:timebox': 'Time Box page', 'page:my-tasks': 'My Tasks page', 'page:hub': 'Planner page',
-  'page:plan': 'A plan', 'page:person': 'A person plan', 'page:report': 'Assignment report', 'page:halfplan': 'S-Team Plan',
+  'page:plan': 'A plan', 'page:person': 'A person plan', 'page:report': 'Assignment report', 'page:halfplan': 'S-Team Plan', 'page:pdplan': 'PD Plan',
   // Common buttons
   newPlan: 'New plan', openSettings: 'Settings', openInbox: 'Notifications', openNav: 'Menu (phone)', taskMenu: 'Task ••• menu',
   toggleMyDay: 'My Day (task)', toggleDone: 'Tick task', pickAssignees: 'Delegate', decisionSend: 'Decision Request', decisionApprove: 'Approve decision', decisionReject: 'Reject decision', pickLabels: 'Add label', healthMenu: 'Traffic light',
