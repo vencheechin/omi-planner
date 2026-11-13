@@ -1427,3 +1427,6 @@ body.dragging .bp-row.drag-src { opacity: .4; }
 
 .tb-sub-row { display: flex; align-items: center; gap: 6px; }
 .tb-sub-row .btn { margin-left: auto; }
+
+.tb-q.allocated { opacity: .92; }
+.tb-q.allocated .tb-rank { background: color-mix(in srgb, var(--highlight) 55%, var(--surface)); }

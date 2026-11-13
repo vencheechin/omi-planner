@@ -235,6 +235,7 @@ function resetStaleQueue() {
   if (now < cut) cut.setDate(cut.getDate() - 1);
   let changed = false;
   for (const t of S.tasks) {
+    if (t.tbQueued && isScheduled(t) && t.slotDate < todayISO()) { t.tbQueued = false; delete t.tbQueuedAt; delete t.tbRank; changed = true; continue; }
     if (!t.tbQueued || isScheduled(t)) { if (t.tbQueuedAt && !t.tbQueued) { delete t.tbQueuedAt; changed = true; } continue; }
     if (!t.tbQueuedAt) { t.tbQueuedAt = Date.now(); changed = true; continue; }
     if (t.tbQueuedAt < cut.getTime()) { t.tbQueued = false; delete t.tbQueuedAt; delete t.tbRank; changed = true; }
@@ -989,10 +990,22 @@ function monthGridHTML(anchor) {
     ${weeks.map((w) => `<div class="tb-mweek">${Array.from({ length: 7 }, (_, i) => cell(addDays(w, i))).join('')}</div>`).join('')}</div>`;
 }
 /** The list on the right: tasks added with "Add to Time Box" that don't have a time yet. */
-function timeboxQueue() {
-  return S.tasks.filter((t) => t.tbQueued && !isScheduled(t) && !isDone(t) && !(t.boxId && taskById(t.boxId)))
+/** Everything you put in Time Box Allocation, in your order: still waiting, or given a time that hasn't passed. */
+function allocationOrder() {
+  const today = todayISO();
+  const now = nowMin();
+  const live = (t) => !isScheduled(t) || t.slotDate > today || (t.slotDate === today && endOf(t) > now);
+  return S.tasks.filter((t) => t.tbQueued && !isDone(t) && !(t.boxId && taskById(t.boxId)) && live(t))
     .sort((a, b) => (a.tbRank ?? 1e9) - (b.tbRank ?? 1e9) || a.priority - b.priority || String(a.due || '9').localeCompare(String(b.due || '9')));
 }
+/** Its number in your order (1 is most important); it keeps it when it's given a time. */
+const allocationNumber = (t) => allocationOrder().indexOf(t) + 1;
+/** Still waiting for a time. */
+function timeboxQueue() { return allocationOrder().filter((t) => !isScheduled(t)); }
+/** Given a time, soonest first. */
+function timeboxAllocated() { return allocationOrder().filter(isScheduled).sort((a, b) => a.slotDate.localeCompare(b.slotDate) || a.slotStart - b.slotStart); }
+/** Saves a new order for the whole list (waiting and allocated), so numbers stay put. */
+function setAllocationOrder(list) { list.forEach((x, i) => { x.tbRank = i; }); }
 /** Booked but not ticked off, and its time has passed: you can book it again. */
 function unfinishedBooked() {
   const today = todayISO();
@@ -1020,9 +1033,9 @@ function otherOpenTasks() {
 }
 /** The time choices in the Time Box Allocation list. */
 const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
-function queueItemHTML(t, anchor, picked, rank, again) {
-  return `<div class="tb-q ${picked ? 'picked' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
-    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
+function queueItemHTML(t, anchor, picked, rank, again, allocated) {
+  return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank && !allocated ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
+    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again || allocated ? `<small class="tb-was" title="${allocated ? 'Time Box' : 'Booked before'}">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} mins</option>`).join('')}</select>
       ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
@@ -1048,6 +1061,7 @@ function renderPlanner() {
   const picked = (ui.tbPicked || []).filter((id) => queue.some((t) => t.id === id));
   const others = ui.tbShowOthers ? otherOpenTasks() : [];
   const again = unfinishedBooked();
+  const allocated = timeboxAllocated();
   return `<div class="tb-page">
     <header class="tb-head">
       <div class="tb-title"><h1>Time Box</h1><p class="muted">${esc(title)}</p></div>
@@ -1072,7 +1086,8 @@ function renderPlanner() {
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
           ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important.</p>` : ''}
-          ${queue.map((t, i) => queueItemHTML(t, anchor, picked.includes(t.id), i + 1)).join('') || '<p class="muted small">Nothing waiting.</p>'}
+          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
+          ${allocated.length ? `<h4 class="tb-sub">Time Box Allocated <span class="count">${allocated.length}</span></h4>${allocated.map((t) => queueItemHTML(t, anchor, false, allocationNumber(t), false, true)).join('')}` : ''}
           ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}

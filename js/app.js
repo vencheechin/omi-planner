@@ -856,7 +856,7 @@ const actions = {
     if (had) t.tbSessions = [...sessionsOf(t), had];
     t.slotDate = null; t.slotStart = null;
     t.tbQueued = true; t.tbQueuedAt = Date.now(); t.tbRank = -1;
-    timeboxQueue().forEach((x, i) => { x.tbRank = i; });
+    setAllocationOrder(allocationOrder());
     commit();
     toast('Added to Time Box Allocation. Drag it into the planner; the earlier time box stays.', { undo: () => { if (had) t.tbSessions = sessionsOf(t).filter((s) => s !== had); if (had) { t.slotDate = had.date; t.slotStart = had.start; } t.tbQueued = false; commit(); } });
   },
@@ -886,7 +886,7 @@ const actions = {
     }
     t.tbQueued = true;
     t.tbRank = -1; // top of the list
-    timeboxQueue().forEach((x, i) => { x.tbRank = i; });
+    setAllocationOrder(allocationOrder());
     commit();
     toast('Planning added to the top of your list. Drag it into the planner.');
   },
@@ -1996,10 +1996,14 @@ function dragEnd(drop) {
   }
   if (drop && s.target && 'rankBefore' in s.target) {
     const moved = taskById(s.id);
-    const list = timeboxQueue().filter((x) => x !== moved);
-    const i = s.target.rankBefore ? list.findIndex((x) => x.id === s.target.rankBefore) : list.length;
-    list.splice(i < 0 ? list.length : i, 0, moved);
-    list.forEach((x, n) => { x.tbRank = n; });
+    // Reorder only the waiting tasks, in the places they hold: allocated tasks keep their numbers.
+    const full = allocationOrder();
+    const slots = full.map((x, n) => (isScheduled(x) ? -1 : n)).filter((n) => n >= 0);
+    const waiting = full.filter((x) => !isScheduled(x) && x !== moved);
+    const i = s.target.rankBefore ? waiting.findIndex((x) => x.id === s.target.rankBefore) : -1;
+    waiting.splice(i < 0 ? waiting.length : i, 0, moved);
+    slots.forEach((n, k) => { full[n] = waiting[k]; });
+    setAllocationOrder(full);
     commit();
     return;
   }
