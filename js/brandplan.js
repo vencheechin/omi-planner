@@ -21,7 +21,9 @@ const possessive = (n) => `${n}${/s$/i.test(n) ? "'" : "'s"}`;
     in a shared folder the people listed as admins (until someone is, everyone is); on your own, you. */
 function stAdmin() {
   if (typeof Cloud !== 'undefined' && Cloud.team) return isAdmin();
-  if (typeof Team !== 'undefined' && Team.dir) { const a = org().admins || []; return !a.length || a.includes(S.meId); }
+  // Team folder: the people on the Admins list. With nobody listed yet, the person at the top of the
+  // reporting lines (or everyone, before any lines are set).
+  if (typeof Team !== 'undefined' && Team.dir) { const a = org().admins || []; return a.length ? a.includes(S.meId) : hierarchyOn() ? !managerOf(S.meId) : true; }
   return true;
 }
 function stCanSee(p) {

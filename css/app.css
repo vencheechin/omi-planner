@@ -1750,3 +1750,11 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 :root[data-theme="dark"] .bp-group th, :root[data-theme="dark"] .bp-group td { background: color-mix(in srgb, var(--ochre, #b5894d) 22%, var(--surface)); }
 
 .set-tabs .set-admin { display: inline-flex; align-items: center; gap: 5px; color: var(--highlight); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--highlight) 55%, transparent); }
+
+/* Left menu reordering: the item lifts off and follows; its gap shows where it lands */
+.nav-ghost { position: fixed; z-index: 1000; margin: 0; pointer-events: none; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+  background: var(--surface-2, var(--surface)); color: var(--ink); box-shadow: 0 12px 28px rgba(0, 0, 0, .35), 0 0 0 1.5px var(--highlight); transform: scale(1.04); cursor: grabbing; }
+.nav-ghost.settling { transform: scale(1); box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+.nav-main .nav-item.nav-placeholder { background: color-mix(in srgb, var(--highlight) 12%, transparent); outline: 1.5px dashed color-mix(in srgb, var(--highlight) 60%, transparent); outline-offset: -2px; }
+.nav-main .nav-item.nav-placeholder > * { visibility: hidden; }
+.nav-main .nav-item { transition: background-color .15s ease; }

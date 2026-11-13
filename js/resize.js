@@ -58,48 +58,71 @@ renderSidebar = function renderSidebarWithHandle() {
 (function waitForSettings() { if (typeof S !== 'undefined' && S?.settings) { applyColWidths(); return; } setTimeout(waitForSettings, 200); }());
 
 // ---------- Left menu: drag the main links into your own order ----------
+// The whole item lifts off and follows the pointer; a gap shows where it will land.
 let navDrag = null;
 document.addEventListener('pointerdown', (e) => {
   const it = e.target.closest?.('.nav-main [data-navkey]');
   if (!it || e.button !== 0) return;
-  navDrag = { it, y: e.clientY, active: false, touch: e.pointerType !== 'mouse' };
-  if (navDrag.touch) navDrag.hold = setTimeout(() => { if (navDrag) startNavDrag(); }, 300);
+  navDrag = { it, x: e.clientX, y: e.clientY, active: false, touch: e.pointerType !== 'mouse' };
+  if (navDrag.touch) navDrag.hold = setTimeout(() => { if (navDrag) startNavDrag(navDrag.y); }, 280);
 });
-function startNavDrag() {
-  navDrag.active = true;
-  navDrag.it.classList.add('nav-dragging');
+function startNavDrag(y) {
+  const d = navDrag;
+  d.active = true;
+  const r = d.it.getBoundingClientRect();
+  d.offY = y - r.top;
+  const ghost = d.it.cloneNode(true);
+  ghost.classList.add('nav-ghost');
+  ghost.removeAttribute('href');
+  Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.append(ghost);
+  d.ghost = ghost;
+  d.it.classList.add('nav-placeholder');
   document.body.classList.add('col-resizing');
   navigator.vibrate?.(10);
 }
+// While dragging on a phone, the menu shouldn't scroll under your finger.
+document.addEventListener('touchmove', (e) => { if (navDrag?.active) e.preventDefault(); }, { passive: false });
 document.addEventListener('pointermove', (e) => {
-  if (!navDrag) return;
-  if (!navDrag.active) {
-    if (Math.abs(e.clientY - navDrag.y) < 6) return;
-    if (navDrag.touch) { clearTimeout(navDrag.hold); navDrag = null; return; } // a scroll, not a drag
-    startNavDrag();
+  const d = navDrag;
+  if (!d) return;
+  if (!d.active) {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+    if (d.touch) { clearTimeout(d.hold); navDrag = null; return; } // moved before the hold: it's a scroll
+    startNavDrag(d.y);
   }
   e.preventDefault();
-  const box = navDrag.it.parentElement;
-  const others = [...box.querySelectorAll('[data-navkey]')].filter((x) => x !== navDrag.it);
+  d.ghost.style.top = `${e.clientY - d.offY}px`;
+  const box = d.it.parentElement;
+  const others = [...box.querySelectorAll('[data-navkey]')].filter((x) => x !== d.it);
   const before = others.find((x) => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
-  box.insertBefore(navDrag.it, before || null);
+  if ((before || null) !== d.it.nextElementSibling) box.insertBefore(d.it, before || null);
 }, { passive: false });
-document.addEventListener('pointerup', () => {
-  if (!navDrag) return;
-  clearTimeout(navDrag.hold);
-  const was = navDrag;
+function endNavDrag(drop) {
+  const d = navDrag;
+  if (!d) return;
+  clearTimeout(d.hold);
   navDrag = null;
-  if (!was.active) return;
-  was.it.classList.remove('nav-dragging');
-  document.body.classList.remove('col-resizing');
-  S.settings.navOrder = [...was.it.parentElement.querySelectorAll('[data-navkey]')].map((x) => x.dataset.navkey);
-  Store.save();
+  if (!d.active) return;
+  // Settle the lifted item into its gap, then save the new order.
+  const to = d.it.getBoundingClientRect();
+  d.ghost.style.transition = 'top .18s ease, box-shadow .18s ease, transform .18s ease';
+  d.ghost.style.top = `${to.top}px`;
+  d.ghost.classList.add('settling');
+  setTimeout(() => {
+    d.ghost.remove();
+    d.it.classList.remove('nav-placeholder');
+    document.body.classList.remove('col-resizing');
+    if (drop) { S.settings.navOrder = [...d.it.parentElement.querySelectorAll('[data-navkey]')].map((x) => x.dataset.navkey); Store.save(); }
+    renderSidebar();
+  }, 180);
   // The link you dropped shouldn't also open.
   const stop = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
   document.addEventListener('click', stop, { capture: true, once: true });
-  setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 50);
-  renderSidebar();
-});
+  setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 60);
+}
+document.addEventListener('pointerup', () => endNavDrag(true));
+document.addEventListener('pointercancel', () => endNavDrag(true));
 
 // Phones: keep the Calendar / Time Box Allocation tabs in step with swiping.
 document.addEventListener('scroll', (e) => {
