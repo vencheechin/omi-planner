@@ -369,6 +369,7 @@ function settingsHTML() {
   const last = S.settings.lastBackup;
   return `<section class="set-sec"><h3>Cloud sync</h3>${cloudSettingsHTML()}</section>
   <section class="set-sec"><details ${Team.dir ? 'open' : ''}><summary><b>Shared folder (OneDrive, Dropbox)</b></summary>${teamSettingsHTML()}</details></section>
+  <section class="set-sec"><h3>Time's up alert</h3>${alarmPickerHTML()}</section>
   <section class="set-sec"><h3>Time boxing</h3>${timeboxSettingsHTML()}</section>
   <section class="set-sec"><h3>People</h3>
     

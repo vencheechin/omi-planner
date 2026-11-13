@@ -127,6 +127,7 @@ function normalizeTimebox(tb) {
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
     focusOnly: true,
     planMin: [5, 10, 15, 20, 25, 30, 60, 90].includes(tb.planMin) ? tb.planMin : 15,
+    alarm: tb.alarm && typeof tb.alarm === 'object' ? { on: tb.alarm.on !== false, tone: String(tb.alarm.tone || 'zen-bowl'), vol: Number.isFinite(tb.alarm.vol) ? Math.max(0, Math.min(1, tb.alarm.vol)) : 0.7 } : { on: true, tone: 'zen-bowl', vol: 0.7 },
     blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start)
       .filter((b) => tb.focusOnly || !['Decision Window', 'Collaboration', 'Tomorrow Planning', "Tomorrow's Planning"].includes(b.name)).map((b) => ({
       id: String(b.id || uid()), name: b.name === 'CEO Focus' ? 'Focus' : String(b.name || 'Block'), kind: kinds.has(b.kind) ? b.kind : '', color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '',
@@ -1092,6 +1093,7 @@ function renderPlanner() {
         <label class="mini"><input type="checkbox" data-change="tbFullDay" ${ui.tbFullDay ? 'checked' : ''}> Early and late hours</label>` : ''}
       </div>
       <div class="spacer"></div>
+      <button class="btn ghost sm alarm-btn ${alarmPrefs().on ? 'on' : ''}" data-act="alarmMenu" aria-haspopup="true" title="Alert when a time box ends">${icon('bell', 14)} ${alarmPrefs().on ? esc(toneName(alarmPrefs().tone)) : 'Alert off'}</button>
       <button class="btn ghost sm" data-act="moveUnfinished" data-date="${mode === 'day' ? anchor : today}">Move unfinished</button>
     </header>
     ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span><button class="btn ghost sm" data-act="moveUnfinished" data-date="past">Move to free slots</button></div>` : ''}

@@ -1489,3 +1489,25 @@ button.tb-q-est:hover { background: color-mix(in srgb, var(--highlight) 24%, tra
   color: var(--muted); border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); background: none; }
 .mit-toggle.on { color: var(--surface); background: var(--highlight); border-color: var(--highlight); }
 .mit-toggle:hover { border-color: var(--highlight); }
+
+/* Time's up alert: ringtone picker */
+.alarm-btn.on { color: var(--highlight); }
+.alarm-picker { min-width: 260px; max-height: 70vh; overflow-y: auto; display: grid; gap: 8px; }
+.alarm-picker h4 { margin: 2px 0; }
+.alarm-vol { display: flex; align-items: center; gap: 8px; }
+.alarm-vol input { flex: 1; accent-color: var(--highlight); }
+.alarm-genre { display: grid; gap: 2px; }
+.alarm-genre > b { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 4px 2px 2px; }
+.alarm-tone { display: flex; align-items: center; gap: 4px; border-radius: 8px; }
+.alarm-tone.on { background: color-mix(in srgb, var(--highlight) 14%, transparent); }
+.alarm-play { width: 30px; height: 30px; font-size: 11px; color: var(--highlight); }
+.alarm-pick { flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 6px; background: none; color: var(--ink); text-align: left; }
+.alarm-tone.on .alarm-pick { color: var(--highlight); font-weight: 700; }
+.set-sec .alarm-picker { max-height: none; }
+
+/* List items: the task title leads; Focus, MIT and the time are smaller */
+.tb-q .tb-q-title > span { font-size: calc(15.5px * var(--scale) * var(--type)); font-weight: 800; letter-spacing: -.005em; line-height: 1.25; color: var(--ink); }
+.tb-q .tb-q-meta { margin-top: 6px; gap: 5px; }
+.tb-q .focus-toggle, .tb-q .mit-toggle, .tb-q button.tb-q-est { font-size: 10.5px; padding: 1px 7px; min-height: 20px; line-height: 1.2; font-weight: 700; }
+.tb-q .focus-toggle svg, .tb-q button.tb-q-est svg { width: 10px; height: 10px; }
+.tb-q .type-tag { font-size: 10.5px; }
