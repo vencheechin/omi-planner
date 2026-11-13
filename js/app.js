@@ -1733,15 +1733,11 @@ function dragMove(x, y) {
     const end = snapMin(Number(col.dataset.rs) + (y - col.getBoundingClientRect().top) / Number(col.dataset.ppm));
     const dur = Math.max(SNAP_OF(), end - t.slotStart);
     s.source.style.height = `${dur * Number(col.dataset.ppm)}px`;
-    // Say straight away how much longer or shorter it is, beside the pointer and on the block.
-    if (s.startDur === undefined) s.startDur = durOf(t);
-    const diff = dur - s.startDur;
+    // Show the new time and length straight away, beside the pointer and on the block.
     $$('.tb-b-dur', s.source).forEach((n) => { n.textContent = `(${dur} min)`; });
     let tip = $('#resize-tip');
     if (!tip) { tip = document.createElement('div'); tip.id = 'resize-tip'; tip.className = 'resize-tip'; tip.setAttribute('role', 'status'); document.body.append(tip); }
-    tip.innerHTML = `<b>${diff > 0 ? '+' : diff < 0 ? '−' : '±'}${Math.abs(diff)} min</b> · now ${dur} min<small>${esc(fmtTime(t.slotStart))} – ${esc(fmtTime(t.slotStart + dur))}</small>`;
-    tip.classList.toggle('longer', diff > 0);
-    tip.classList.toggle('shorter', diff < 0);
+    tip.innerHTML = `<b>${esc(fmtTime(t.slotStart))} – ${esc(fmtTime(t.slotStart + dur))}</b><small>(${dur} mins)</small>`;
     tip.style.left = `${Math.min(x + 16, innerWidth - tip.offsetWidth - 8)}px`;
     tip.style.top = `${Math.max(8, y - tip.offsetHeight - 12)}px`;
     s.target = { dur };
@@ -1870,10 +1866,6 @@ function dragEnd(drop) {
   Drag.s = null;
   clearTimeout(s.hold);
   $('#resize-tip')?.remove();
-  if (s.type === 'resize' && s.active && drop && s.target?.dur && s.startDur !== undefined && s.target.dur !== s.startDur) {
-    const d = s.target.dur - s.startDur;
-    setTimeout(() => toast(`${d > 0 ? 'Longer' : 'Shorter'} by ${Math.abs(d)} min: now ${s.target.dur} min.`), 0);
-  }
   if (!s.active) return;
   Drag.quietUntil = performance.now() + 350;
   s.ghost?.remove();
