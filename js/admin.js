@@ -63,11 +63,11 @@ function styleStatsHTML() {
     ${unknown.length ? `<p class="small muted">Not known yet for ${unknown.map((p) => esc(p.name)).join(', ')}: it shows once they open the updated app and sync.</p>` : ''}
   </section>`;
 }
-Object.assign(actions, {
+addEventListener('DOMContentLoaded', () => Object.assign(actions, {
   adminStyleCloud: async () => {
     try { const { counts } = await Cloud.readUsage(); ui.styleCloud = Object.fromEntries(STYLES.map((s) => [s.id, counts[`style:${s.id}`]?.n || 0])); render(); } catch (err) { toast(`Couldn’t read the team’s styles: ${err.message}`, { error: true }); }
   },
-});
+}));
 
 // ---------- Dashboard ----------
 function adminDashHTML() {

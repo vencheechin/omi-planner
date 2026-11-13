@@ -2424,6 +2424,8 @@ if (matchMedia('(hover: hover)').matches) {
 }
 sheetSwipe($('#taskDialog'), () => actions.closeTask());
 (async function start() {
+  // Wait until every script has loaded (Time Box sounds, Fitness, Growth…) before drawing anything.
+  if (document.readyState === 'loading') await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
   try {
     await Store.load();
   } catch (err) {
