@@ -1787,6 +1787,10 @@ function dragMove(x, y) {
   if (s.type === 'task' || s.type === 'block') {
     const hits = document.elementsFromPoint(x, y);
     $$('.merge-target').forEach((n) => n.classList.remove('merge-target'));
+    // Over the recycle bin.
+    const bin = hits.find((n) => n.classList?.contains('tb-bin'));
+    $$('.tb-bin.over').forEach((n) => n.classList.remove('over'));
+    if (bin) { bin.classList.add('over'); s.tbph?.remove(); s.ph?.remove(); s.target = { toBin: true }; return; }
     // Over another block: offer to squeeze this task into the same time box.
     const onto = hits.find((n) => n.classList?.contains('tb-block') && n.dataset.id !== s.id);
     if (onto && !isBox(taskById(s.id))) {
@@ -1947,6 +1951,28 @@ function dragEnd(drop) {
     return;
   }
   $$('.tb-side.drop-back').forEach((n) => n.classList.remove('drop-back'));
+  $$('.tb-bin.over').forEach((n) => n.classList.remove('over'));
+  if (drop && s.target?.toBin) {
+    const id = String(s.id);
+    const [tid, sid] = id.includes('~') ? id.split('~') : [id, null];
+    const t = taskById(tid);
+    if (!t) { render(); return; }
+    const before = { slotDate: t.slotDate, slotStart: t.slotStart, estimate: t.estimate, tbSessions: sessionsOf(t), tbQueued: t.tbQueued, tbRank: t.tbRank };
+    const restore = () => { Object.assign(t, before); commit(); };
+    if (s.type === 'task' && !isScheduled(t)) {
+      // A waiting task from the list: off the list (the task itself stays in its plan).
+      t.tbQueued = false; delete t.tbRank;
+      commit();
+      toast(`Took “${t.title || 'Untitled task'}” off Time Box Allocation.`, { undo: restore });
+      return;
+    }
+    if (isBox(t) && !sid) { render(); toast('Open the box to take its tasks out.'); return; }
+    removeBooking(t, sid);
+    commit();
+    const left = bookingsOf(t).length;
+    toast(left ? `Time box removed. ${left} other time box${left === 1 ? '' : 'es'} for “${t.title || 'Untitled task'}” stay${left === 1 ? 's' : ''}.` : 'Time box removed.', { undo: restore });
+    return;
+  }
   if (drop && s.type === 'block' && s.target?.toList) {
     const id = String(s.id);
     if (id.includes('~')) {

@@ -1511,3 +1511,10 @@ button.tb-q-est:hover { background: color-mix(in srgb, var(--highlight) 24%, tra
 .tb-q .focus-toggle, .tb-q .mit-toggle, .tb-q button.tb-q-est { font-size: 10.5px; padding: 1px 7px; min-height: 20px; line-height: 1.2; font-weight: 700; }
 .tb-q .focus-toggle svg, .tb-q button.tb-q-est svg { width: 10px; height: 10px; }
 .tb-q .type-tag { font-size: 10.5px; }
+
+/* Recycle bin under Time Box Allocation */
+.tb-bin { position: sticky; bottom: 8px; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 10px;
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 25%, transparent); border-radius: 12px; color: var(--muted); font-size: 12.5px; background: var(--bg, var(--surface));
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .2s var(--spring, ease); }
+body.dragging .tb-bin { border-color: color-mix(in srgb, var(--danger) 55%, transparent); color: var(--danger); }
+.tb-bin.over { background: color-mix(in srgb, var(--danger) 16%, transparent); border-color: var(--danger); color: var(--danger); transform: scale(1.03); }

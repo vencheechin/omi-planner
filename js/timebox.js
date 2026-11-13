@@ -379,6 +379,16 @@ function recordTop3(t, iso) {
   delete day.omio;
   S.days[iso] = day;
 }
+/** Takes away one time box of a task (by session id, or the main one) and keeps the rest. */
+function removeBooking(t, sid) {
+  if (sid) { t.tbSessions = sessionsOf(t).filter((s) => s.id !== sid); return; }
+  const rest = [...sessionsOf(t)].sort((a, b) => b.date.localeCompare(a.date) || b.start - a.start);
+  if (rest.length) {
+    const next = rest[0];
+    t.tbSessions = sessionsOf(t).filter((s) => s !== next);
+    t.slotDate = next.date; t.slotStart = next.start; t.estimate = next.dur;
+  } else { t.slotDate = null; t.slotStart = null; t.tbQueued = false; delete t.tbRank; }
+}
 function unschedule(t) { t.slotDate = null; t.slotStart = null; t.tbQueued = true; commit(); }
 /** Books the next free slot for one task, with Undo. */
 function bookNextFree(t, fromIso) {
@@ -1113,6 +1123,7 @@ function renderPlanner() {
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>
+        <div class="tb-bin" aria-label="Recycle bin: drag a time box here to remove it">${icon('trash', 18)}<span>Drag a time box here to remove it</span></div>
       </aside>
     </div>
   </div>`;
