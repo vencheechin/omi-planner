@@ -592,7 +592,8 @@ const actions = {
     openPop(anchor, () => `<form class="picker tb-tap" data-submit="tbPopAdd" data-date="${iso}" data-start="${start}">
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
       ${queue.length ? `
-      <div class="tb-tap-list">${queue.map((q) => `<button type="button" class="tb-tap-item" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}"><i></i><span>${healthDot(q)}${esc(q.title || 'Untitled task')}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`).join('')}</div><hr>` : ``}
+      <p class="small muted tb-tap-hint">Your priority list: tap one to put it here.</p>
+      <div class="tb-tap-list">${queue.map((q) => { const n = allocationNumber(q); return `<button type="button" class="tb-tap-item ${n && n <= 3 ? 'top3' : ''}" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}">${n ? `<b class="tb-rank">${n}</b>` : '<i></i>'}<span>${healthDot(q)}${esc(q.title || 'Untitled task')}${q.workType === 'focus' ? ` <small class="focus-tag">${icon('target', 11)} Focus</small>` : ''}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`; }).join('')}</div><hr>` : ``}
       <textarea name="title" rows="1" required aria-label="Task name (several lines share one time box)"></textarea>
       <label class="field"><span>Time Box</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
       <input type="hidden" name="workType" value="${esc(block?.kind || '')}">
