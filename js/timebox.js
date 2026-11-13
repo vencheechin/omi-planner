@@ -340,17 +340,7 @@ function choiceDlg(title, html, choices) {
 async function scheduleTask(t, iso, start, dur = durOf(t)) {
   dur = Math.max(5, dur); // 5- and 10-minute boxes are allowed; starts still snap to 15 minutes
   start = Math.min(Math.max(0, snapMin(start)), 1440 - dur);
-  const issues = placementIssues(t, iso, start, dur);
-  if (issues.length) {
-    const alt = freeSlot(t, iso, start, dur);
-    const choice = await choiceDlg('Check this time slot', `<p><b>${esc(t.title || 'Untitled task')}</b>, ${esc(dayLabel(iso))} ${esc(fmtTime(start))}–${esc(fmtTime(start + dur))}</p><ul class="issue-list">${issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`, [
-      ...(alt ? [{ v: 'alt', label: `Use ${dayLabel(alt.date)} ${fmtTime(alt.start)} instead`, primary: true }] : []),
-      { v: 'anyway', label: 'Place it here anyway', primary: !alt },
-      { v: 'cancel', label: 'Cancel' },
-    ]);
-    if (choice !== 'alt' && choice !== 'anyway') { render(); return false; }
-    if (choice === 'alt') ({ date: iso, start } = alt);
-  }
+  // It goes exactly where you put it; overlaps and capacity still show as warnings on the day.
   t.slotDate = iso;
   t.slotStart = start;
   t.estimate = dur;
