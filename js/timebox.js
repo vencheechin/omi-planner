@@ -1064,6 +1064,44 @@ function allocTagHTML(t) {
   const same = bookingsOf(t).filter((b) => b.date === day);
   return `<span class="alloc-tag" title="${esc(`${dayLabel(day)} ${same.map((b) => fmtTime(b.start)).join(', ')}`)}"><b>Allocated${same.length > 1 ? ` × ${same.length}` : ''}</b></span>`;
 }
+/** Which bucket a time box counts toward. Fitness, Growth and Planning have their own. */
+function bucketOfBox(t) {
+  const real = t._task || t;
+  if (real.workType === 'exercise' || real.fitAct) return { key: 'fitness', name: 'Fitness' };
+  if (real.growBook) return { key: 'growth', name: 'Growth' };
+  if (isPlanningTask(real)) return { key: 'planning', name: 'Planning' };
+  if (isBox(real)) return { key: 'box', name: 'Misc tasks' };
+  const p = boardPlanOf(real);
+  const b = p && p.buckets.find((x) => x.id === bucketOf(real));
+  return b ? { key: `b:${b.name.toLowerCase()}`, name: b.name, color: b.color } : { key: 'none', name: 'No bucket' };
+}
+/** Time booked per bucket over the days on screen, and how much of it has already gone by. */
+function bucketTimeHTML(mode, anchor, dates) {
+  const days = mode === 'month' ? (() => { const first = `${anchor.slice(0, 8)}01`; const out = []; for (let d = first; d.slice(0, 7) === anchor.slice(0, 7); d = addDays(d, 1)) out.push(d); return out; })() : dates;
+  const today = todayISO();
+  const now = nowMin();
+  const sums = new Map();
+  for (const iso of days) {
+    for (const t of scheduledOn(iso)) {
+      const k = bucketOfBox(t);
+      const dur = durOf(t);
+      const spent = iso < today ? dur : iso === today ? Math.max(0, Math.min(dur, now - t.slotStart)) : 0;
+      const row = sums.get(k.key) || { ...k, min: 0, spent: 0 };
+      row.min += dur; row.spent += spent;
+      sums.set(k.key, row);
+    }
+  }
+  const rows = [...sums.values()].sort((a, b) => b.min - a.min);
+  if (!rows.length) return '';
+  const total = rows.reduce((n, r) => n + r.min, 0);
+  const label = mode === 'day' ? (anchor === today ? 'Today' : dayLabel(anchor)) : mode === 'week' ? 'This week' : 'This month';
+  return `<div class="tb-buckets" aria-label="Time by bucket">
+    <span class="tb-buckets-title">Time by bucket · ${esc(label)} <b>${esc(fmtDur(total))}</b></span>
+    <div class="tb-bucket-row">${rows.map((r) => `<span class="tb-bucket" title="${esc(`${r.name}: ${fmtDur(r.min)} booked, ${fmtDur(r.spent)} spent so far`)}">
+      <i style="--c:${r.color || 'var(--highlight)'};--w:${Math.max(6, Math.round((r.min / total) * 100))}%"></i>
+      <b>${esc(r.name)}</b><span>${esc(fmtDur(r.min))}</span>${r.spent ? `<small>${esc(fmtDur(r.spent))} spent</small>` : ''}</span>`).join('')}</div>
+  </div>`;
+}
 /** The time choices in the Time Box Allocation list. */
 const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
 function queueItemHTML(t, anchor, picked, rank, again, allocated) {
@@ -1105,6 +1143,7 @@ function renderPlanner() {
       <button class="btn ghost sm alarm-btn ${alarmPrefs().on ? 'on' : ''}" data-act="alarmMenu" aria-haspopup="true" title="Alert when a time box ends">${icon('bell', 14)} ${alarmPrefs().on ? esc(toneName(alarmPrefs().tone)) : 'Alert off'}</button>
     </header>
     ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span></div>` : ''}
+    ${bucketTimeHTML(mode, anchor, dates)}
     <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}</div>
     <div class="tb-pager" role="tablist" aria-label="Show">
       <button role="tab" class="${(ui.tbPane || 0) === 0 ? 'on' : ''}" data-act="tbPane" data-v="0">${icon('clock', 15)} Calendar</button>

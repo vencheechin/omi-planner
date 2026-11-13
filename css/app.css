@@ -1762,3 +1762,15 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .nav-secs { display: contents; }
 .nav-sec > h3 { cursor: grab; touch-action: pan-y; user-select: none; }
 .nav-ghost.nav-sec { display: block; padding: 4px 6px 8px; overflow: hidden; }
+
+/* Time Box: time by bucket */
+.tb-buckets { display: grid; gap: 6px; margin: 2px 0 8px; }
+.tb-buckets-title { font-size: calc(12.5px * var(--scale) * var(--type)); color: var(--muted); font-weight: 600; }
+.tb-buckets-title b { color: var(--ink); margin-left: 4px; }
+.tb-bucket-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tb-bucket { position: relative; display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 10px 7px; border-radius: 10px; overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 6%, transparent); font-size: calc(13px * var(--scale) * var(--type)); }
+.tb-bucket i { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--w); background: var(--c); border-radius: 0 3px 3px 0; }
+.tb-bucket b { font-weight: 700; }
+.tb-bucket span { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.tb-bucket small { color: var(--muted); font-size: .85em; }
