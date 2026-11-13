@@ -61,15 +61,18 @@ function renderFitness() {
       <div class="fit-week">${days.map((iso) => {
         const d = done.some((x) => x.date === iso);
         const b = booked.some((t) => t.slotDate === iso);
-        return `<span class="fit-day ${d ? 'done' : b ? 'booked' : ''} ${iso === today ? 'today' : ''}" title="${esc(`${dayLabel(iso)}: ${d ? 'done' : b ? 'booked' : '—'}`)}">${esc(dayName(iso))}</span>`;
+        const wd = parseISO(iso).getDay();
+        const chosen = (tg.days || []).includes(wd);
+        return `<button class="fit-day ${d ? 'done' : b ? 'booked' : ''} ${chosen ? 'chosen' : ''} ${iso === today ? 'today' : ''}" data-act="fitDayToggle" data-id="${esc(tg.id)}" data-d="${wd}" aria-pressed="${chosen}" title="${esc(`${dayLabel(iso)}: ${d ? 'done' : b ? 'booked' : '—'}${chosen ? ' · your day' : ''}. Tap to ${chosen ? 'drop' : 'make it'} one of your ${tg.name} days.`)}">${esc(dayName(iso))}</button>`;
       }).join('')}</div>
+      <p class="small muted fit-days-hint">${(tg.days || []).length ? `On ${(tg.days || []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((wd) => new Date(2024, 0, 7 + wd).toLocaleDateString(undefined, { weekday: 'short' })).join(', ')} it waits in Time Box Allocation.` : 'Tap the days you usually do it: it will wait in Time Box Allocation on those days.'}</p>
       <p class="small"><b>${done.length} of ${tg.times}</b> done${booked.length ? ` · ${booked.length} booked` : ''}${need ? ` · ${need} to plan` : done.length >= tg.times ? ' · target met' : ''}</p>
       <div class="row"><button class="btn ghost sm" data-act="fitLog" data-id="${esc(tg.id)}">${icon('check', 13)} Log a session</button>
         ${need ? `<button class="btn primary sm" data-act="fitBook" data-id="${esc(tg.id)}">${icon('clock', 13)} Book ${need} in Time Box</button>` : ''}</div>
     </article>`;
   };
   const b = f.breaks;
-  const opt = (list, cur, unit) => list.map((v) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v}${unit}</option>`).join('');
+  const opt = (list, cur) => list.map((v) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v === 60 ? '1 hour' : `${v} mins`}</option>`).join('');
   const recent = [...f.log].sort((x, y) => y.at - x.at).slice(0, 12);
   return `<div class="page fit-page">
     <header class="page-head"><h1>Fitness</h1><span class="muted">Work–exercise balance · ${esc(fmtDate(days[0]))} – ${esc(fmtDate(days[6]))}</span></header>
@@ -89,12 +92,14 @@ function renderFitness() {
       <p class="small muted">A few minutes of movement every hour or two keeps energy up at the desk. Reminders only come during your working hours (${esc(fmtTime(TB().dayStart))} – ${esc(fmtTime(TB().dayEnd))}) while Planner is open.</p>
       <div class="fit-break-set">
         <label class="mini"><input type="checkbox" data-change="fitBreakOn" ${b.on ? 'checked' : ''}> Remind me</label>
-        <label class="mini">Every <select data-change="fitBreakSet" data-k="every">${opt([45, 60, 90, 120], b.every, ' min')}</select></label>
-        <label class="mini">For <select data-change="fitBreakSet" data-k="min">${opt([2, 3, 5, 10, 15], b.min, ' min')}</select></label>
-        <label class="mini">Goal <select data-change="fitBreakSet" data-k="perDay">${opt([2, 3, 4, 5, 6, 8], b.perDay, ' a day')}</select></label>
+        <label class="mini">Every <select data-change="fitBreakSet" data-k="every">${opt([25, 30, 60, 90], b.every)}</select></label>
+        <label class="mini">For <select data-change="fitBreakSet" data-k="min">${opt([5, 10, 15, 30, 45, 60], b.min)}</select></label>
+        <label class="mini">Goal <select data-change="fitBreakSet" data-k="perDay">${[2, 3, 4, 5, 6, 8].map((v) => `<option value="${v}" ${v === b.perDay ? 'selected' : ''}>${v} a day</option>`).join('')}</select></label>
       </div>
-      <div class="fit-dots" aria-label="${breaksToday.length} of ${b.perDay} breaks today">${Array.from({ length: Math.max(b.perDay, breaksToday.length) }, (_, i) => `<i class="${i < breaksToday.length ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="fit-types">${b.types.map((ty) => `<span class="fit-type"><button class="btn ghost sm" data-act="fitBreak" data-v="${esc(ty)}">${icon('plus', 12)} ${esc(ty)}</button><button class="chip-x" data-act="fitTypeDel" data-v="${esc(ty)}" aria-label="Remove ${esc(ty)}">${icon('close', 10)}</button></span>`).join('')}
+      <p class="fit-selected">${b.on ? `Reminding you every <b>${b.every === 60 ? '1 hour' : `${b.every} mins`}</b>, for <b>${b.min === 60 ? '1 hour' : `${b.min} mins`}</b>, goal <b>${b.perDay} a day</b>.` : 'Reminders are off.'}</p>
+      <div class="fit-dots" aria-label="${breaksToday.length} of ${b.perDay} breaks today">${Array.from({ length: Math.max(b.perDay, breaksToday.length) }, (_, i) => `<i class="${i < breaksToday.length ? 'on' : ''}" title="${esc(breaksToday[i] ? `${breaksToday[i].type || 'Break'} · ${new Date(breaksToday[i].at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Not yet')}"></i>`).join('')}</div>
+      <p class="small fit-today">Today: <b>${breaksToday.length} of ${b.perDay}</b>${breaksToday.length ? ` · ${[...new Set(breaksToday.map((l) => l.type || 'Break'))].map((ty) => `${esc(ty)} × ${breaksToday.filter((l) => (l.type || 'Break') === ty).length}`).join(', ')}` : ''}</p>
+      <div class="fit-types">${b.types.map((ty) => { const n = breaksToday.filter((l) => l.type === ty).length; return `<span class="fit-type ${n ? 'done' : ''}"><button class="btn ghost sm" data-act="fitBreak" data-v="${esc(ty)}">${n ? icon('check', 12) : icon('plus', 12)} ${esc(ty)}${n ? ` <b class="fit-count">× ${n}</b>` : ''}</button><button class="chip-x" data-act="fitTypeDel" data-v="${esc(ty)}" aria-label="Remove ${esc(ty)}">${icon('close', 10)}</button></span>`; }).join('')}
         <button class="btn ghost sm" data-act="fitTypeAdd">${icon('plus', 12)} Another kind</button></div>
       <p class="small muted">Tap a kind after you've done it to count the break.</p>
     </section>
@@ -132,7 +137,10 @@ function fitEditDlg(tg) {
     commit();
   };
   const del = $('[data-role="del"]', d);
-  if (del) del.onclick = () => { fit().targets = fit().targets.filter((x) => x !== tg); d.close(); commit(); toast(`Removed ${v.name}. Past sessions stay in Recent.`); };
+  if (del) del.onclick = async () => {
+    if (!await confirmDlg(`Remove ${v.name}?`, 'Past sessions stay in Recent. You can use Undo at the top if you change your mind.', 'Remove')) return;
+    fit().targets = fit().targets.filter((x) => x !== tg); d.close(); commit(); toast(`Removed ${v.name}.`);
+  };
 }
 
 /** Puts the sessions still needed this week into the Time Box at your usual time, spread across the days left. */
@@ -177,7 +185,34 @@ function fitLogBreak(type) {
   toast(`${type} break logged: ${n} of ${f.breaks.perDay} today.`);
 }
 
+/** On your chosen days, each activity waits in Time Box Allocation, ready to drag into a time. */
+function ensureDailyFitness() {
+  const f = S.settings.fitness;
+  if (!f || new Date().getHours() < 2) return false;
+  const iso = todayISO();
+  const wd = new Date().getDay();
+  const p = personalPlan();
+  if (!p) return false;
+  let changed = false;
+  for (const tg of f.targets || []) {
+    if (!(tg.days || []).includes(wd) || S.tasks.some((t) => t.fitAct === tg.id && t.fitDay === iso)) continue;
+    const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: tg.name, assignees: [S.meId], estimate: tg.min, workType: 'exercise' });
+    Object.assign(t, { fitAct: tg.id, fitDay: iso, tbQueued: true, tbQueuedAt: Date.now() });
+    changed = true;
+  }
+  // Yesterday's that were never booked or done go away.
+  const stale = S.tasks.filter((t) => t.fitDay && t.fitDay < iso && !isDone(t) && !isScheduled(t) && !sessionsOf(t).length);
+  if (stale.length) { S.tasks = S.tasks.filter((t) => !stale.includes(t)); changed = true; }
+  return changed;
+}
 Object.assign(actions, {
+  fitDayToggle: (el) => {
+    const tg = fitTarget(el.dataset.id);
+    const wd = Number(el.dataset.d);
+    tg.days = (tg.days || []).includes(wd) ? tg.days.filter((x) => x !== wd) : [...(tg.days || []), wd];
+    if (ensureDailyFitness()) { /* today's added straight away */ }
+    commit();
+  },
   fitAdd: () => fitEditDlg(null),
   fitEdit: (el) => fitEditDlg(fitTarget(el.dataset.id)),
   fitBook: (el) => fitBookWeek(fitTarget(el.dataset.id)),
@@ -208,3 +243,5 @@ Object.assign(changes, {
   fitBreakSet: (el) => { fit().breaks[el.dataset.k] = Number(el.value); commit(); },
 });
 setInterval(fitNudge, 60000);
+setInterval(() => { if (ensureDailyFitness()) commit(); }, 60000);
+setTimeout(() => { if (ensureDailyFitness()) commit(); }, 2500);

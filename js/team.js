@@ -330,6 +330,7 @@ function buildTeamFile() {
     delete o.tbQueuedAt;
     delete o.fitAct;
     delete o.dailyPlan;
+    delete o.fitDay;
     return o;
   });
   const planIds = new Set(tasks.map((t) => t.planId));

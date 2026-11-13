@@ -1063,13 +1063,13 @@ function otherOpenTasks() {
 function allocTagHTML(t) {
   const day = t.slotDate;
   const same = bookingsOf(t).filter((b) => b.date === day);
-  return `<span class="alloc-tag" title="${esc(`${dayLabel(day)} ${same.map((b) => fmtTime(b.start)).join(', ')}`)}"><b>Allocated${same.length > 1 ? ` × ${same.length}` : ''}</b><small>${esc(dayLabel(day))} ${same.map((b) => esc(fmtTime(b.start))).join(', ')}</small></span>`;
+  return `<span class="alloc-tag" title="${esc(`${dayLabel(day)} ${same.map((b) => fmtTime(b.start)).join(', ')}`)}"><b>Allocated${same.length > 1 ? ` × ${same.length}` : ''}</b></span>`;
 }
 /** The time choices in the Time Box Allocation list. */
 const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
 function queueItemHTML(t, anchor, picked, rank, again, allocated) {
   return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${rank && rank <= 3 ? 'top3' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
-    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="${rank <= 3 ? `Top 3 · priority ${rank}` : `Priority ${rank}`}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
+    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="${rank <= 3 ? `Top 3 · priority ${rank}` : `Priority ${rank}`}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     ${allocated ? allocTagHTML(t) : ''}
     <div class="tb-q-meta">${isPlanningTask(t) ? typeTag(t) : `<button class="focus-toggle ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}" title="Needs focus">${icon('target', 13)} Focus</button>${t.workType && t.workType !== 'focus' ? typeTag(t) : ''}`}
       ${isPlanningTask(t) ? '<span class="tb-q-mid"></span>' : (() => { const iso = isScheduled(t) ? t.slotDate : todayISO(); const on = isMio(t, iso); return `<span class="tb-q-mid"><button class="mit-toggle ${on ? 'on' : ''}" data-act="tbMit" data-id="${esc(t.id)}" data-date="${iso}" aria-pressed="${on}" title="Most Important Task for ${esc(dayLabel(iso))}">${on ? '★' : '☆'} MIT</button></span>`; })()}

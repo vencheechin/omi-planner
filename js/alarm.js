@@ -108,7 +108,6 @@ function playTone(id = alarmPrefs().tone, vol = alarmPrefs().vol) {
 /** Checks for time boxes that just ended (today, not ticked off) and sounds the alert once for each. */
 function checkAlarms() {
   const pr = alarmPrefs();
-  if (!pr.on) return;
   const iso = todayISO();
   const now = nowMin();
   ui.alarmed = ui.alarmed || new Set();
@@ -121,11 +120,41 @@ function checkAlarms() {
     const key = `${t.id}|${iso}|${end}`;
     if (end > now || end <= ui.alarmFrom || ui.alarmed.has(key)) continue;
     ui.alarmed.add(key);
-    playTone();
-    toast(`Time’s up: ${real.title || 'Untitled task'} (${fmtTime(t.slotStart)} – ${fmtTime(end)})`, { action: { label: '+5 min', run: () => extendBox(t) } });
+    if (pr.on) playTone();
+    timesUpPopup(t, end);
     if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
       try { new Notification('Time’s up', { body: `${real.title || 'Untitled task'} · ${fmtTime(t.slotStart)} – ${fmtTime(end)}`, tag: key }); } catch { /* not supported */ }
     }
+  }
+}
+const isExercise = (t) => t.workType === 'exercise' || !!t.fitAct;
+/** The next time box today after a given minute (not done), or null. */
+function nextBoxAfter(min) {
+  const iso = todayISO();
+  return scheduledOn(iso).filter((x) => !isDone(x._task || x) && x.slotStart >= min).sort((a, b) => a.slotStart - b.slotStart)[0] || null;
+}
+/** One pop-up at a time: time's up, what's next, and for exercise, did you finish? */
+const popupQueue = [];
+async function timesUpPopup(t, end) {
+  popupQueue.push([t, end]);
+  if (popupQueue.length > 1) return;
+  while (popupQueue.length) {
+    const [box, stop] = popupQueue[0];
+    const real = box._task || box;
+    const next = nextBoxAfter(Math.max(stop, nowMin() - 1));
+    const nextReal = next && (next._task || next);
+    const nextHTML = next
+      ? `<div class="next-up"><small>Next up</small><b>${isExercise(nextReal) ? '🏃 ' : ''}${esc(nextReal.title || 'Untitled task')}</b><span>${esc(fmtTime(next.slotStart))} – ${esc(fmtTime(next.slotStart + durOf(next)))} · ${esc(fmtDur(durOf(next)))}${isExercise(nextReal) ? ' · Exercise' : ''}</span></div>`
+      : '<div class="next-up"><small>Next up</small><span>Nothing else booked today.</span></div>';
+    const ex = isExercise(real);
+    const head = `<p class="tu-title"><b>${esc(real.title || 'Untitled task')}</b><span class="muted"> · ${esc(fmtTime(box.slotStart))} – ${esc(fmtTime(stop))}</span></p>`;
+    const choice = await choiceDlg(ex ? 'Did you finish your exercise?' : 'Time’s up', `${head}${nextHTML}`, ex
+      ? [{ v: 'yes', label: 'Yes, finished', primary: true }, { v: 'no', label: 'No' }, { v: 'more', label: '+5 min' }]
+      : [{ v: 'ok', label: next ? `OK, on to ${nextReal.title || 'the next one'}` : 'OK', primary: true }, { v: 'done', label: 'Mark done' }, { v: 'more', label: '+5 min' }]);
+    if (choice === 'more') extendBox(box);
+    else if (choice === 'yes' || choice === 'done') { setProgress(real, 100); commit(); toast(ex ? `Well done: ${real.title} counted in Fitness.` : `Done: ${real.title}.`); }
+    else if (choice === 'no' && ex) toast('Not counted. You can add it to Time Box Allocation to do it later.');
+    popupQueue.shift();
   }
 }
 /** Five more minutes on the box that just ended. */

@@ -154,7 +154,7 @@ function planMenu(anchor) {
     { label: 'Export to Excel (CSV)', icon: 'download', run: () => download(`${safeFilename(plan.name)}.csv`, new Blob([planToCSV(plan)], { type: 'text/csv;charset=utf-8' })) },
     '-',
     {
-      label: 'Delete plan', icon: 'trash', danger: true,
+      label: 'Delete plan', icon: 'trash', danger: true, selfConfirm: true,
       run: async () => {
         const n = tasksOf(plan.id).length;
         if (!await confirmDlg('Delete plan?', `"${plan.name}" and its ${n} task${n === 1 ? '' : 's'} will be deleted.`, 'Delete plan')) return;
@@ -509,11 +509,12 @@ const actions = {
       { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML('bucket', id, plan.buckets[i]?.color, 'transparent', 'None')) },
       ...(plan.buckets.length > 1 ? [{ label: 'Move', icon: 'move', sub: true, run: () => openPop(el, () => bucketOrderHTML(currentPlan(), id)) }] : []),
       {
-        label: 'Delete bucket', icon: 'trash', danger: true,
+        label: 'Delete bucket', icon: 'trash', danger: true, selfConfirm: true,
         run: async () => {
           if (plan.buckets.length === 1) return toast('A plan needs at least one bucket.');
           const n = S.tasks.filter((t) => t.bucketId === id).length;
           const name = plan.buckets[i].name;
+          if (!n && !await confirmDlg('Delete bucket?', `"${name}" is empty.`, 'Delete bucket')) return;
           if (n && !await confirmDlg('Delete bucket?', `"${name}" and its ${n} task${n === 1 ? '' : 's'} will be deleted.`, 'Delete bucket')) return;
           undoable(`Deleted "${name}"`, () => {
             S.tasks = S.tasks.filter((t) => t.bucketId !== id);
@@ -1187,13 +1188,13 @@ const actions = {
     const target = r ? bpRowOf(g, r) : bpGroup(g);
     openMenu(el, [
       { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML(r ? 'bprow' : 'bpgroup', r ? `${g}|${r}` : g, target?.color, 'transparent', 'None')) },
-      { label: 'Delete', icon: 'trash', danger: true, run: () => actions[r ? 'bpDelRow' : 'bpDelGroup'](el) },
+      { label: 'Delete', icon: 'trash', danger: true, selfConfirm: true, run: () => actions[r ? 'bpDelRow' : 'bpDelGroup'](el) },
     ]);
   },
   bpMonthColour: (el) => openPop(el, () => colourListHTML('bpmonth', el.dataset.m, bp().cfg?.mcol?.[el.dataset.m], 'transparent', 'None')),
   bpDelGroup: async (el) => {
     const g = bpGroup(el.dataset.g);
-    if (g.rows.length && !await confirmDlg(`Delete “${g.name}”?`, `Its ${g.rows.length} brand${g.rows.length === 1 ? '' : 's'} and their months go too.`, 'Delete')) return;
+    if (!await confirmDlg(`Delete “${g.name}”?`, g.rows.length ? `Its ${g.rows.length} brand${g.rows.length === 1 ? '' : 's'} and their months go too.` : 'This group is empty.', 'Delete')) return;
     bp().groups = bp().groups.filter((x) => x !== g);
     commit();
   },
@@ -1201,7 +1202,7 @@ const actions = {
   bpDelRow: async (el) => {
     const g = bpGroup(el.dataset.g);
     const r = bpRowOf(el.dataset.g, el.dataset.r);
-    if (Object.keys(r.cells).length && !await confirmDlg(`Delete ${r.brand || 'this brand'}?`, 'Its months go too.', 'Delete')) return;
+    if (!await confirmDlg(`Delete ${r.brand || 'this brand'}?`, Object.keys(r.cells).length ? 'Its months go too.' : 'It has nothing planned yet.', 'Delete')) return;
     g.rows = g.rows.filter((x) => x !== r);
     commit();
   },
@@ -1926,7 +1927,7 @@ function autoScroll() {
   nudge(document.elementFromPoint(s.x, s.y)?.closest('.col-body, .task-scroll, .tb-scroll'), 'y');
   requestAnimationFrame(autoScroll);
 }
-function dragEnd(drop) {
+async function dragEnd(drop) {
   const s = Drag.s;
   Drag.s = null;
   clearTimeout(s.hold);
@@ -1974,6 +1975,8 @@ function dragEnd(drop) {
   $$('.tb-bin.over').forEach((n) => n.classList.remove('over'));
   if (drop && s.target?.toBin) {
     const id = String(s.id);
+    const what = taskById(id.split('~')[0]);
+    if (!await confirmDlg(s.type === 'task' && what && !isScheduled(what) ? 'Take it off Time Box Allocation?' : 'Remove this time box?', `“${what?.title || 'Untitled task'}”. You can use Undo at the top if you change your mind.`, 'Remove')) { render(); return; }
     const [tid, sid] = id.includes('~') ? id.split('~') : [id, null];
     const t = taskById(tid);
     if (!t) { render(); return; }
