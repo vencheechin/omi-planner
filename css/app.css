@@ -1623,3 +1623,11 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .rep-bar i { display: block; height: 100%; border-radius: 4px; background: var(--highlight); }
 .rep-bar.done i { background: var(--st-done, #4f8f5a); }
 .rep-bar b { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+
+/* Scan a book cover */
+.scan-cover { display: grid; gap: 6px; padding: 10px 12px; margin-bottom: 4px; border-radius: 12px; background: color-mix(in srgb, var(--highlight) 10%, transparent); border: 1px dashed color-mix(in srgb, var(--highlight) 45%, transparent); }
+.scan-btn { justify-self: start; cursor: pointer; }
+.scan-match { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.scan-match img { border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); }
+.scan-match div { display: grid; gap: 2px; }
+.scan-match b { font-size: calc(16px * var(--scale) * var(--type)); }

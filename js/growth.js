@@ -2,6 +2,8 @@
    time it took). Reading sessions go into the Time Box like any task; after each one Planner asks whether
    you did it and counts the time. Hours by day, week, month and year. Recommend a book to a colleague. */
 
+/** How you take it in. "listen" is kept as the value for Audio so older entries still match. */
+const GROW_FORMATS = { read: { label: 'Read', badge: '📖 Read', verb: 'Read' }, listen: { label: 'Audio', badge: '🎧 Audio', verb: 'Listen' }, video: { label: 'Video', badge: '🎬 Video', verb: 'Watch' } };
 function growth() {
   if (!S.settings.growth || !Array.isArray(S.settings.growth.books)) S.settings.growth = { books: [], log: [], recSeen: [] };
   const g = S.settings.growth;
@@ -27,7 +29,7 @@ function renderGrowth() {
   const bars = growthBars(period);
   const max = Math.max(1, ...bars.map((b) => b.min));
   const lists = { plan: g.books.filter((b) => b.status === 'plan'), reading: g.books.filter((b) => b.status === 'reading'), done: g.books.filter((b) => b.status === 'done') };
-  const fmtBadge = (b) => `<span class="grow-fmt">${b.format === 'listen' ? '🎧 Listen' : '📖 Read'}</span>`;
+  const fmtBadge = (b) => `<span class="grow-fmt">${GROW_FORMATS[b.format]?.badge || GROW_FORMATS.read.badge}</span>`;
   const bookCard = (b) => {
     const mins = bookMins(b.id);
     const inTb = S.tasks.some((t) => t.growBook === b.id && !isDone(t) && (t.tbQueued || isScheduled(t)));
@@ -56,7 +58,7 @@ function renderGrowth() {
       <div class="grow-bars" role="img" aria-label="Hours spent growing by ${period}">${bars.map((b) => `<div class="grow-bar" title="${esc(`${b.label}: ${fmtHours(b.min)}`)}"><span class="v">${b.min ? fmtHours(b.min) : ''}</span><i style="height:${(b.min / max) * 100}%"></i><span class="l">${esc(b.short)}</span></div>`).join('')}</div>
     </section>
     ${section('Reading now', lists.reading, 'Nothing on the go. Start one from your list below.')}
-    ${section('Want to read or listen', lists.plan, 'Add the books you plan to read or listen to.')}
+    ${section('Want to read, listen or watch', lists.plan, 'Add the books, audiobooks and videos you plan to learn from.')}
     ${section('Finished', lists.done, 'Books you finish show here with the time they took.')}
   </div>`;
 }
@@ -77,10 +79,11 @@ function growEditDlg(b) {
   const d = showDialog({
     title: isNew ? 'Add a book' : 'Edit book',
     html: `<form class="fit-form">
+      ${isNew ? `<div class="scan-cover"><label class="btn ghost sm scan-btn">${icon('camera', 15)} Scan the book cover<input type="file" accept="image/*" data-role="cover" hidden></label><span class="small muted" data-role="scan-status">Take or choose a photo of the cover: Planner reads the title and author for you to confirm.</span></div>` : ''}
       <label class="field"><span>Title</span><input name="title" value="${esc(v.title)}" required maxlength="120" placeholder="e.g. Atomic Habits"></label>
       <label class="field"><span>Author</span><input name="author" value="${esc(v.author || '')}" maxlength="80"></label>
       <div class="task-fields two">
-        <label class="field"><span>How</span><select name="format"><option value="read" ${v.format !== 'listen' ? 'selected' : ''}>Read</option><option value="listen" ${v.format === 'listen' ? 'selected' : ''}>Listen</option></select></label>
+        <label class="field"><span>How</span><select name="format">${Object.entries(GROW_FORMATS).map(([k, f]) => `<option value="${k}" ${(v.format || 'read') === k ? 'selected' : ''}>${f.label}</option>`).join('')}</select></label>
         <label class="field"><span>Where it's at</span><select name="status"><option value="plan" ${v.status === 'plan' ? 'selected' : ''}>Want to read</option><option value="reading" ${v.status === 'reading' ? 'selected' : ''}>Reading now</option><option value="done" ${v.status === 'done' ? 'selected' : ''}>Finished</option></select></label>
       </div>
       <div class="dlg-foot"><span class="spacer"></span><button class="btn primary">${isNew ? 'Add' : 'Save'}</button></div>
@@ -97,13 +100,63 @@ function growEditDlg(b) {
     d.close();
     commit();
   };
+  const cover = $('[data-role="cover"]', d);
+  if (cover) cover.onchange = () => { if (cover.files[0]) scanCover(cover.files[0], form, $('[data-role="scan-status"]', d)); cover.value = ''; };
   setTimeout(() => $('input[name="title"]', d)?.focus(), 50);
+}
+// ---------- Scan a book cover ----------
+/** Loads a script once (the text reader is only fetched the first time you scan). */
+const loadScript = (src) => new Promise((resolve, reject) => {
+  if ([...document.scripts].some((s) => s.src === src)) { resolve(); return; }
+  const el = document.createElement('script');
+  el.src = src; el.async = true; el.onload = () => resolve(); el.onerror = () => reject(new Error('Could not load the text reader.'));
+  document.head.append(el);
+});
+/** Reads the cover photo, looks the book up in Open Library and asks you to confirm before filling the form. */
+async function scanCover(file, form, status) {
+  const say = (msg) => { if (status) status.textContent = msg; };
+  try {
+    say('Reading the cover… (the first scan takes a little longer)');
+    await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+    const worker = await Tesseract.createWorker('eng');
+    const { data } = await worker.recognize(file);
+    await worker.terminate();
+    // The title is usually the biggest text on the cover; the author is often next.
+    const lines = (data.lines || []).map((l) => ({ text: String(l.text || '').replace(/[^\p{L}\p{N}'’&:,. -]/gu, ' ').replace(/\s+/g, ' ').trim(), h: (l.bbox?.y1 || 0) - (l.bbox?.y0 || 0), conf: l.confidence || 0 }))
+      .filter((l) => l.text.length > 1 && /[a-z]{2,}/i.test(l.text) && l.conf > 35);
+    if (!lines.length) { say('Couldn’t read any words. Try a sharper, straight-on photo, or type the title.'); return; }
+    const big = [...lines].sort((a, b) => b.h - a.h);
+    const query = big.slice(0, 4).map((l) => l.text).join(' ').slice(0, 140);
+    say('Looking the book up…');
+    let docs = [];
+    try {
+      const r = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3&fields=title,author_name,first_publish_year,cover_i`);
+      docs = (await r.json()).docs || [];
+    } catch { /* offline: fall back to what was read */ }
+    const fill = (title, author) => { form.title.value = title || ''; form.author.value = author || ''; form.title.focus(); };
+    if (!docs.length) {
+      fill(big[0]?.text || '', big[1]?.text || '');
+      say('Couldn’t find it online, so I filled in what I read. Please check it before adding.');
+      return;
+    }
+    const opt = (doc) => `${doc.title}${doc.author_name?.[0] ? ` — ${doc.author_name[0]}` : ''}`;
+    const first = docs[0];
+    const choice = await choiceDlg('Is this your book?', `<div class="scan-match">${first.cover_i ? `<img src="https://covers.openlibrary.org/b/id/${first.cover_i}-M.jpg" alt="" width="72">` : ''}<div><b>${esc(first.title)}</b><span>${esc(first.author_name?.join(', ') || 'Author not found')}</span>${first.first_publish_year ? `<small class="muted">First published ${first.first_publish_year}</small>` : ''}</div></div>${docs.length > 1 ? '<p class="small muted">Or pick another match:</p>' : ''}`,
+      [{ v: 0, label: 'Yes, that’s it', primary: true }, ...docs.slice(1).map((doc, i) => ({ v: i + 1, label: opt(doc) })), { v: 'edit', label: 'None of these' }]);
+    if (choice === null || choice === undefined) { say('Scan cancelled.'); return; }
+    if (choice === 'edit') { fill(big[0]?.text || '', big[1]?.text || ''); say('Filled in what I read. Please correct it before adding.'); return; }
+    const doc = docs[choice];
+    fill(doc.title, doc.author_name?.[0] || '');
+    say('Filled in from the cover. Check it, then tap Add.');
+  } catch (err) {
+    say(`Couldn’t scan the cover: ${err.message || 'something went wrong'}. You can type the title instead.`);
+  }
 }
 /** A reading (or listening) session waits in Time Box Allocation, ready to drag into a time. */
 function growToTimebox(b) {
   const p = personalPlan();
   if (!p) { toast('Make a plan first.', { error: true }); return; }
-  const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: `${b.format === 'listen' ? 'Listen' : 'Read'}: ${b.title}`, assignees: [S.meId], estimate: 30, workType: '' });
+  const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: `${GROW_FORMATS[b.format]?.verb || 'Read'}: ${b.title}`, assignees: [S.meId], estimate: 30, workType: '' });
   Object.assign(t, { growBook: b.id, tbQueued: true, tbQueuedAt: Date.now() });
   if (b.status === 'plan') { b.status = 'reading'; b.started = todayISO(); }
   commit();
