@@ -1388,3 +1388,8 @@ body.dragging .bp-row.drag-src { opacity: .4; }
 
 /* Dropping a time box back into the right column */
 .tb-side.drop-back { outline: 2px dashed var(--highlight); outline-offset: 4px; border-radius: 12px; background: color-mix(in srgb, var(--highlight) 8%, transparent); }
+
+/* Live readout while stretching a time box */
+.resize-tip { position: fixed; z-index: 1000; pointer-events: none; display: grid; gap: 1px; padding: 6px 11px; border-radius: 10px; font-size: calc(13px * var(--scale) * var(--type));
+  color: var(--surface); background: color-mix(in srgb, var(--ink) 92%, transparent); box-shadow: 0 6px 18px rgba(0, 0, 0, .22); white-space: nowrap; }
+.resize-tip small { opacity: .8; font-size: .85em; }
