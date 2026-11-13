@@ -1065,14 +1065,8 @@ function queueItemHTML(t, anchor, picked, rank, again, allocated) {
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} mins</option>`).join('')}</select>
       ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
       ${again || t.tbQueued ? '' : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
-    </div>${(() => {
-      // Worked on over several days: the time adds up across all its time boxes.
-      const all = bookingsOf(t);
-      if (!all.length || (all.length === 1 && !t.tbQueued && !again)) return '';
-      const days = new Set(all.map((b) => b.date)).size;
-      const booked = all.reduce((n, b) => n + b.dur, 0);
-      return `<small class="tb-total">So far ${esc(fmtDur(booked))} over ${days} day${days === 1 ? '' : 's'} · spent ${esc(fmtDur(timeSpentOf(t).total))}</small>`;
-    })()}</div>`;
+    </div></div>`;
+  // Time spent across days is still kept with the task and shown in its panel (Time spent).
 }
 function renderPlanner() {
   const mode = ['day', 'week', 'month'].includes(ui.dayView) ? ui.dayView : 'week';
