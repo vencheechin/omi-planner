@@ -1041,16 +1041,6 @@ function renderPlanner() {
       <div class="spacer"></div>
       <button class="btn ghost sm" data-act="moveUnfinished" data-date="${mode === 'day' ? anchor : today}">Move unfinished</button>
     </header>
-    <form class="tb-quick" data-submit="tbQuickAdd">
-      <input name="title" placeholder="Add a task to the Time Box" data-focus="tb-quick" autocomplete="off" aria-label="Task name" required>
-      <select name="estimate" aria-label="Estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select>
-      <select name="workType" aria-label="Work type">${workTypeOptions('focus', true)}</select>
-      <input name="date" type="date" value="${anchor}" aria-label="Day">
-      <input name="start" type="time" step="${SNAP_OF() * 60}" aria-label="Start time" title="Leave empty to use the next free slot">
-      <button class="btn primary sm">${icon('plus', 14)} Add</button>
-      
-    </form>
-    ${mode === 'day' ? mioBarHTML(anchor, true) : ''}
     ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span><button class="btn ghost sm" data-act="moveUnfinished" data-date="past">Move to free slots</button></div>` : ''}
     <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}</div>
     <div class="tb-main">
