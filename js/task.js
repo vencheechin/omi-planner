@@ -183,7 +183,7 @@ function renderTask() {
     </header>
     <div class="task-scroll" data-scroll="task-panel">
       <div class="task-labels">
-        ${orderedLabels(plan, t.labels).map((l) => `<span class="label-chip removable" style="background:${LABELS[l][1]};color:${inkOn(LABELS[l][1])}">${esc(labelName(plan, l))}<button class="chip-x" data-act="removeLabel" data-i="${l}" aria-label="Remove label ${esc(labelName(plan, l))}">${icon('close', 11)}</button></span>`).join('')}
+        ${orderedLabels(plan, t.labels).map((l) => `<span class="label-chip removable" style="background:${labelHex(plan, l)};color:${inkOn(labelHex(plan, l))}">${esc(labelName(plan, l))}<button class="chip-x" data-act="removeLabel" data-i="${l}" aria-label="Remove label ${esc(labelName(plan, l))}">${icon('close', 11)}</button></span>`).join('')}
         <button class="add-chip" data-act="pickLabels" data-id="${esc(t.id)}">${icon('tag', 13)} Add label</button>
       </div>
       <div class="task-title">
@@ -403,16 +403,21 @@ function labelPicker() {
   const q = ui.labelQuery.trim().toLowerCase();
   const exact = LABELS.some((_, i) => labelName(plan, i).toLowerCase() === q);
   const row = (i) => {
-    const hex = LABELS[i][1];
+    const hex = labelHex(plan, i);
     const name = labelName(plan, i);
     if (ui.labelEdit === i) {
-      return `<form class="label-row editing" data-submit="labelRename" data-i="${i}"><i class="dot" style="background:${hex}"></i><input name="name" value="${esc(plan.labels[i])}" placeholder="${esc(LABELS[i][0])}" data-focus="label-edit" autocomplete="off" aria-label="Label name"><button class="btn primary sm">Save</button></form>`;
+      // Rename and recolour: the name, then a row of colours to pick from.
+      return `<form class="label-row editing label-edit" data-submit="labelRename" data-i="${i}">
+        <div class="label-edit-top"><span class="label-chip" style="background:${hex};color:${inkOn(hex)}" data-role="preview">${esc(name)}</span>
+          <input name="name" value="${esc(plan.labels[i])}" placeholder="${esc(LABELS[i][0])}" data-focus="label-edit" autocomplete="off" aria-label="Label name"></div>
+        <div class="label-swatches" role="radiogroup" aria-label="Label colour">${[...new Set([LABELS[i][1], ...LABEL_SWATCHES])].map((c) => `<label class="sw ${c.toLowerCase() === hex.toLowerCase() ? 'on' : ''}" style="--c:${c}" title="${c === LABELS[i][1] ? 'Original colour' : c}"><input type="radio" name="color" value="${c}" ${c.toLowerCase() === hex.toLowerCase() ? 'checked' : ''}><i></i></label>`).join('')}</div>
+        <div class="row"><button class="btn primary sm">Save</button><button type="button" class="btn ghost sm" data-act="editLabelCancel">Cancel</button></div></form>`;
     }
     const on = !!t && t.labels.includes(i);
     return `<div class="label-row" data-name="${esc(name.toLowerCase())}" data-drag="label" data-id="${i}" ${q && !name.toLowerCase().includes(q) ? 'hidden' : ''}>
       <span class="grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>
       <button class="label-pick" ${t ? `data-act="toggleLabel" data-i="${i}" aria-pressed="${on}"` : 'disabled'}><span class="label-chip" style="background:${hex};color:${inkOn(hex)}">${esc(name)}</span>${on ? icon('check', 15) : ''}</button>
-      <button class="icon-btn" data-act="editLabel" data-i="${i}" aria-label="Rename ${esc(name)}" title="Rename">${icon('pencil', 14)}</button></div>`;
+      <button class="icon-btn" data-act="editLabel" data-i="${i}" aria-label="Rename or change the colour of ${esc(name)}" title="Rename or change colour">${icon('pencil', 14)}</button></div>`;
   };
   return `<div class="picker labels">
     <h4>${t ? 'Labels' : `Labels in ${esc(plan.name)}`}</h4>

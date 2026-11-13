@@ -23,7 +23,7 @@ const icon = (name, size = 16) => `<svg class="icon" width="${size}" height="${s
 
 const avatar = (p, size = 26) => (p ? `<span class="avatar" style="--s:${size}px;background:${esc(p.color)}" title="${esc(p.name)}">${esc(initials(p.name))}</span>` : '');
 const planTile = (p, size = 28) => `<span class="plan-tile" style="--s:${size}px;background:${esc(p.color)}" aria-hidden="true">${esc(initials(p.name))}</span>`;
-const labelChip = (plan, i) => `<span class="label-chip" style="background:${LABELS[i][1]};color:${inkOn(LABELS[i][1])}">${esc(labelName(plan, i))}</span>`;
+const labelChip = (plan, i) => `<span class="label-chip" style="background:${labelHex(plan, i)};color:${inkOn(labelHex(plan, i))}">${esc(labelName(plan, i))}</span>`;
 function priorityIcon(p) {
   if (p === 1) return `<span class="prio urgent" title="Urgent">!</span>`;
   if (p === 3) return `<span class="prio important" title="Important">${icon('up', 13)}</span>`;
@@ -80,7 +80,7 @@ function groupsFor(by, tasks, plan) {
       const used = [...new Set(tasks.flatMap((t) => t.labels))].sort((a, b) => a - b);
       return [
         { key: 'none', label: 'No label', tasks: pick((t) => !t.labels.length) },
-        ...used.map((i) => ({ key: String(i), label: labelName(plan, i), color: LABELS[i][1], tasks: pick((t) => t.labels.includes(i)) })),
+        ...used.map((i) => ({ key: String(i), label: labelName(plan, i), color: labelHex(plan, i), tasks: pick((t) => t.labels.includes(i)) })),
       ];
     }
     case 'plan': return S.plans.filter((p) => tasks.some((t) => t.planId === p.id)).map((p) => ({ key: p.id, label: p.name, plan: p, tasks: pick((t) => t.planId === p.id) }));
@@ -591,7 +591,7 @@ function scheduleHTML(tasks, plan) {
       if (lane < 0) { lane = lanes.length; lanes.push(-1); }
       if (lane >= maxLanes) { for (let c = c1; c <= c2; c++) overflow[c]++; continue; }
       lanes[lane] = c2;
-      const color = h.t.labels.length ? LABELS[h.t.labels[0]][1] : '#3e5170';
+      const color = h.t.labels.length ? labelHex(planById(h.t.planId), h.t.labels[0]) : '#3e5170';
       const cls = [isLate(h.t) ? 'late' : '', isDone(h.t) ? 'done' : '', h.a < w ? 'cont-l' : '', h.b > end ? 'cont-r' : ''].join(' ');
       bars += `<button class="bar ${cls}" style="grid-column:${c1 + 1}/${c2 + 2};grid-row:${lane + 2};background:${color};color:${inkOn(color)}" data-open-task="${esc(h.t.id)}" data-drag="task" data-id="${esc(h.t.id)}" title="${esc(h.t.title)}">${esc(h.t.title || 'Untitled task')}</button>`;
     }

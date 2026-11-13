@@ -12,7 +12,7 @@ const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priori
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
   'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval', 'bookRec'];
 const LIST_FIELDS = ['comments', 'history'];
-const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder'];
+const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder', 'labelColors'];
 const FILE_APP = 'planner-team';
 
 const freshSync = () => ({ shadow: {}, tombstones: {}, seenAssignees: {}, files: {}, lastSync: null, lastWrite: null, connectedAt: null, folderName: '', ready: false });

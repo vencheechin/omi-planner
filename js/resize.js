@@ -116,3 +116,13 @@ render = function renderKeepingPane() {
   const m = innerWidth <= 760 && $('.tb-main');
   if (m && ui.tbPane) m.scrollLeft = ui.tbPane * m.clientWidth;
 };
+
+// Label editor: show the chosen colour on the preview straight away.
+document.addEventListener('change', (e) => {
+  const f = e.target.closest?.('.label-edit');
+  if (!f || e.target.name !== 'color') return;
+  const c = e.target.value;
+  const pv = f.querySelector('[data-role="preview"]');
+  if (pv) { pv.style.background = c; pv.style.color = inkOn(c); }
+  f.querySelectorAll('.sw').forEach((s) => s.classList.toggle('on', s.contains(e.target)));
+});

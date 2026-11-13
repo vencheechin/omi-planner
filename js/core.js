@@ -138,6 +138,7 @@ function normalizeState(raw) {
     id: String(p.id), name: String(p.name || 'Untitled plan'), color: rebrand(p.color, OLD_PLAN_COLORS, PLAN_COLORS, PLAN_COLORS[0]), pinned: !!p.pinned,
     created: p.created || Date.now(), lastOpened: p.lastOpened || 0,
     labels: Array.from({ length: LABELS.length }, (_, i) => String((p.labels && p.labels[i]) || '')),
+    ...(Array.isArray(p.labelColors) ? { labelColors: Array.from({ length: LABELS.length }, (_, i) => (/^#[0-9a-f]{6}$/i.test(p.labelColors[i] || '') ? p.labelColors[i] : '')) } : {}),
     buckets: Array.isArray(p.buckets) && p.buckets.length ? p.buckets.map((b) => ({ id: String(b.id), name: String(b.name || 'Bucket'), ...(b.kind === 'checking' ? { kind: 'checking' } : {}), ...(/^#[0-9a-f]{6}$/i.test(b.color || '') ? { color: b.color } : {}) })) : [{ id: uid(), name: 'To do' }],
     members: Array.isArray(p.members) ? p.members.filter((m) => people.some((x) => x.id === m)) : [meId],
     personal: !!p.personal, shared: !!p.shared, owner: p.owner || null,
@@ -358,6 +359,10 @@ function setBucketFor(t, id) {
 }
 const bucketName = (t) => { const p = boardPlanOf(t); const b = p && p.buckets.find((x) => x.id === bucketOf(t)); return b ? b.name : ''; };
 const labelName = (plan, i) => (plan && plan.labels[i]) || LABELS[i][0];
+/** A label's colour: the one chosen for this plan, or the label's own. */
+const labelHex = (plan, i) => (plan && /^#[0-9a-f]{6}$/i.test(plan.labelColors?.[i] || '') ? plan.labelColors[i] : LABELS[i][1]);
+/** Colours to choose from for a label. */
+const LABEL_SWATCHES = ['#c77d8e', '#a6402b', '#c47b45', '#c9963a', '#d8b45c', '#a3a86b', '#6f8f5a', '#3f5a3a', '#6fa0a0', '#3f7473', '#4f6e96', '#233246', '#7d6a8e', '#5c3a52', '#9a6b3f', '#6b4b33', '#8c887f', '#4e4a44', '#e63946', '#f4a261', '#2a9d8f', '#3a86ff', '#8338ec', '#ff006e'];
 const inMyDay = (t) => !isDone(t) && !t.box && (t.myDay === todayISO() || t.slotDate === todayISO() || (t.boxId && taskById(t.boxId)?.slotDate === todayISO()) || (t.due === todayISO() && t.assignees.includes(S.meId)));
 // Labels in the order set for the plan (drag to reorder in the label picker); otherwise named labels first.
 function labelOrder(plan) {

@@ -367,7 +367,8 @@ function applySizes() {
   const text = clampNum(S.settings.textScale, 0.8, 1.5, SIZE_DEFAULTS.textScale);
   const bucket = clampNum(S.settings.bucketSize, 12, 32, SIZE_DEFAULTS.bucketSize);
   // On phones, 100% matches iPhone apps: body text at 17pt (the app's base is 14px), then the phone's own Text Size on top.
-  const phoneBase = matchMedia('(max-width: 760px)').matches ? 17 / 14 : 1;
+  const fontStep = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--type')) || 1;
+  const phoneBase = matchMedia('(max-width: 760px)').matches ? 17 / (14 * fontStep) : 1;
   document.documentElement.style.setProperty('--scale', Math.round(text * phoneBase * systemTextScale() * 1000) / 1000);
   document.documentElement.style.setProperty('--bucket-fs', `${bucket}px`);
   try { localStorage.setItem(lsKey('planner-sizes'), JSON.stringify({ text, bucket })); } catch { /* sizes still apply this session */ }
@@ -941,6 +942,7 @@ const actions = {
   settingsTab: (el) => { ui.settingsTab = el.dataset.v; refreshSettings(); $('dialog.settings .dlg-body')?.scrollTo(0, 0); },
   // Phones: the calendar and Time Box Allocation sit side by side; swipe or tap a tab to switch.
   tbPane: (el) => { const m = $('.tb-main'); if (!m) return; ui.tbPane = Number(el.dataset.v); m.scrollTo({ left: ui.tbPane * m.clientWidth, behavior: calmMotion() ? 'auto' : 'smooth' }); $$('.tb-pager button').forEach((b, i) => b.classList.toggle('on', i === ui.tbPane)); },
+  editLabelCancel: () => { ui.labelEdit = null; refreshLabels('label-search'); },
   adminTab: (el) => { ui.adminTab = el.dataset.v; render(); },
   adminPeriod: (el) => { ui.adminPeriod = el.dataset.v; render(); },
   openAdmin: () => { $$('dialog.dlg[open]').forEach((d) => d.close()); location.hash = '#/admin'; },
@@ -1457,7 +1459,12 @@ const submits = {
     commit();
   },
   labelRename: (form, data) => {
-    planById(ui.labelCtx.planId).labels[+form.dataset.i] = data.get('name').trim();
+    const plan = planById(ui.labelCtx.planId);
+    const i = +form.dataset.i;
+    plan.labels[i] = data.get('name').trim();
+    const c = String(data.get('color') || '');
+    plan.labelColors = Array.from({ length: LABELS.length }, (_, k) => plan.labelColors?.[k] || '');
+    plan.labelColors[i] = c && c.toLowerCase() !== LABELS[i][1].toLowerCase() ? c : '';
     ui.labelEdit = null;
     refreshLabels('label-search');
     commit();

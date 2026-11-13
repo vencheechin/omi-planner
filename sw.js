@@ -1,6 +1,6 @@
 'use strict';
 /* Keeps a copy of the app so it starts with no network. Bump VERSION when files are added or removed. */
-const VERSION = 'planner-v148';
+const VERSION = 'planner-v149';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'js/core.js', 'js/views.js', 'js/task.js', 'js/team.js', 'js/timebox.js', 'js/config.js', 'js/cloud.js', 'js/import.js', 'js/chat.js', 'js/styles.js', 'js/devicefolder.js', 'js/usage.js', 'js/reminders.js', 'js/brandplan.js', 'js/admin.js', 'js/app.js', 'js/fitness.js', 'js/growth.js', 'js/alarm.js', 'js/history.js', 'js/resize.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/omi-logo.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
