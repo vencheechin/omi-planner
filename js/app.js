@@ -837,7 +837,17 @@ const actions = {
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   decShow: (el) => { ui.decShow = el.dataset.v; render(); },
-  tbBookAgain: (el) => bookAgain(taskById(el.dataset.id)),
+  tbRequeue: (el) => {
+    // The time box it had stays (and counts as time spent); the task goes back on the list to place again.
+    const t = taskById(el.dataset.id);
+    const had = isScheduled(t) ? { id: uid(), date: t.slotDate, start: t.slotStart, dur: durOf(t) } : null;
+    if (had) t.tbSessions = [...sessionsOf(t), had];
+    t.slotDate = null; t.slotStart = null;
+    t.tbQueued = true; t.tbQueuedAt = Date.now(); t.tbRank = -1;
+    timeboxQueue().forEach((x, i) => { x.tbRank = i; });
+    commit();
+    toast('Added to Time Box Allocation. Drag it into the planner; the earlier time box stays.', { undo: () => { if (had) t.tbSessions = sessionsOf(t).filter((s) => s !== had); if (had) { t.slotDate = had.date; t.slotStart = had.start; } t.tbQueued = false; commit(); } });
+  },
   tbDelSession: (el) => {
     const t = taskById(el.dataset.id);
     const keep = sessionsOf(t);
