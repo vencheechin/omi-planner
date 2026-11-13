@@ -1108,7 +1108,7 @@ function renderPlanner() {
     <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}</div>
     <div class="tb-pager" role="tablist" aria-label="Show">
       <button role="tab" class="${(ui.tbPane || 0) === 0 ? 'on' : ''}" data-act="tbPane" data-v="0">${icon('clock', 15)} Calendar</button>
-      <button role="tab" class="${ui.tbPane === 1 ? 'on' : ''}" data-act="tbPane" data-v="1">${icon('list', 15)} Time Box Allocation <span class="count">${queue.length}</span></button>
+      <button role="tab" class="${ui.tbPane === 1 ? 'on' : ''}" data-act="tbPane" data-v="1">${icon('list', 15)} Allocation <span class="count">${queue.length}</span></button>
     </div>
     <div class="tb-main" data-scroll="tb-main">
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
