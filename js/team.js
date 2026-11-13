@@ -390,6 +390,17 @@ const Team = {
   async init() {
     if (!Store.db) return;
     try { this.dir = await Store.tx('kv', 'readonly', (s) => s.get('teamDir')); } catch { this.dir = null; }
+    // Coming back from Dropbox sign-in: finish it before anything else.
+    let auth = null;
+    try { auth = await Dbx.finishRedirect(); } catch (err) { toast(err.message, { error: true }); }
+    if (auth === 'leaving') return;
+    if (auth) { await this.useDropbox(auth, this.dir?.virtual === 'dropbox' ? this.dir : null); return; }
+    if (this.dir && this.dir.virtual === 'dropbox') {
+      const rec = this.dir;
+      this.dir = new DropboxDir(new DbxClient(rec.auth), rec.path, rec.name);
+      this.start();
+      return;
+    }
     if (this.dir && this.dir.virtual) { this.dir = new DeviceDir(); this.start(); return; }
     if (!this.dir || !this.supported) { this.dir = null; return; }
     const perm = await this.dir.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
@@ -411,6 +422,38 @@ const Team = {
     this.start();
     toast(`Connected to “${dir.name}”. Teammates who choose the same folder will see shared tasks.`);
   },
+  /** Signs in to Dropbox and syncs through a Dropbox folder shared with the team. */
+  async connectDropbox() {
+    const me = person(S.meId);
+    if (!me.email) { toast('Add your email in Settings first, so teammates can assign tasks to you.', { error: true }); return; }
+    if (!Dbx.configured()) { toast('Paste the Dropbox app key first (see cloud/DROPBOX.md).', { error: true }); return; }
+    let auth;
+    try { auth = await Dbx.signIn(); } catch (err) { toast(err.message, { error: true }); return; }
+    if (auth) await this.useDropbox(auth, null);
+  },
+  /** After sign-in: keep the folder already chosen (signing in again), or ask which one to use. */
+  async useDropbox(auth, rec) {
+    const client = new DbxClient(auth);
+    let path = rec?.path, name = rec?.name;
+    if (!path) {
+      const pick = await dropboxFolderDlg(client);
+      if (!pick) return;
+      ({ path, name } = pick);
+    }
+    let email = '';
+    try { email = (await client.account())?.email || ''; } catch { /* shown without it */ }
+    const keep = { virtual: 'dropbox', path, name, email, auth: { refresh: auth.refresh, account: auth.account } };
+    await Store.tx('kv', 'readwrite', (s) => s.put(keep, 'teamDir'));
+    this.dir = new DropboxDir(client, path, name);
+    this.dropboxEmail = email;
+    S.sync.folderName = `Dropbox: ${name}`;
+    if (!S.sync.connectedAt) S.sync.connectedAt = Date.now();
+    S.tasks.forEach((t) => { if (t.assignees.some((a) => a !== S.meId) || (t.assignedBy && t.assignedBy !== S.meId)) t.shared = true; });
+    commit();
+    this.start();
+    refreshSettings?.();
+    toast(rec ? 'Dropbox reconnected.' : `Connected to Dropbox folder “${name}”. Teammates who choose the same shared folder will see shared tasks.`);
+  },
   /** Connects to the test folder inside this browser (two people on one device). */
   async connectDevice({ quiet = false } = {}) {
     const me = person(S.meId);
@@ -426,11 +469,19 @@ const Team = {
   },
   async reconnect() {
     if (!this.dir) return;
+    if (this.dir.virtual === 'dropbox') {
+      let auth;
+      try { auth = await Dbx.signIn(); } catch (err) { toast(err.message, { error: true }); return; }
+      if (auth) await this.useDropbox(auth, { path: this.dir.path, name: this.dir.name });
+      return;
+    }
     const perm = await this.dir.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
     if (perm === 'granted') this.start(); else toast('Planner needs permission to the team folder to sync.', { error: true });
   },
   async disconnect() {
     clearInterval(this.timer);
+    DbxWatch.stop();
+    Presence.stop();
     this.dir = null;
     await Store.tx('kv', 'readwrite', (s) => s.delete('teamDir'));
     S.sync.folderName = '';
@@ -442,10 +493,13 @@ const Team = {
     this.setState('ok');
     this.sync();
     this.timer = setInterval(() => { if (document.visibilityState === 'visible') this.sync(); }, 20000);
+    // Dropbox says straight away when a teammate's file changes, so there is no 20-second wait.
+    if (this.dir.virtual === 'dropbox') DbxWatch.start(this.dir, () => { clearTimeout(this.watchTimer); this.watchTimer = setTimeout(() => this.sync(), 400); });
+    Presence.start();
   },
   /** Called after each local save: push soon, so a teammate sees the change quickly. */
   schedulePush() {
-    if (this.busy || (this.state !== 'ok' && this.state !== 'error')) return;
+    if (this.busy || !['ok', 'error', 'offline'].includes(this.state)) return;
     clearTimeout(this.pushTimer);
     this.pushTimer = setTimeout(() => this.sync(), 1500);
   },
@@ -462,12 +516,14 @@ const Team = {
       let changed = false;
       for await (const [name, handle] of members.entries()) {
         if (handle.kind !== 'file' || !name.endsWith('.json') || name === this.fileName()) continue;
-        const file = await handle.getFile();
+        // Dropbox files report their version without downloading; folder files are opened as usual.
+        const file = handle.peek ? handle.peek() : await handle.getFile();
         // The suffix changes when teammate files gain new parts (bp: the H1 / H2 Plan), so each file is read again once.
-        const stamp = `${file.lastModified}:${file.size}:st`;
+        const stamp = `${file.lastModified}:${file.size}${file.rev ? `:${file.rev}` : ''}:st`;
         if (S.sync.files[name] === stamp) continue;
         try {
-          if (mergeTeamFile(JSON.parse(await file.text()))) changed = true;
+          const text = handle.peek ? await (await handle.getFile()).text() : await file.text();
+          if (mergeTeamFile(JSON.parse(text))) changed = true;
           S.sync.files[name] = stamp;
         } catch (err) {
           console.warn(`Skipped ${name}; it may still be downloading.`, err);
@@ -487,6 +543,7 @@ const Team = {
         S.sync.lastWrite = hash;
       }
       S.sync.lastSync = Date.now();
+      await Presence.read().catch((err) => console.warn('Presence read failed', err));
       await Store.flush();
       if (changed && !document.activeElement?.closest?.('dialog, .pop')) render();
       else renderSidebar();
@@ -494,7 +551,7 @@ const Team = {
       this.setState('ok');
     } catch (err) {
       console.error('Team sync failed', err);
-      this.setState(err.name === 'NotAllowedError' || err.name === 'SecurityError' ? 'permission' : 'error', err.message);
+      this.setState(err.name === 'NotAllowedError' || err.name === 'SecurityError' ? 'permission' : err.name === 'NetworkError' || !navigator.onLine ? 'offline' : 'error', err.message);
     } finally {
       this.busy = false;
     }
@@ -531,7 +588,8 @@ const Team = {
   },
   statusText() {
     if (this.state === 'off') return null;
-    if (this.state === 'permission') return { text: 'Team folder: click to reconnect', cls: 'error', act: 'teamReconnect' };
+    if (this.state === 'permission') return { text: this.dir?.virtual === 'dropbox' ? 'Dropbox: click to sign in again' : 'Team folder: click to reconnect', cls: 'error', act: 'teamReconnect' };
+    if (this.state === 'offline') return { text: 'Offline · saved, will sync when online', cls: 'offline', act: 'openSettings' };
     if (this.state === 'error') return { text: 'Team sync problem · retrying', cls: 'error', act: 'openSettings' };
     const ago = S.sync.lastSync ? Math.round((Date.now() - S.sync.lastSync) / 60000) : null;
     const when = ago === null ? 'not yet' : ago < 1 ? 'just now' : `${ago} min ago`;

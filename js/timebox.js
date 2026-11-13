@@ -749,7 +749,7 @@ function tbRowHTML(t) {
   // Need Focus first, then the Time Box: assign it, or once it's there, a button that takes you to it.
   return `<div class="tb-row">
         ${inTimebox
-          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${isScheduled(t) && !isDone(t) && !isBox(t) ? `<button class="btn ghost sm" data-act="tbRequeue" data-id="${esc(t.id)}" title="Keep this time box and put the task back on the list to place again">${icon('plus', 13)} Add to Time Box Allocation</button>` : ''}${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
+          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${isScheduled(t) && !isDone(t) && !isBox(t) ? `<button class="btn ghost sm" data-act="tbRequeue" data-id="${esc(t.id)}" title="Keep this time box and put the task back on the list to place again">${icon('plus', 13)} Add to Allocation</button>` : ''}${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
       </div>${timeSpentHTML(t)}`;
 }
@@ -1073,7 +1073,7 @@ function queueItemHTML(t, anchor, picked, rank, again, allocated) {
     <div class="tb-q-meta">${isPlanningTask(t) || t.workType === 'exercise' || t.fitAct ? typeTag(t) : `<button class="focus-toggle ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}" title="Needs focus">${icon('target', 13)} Focus</button>${t.workType && t.workType !== 'focus' ? typeTag(t) : ''}`}
       ${isPlanningTask(t) || t.workType === 'exercise' || t.fitAct ? '<span class="tb-q-mid"></span>' : (() => { const iso = isScheduled(t) ? t.slotDate : todayISO(); const on = isMio(t, iso); return `<span class="tb-q-mid"><button class="mit-toggle ${on ? 'on' : ''}" data-act="tbMit" data-id="${esc(t.id)}" data-date="${iso}" aria-pressed="${on}" title="Most Important Task for ${esc(dayLabel(iso))}">${on ? '★' : '☆'} MIT</button></span>`; })()}
       <button class="tb-q-est" data-act="tbEstMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Time required">${t.estimate ? `${t.estimate} mins` : 'Time required'} ${icon('chevD', 12)}</button>
-      ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
+      ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Allocation</button>` : ''}
       ${again || t.tbQueued ? '' : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
     </div></div>`;
   // Time spent across days is still kept with the task and shown in its panel (Time spent).
@@ -1121,7 +1121,7 @@ function renderPlanner() {
           ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important. Your Top 3 become the day's 3 Most Important Outcomes when you give them a time. Drag an allocated task in again to give it another time box.</p>` : ''}
           ${queue.filter((t) => !(S.settings.tbHideAlloc && isScheduled(t))).map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t), false, isScheduled(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
           ${S.settings.tbHideAlloc && queue.some(isScheduled) ? `<p class="small muted">${queue.filter(isScheduled).length} allocated hidden.</p>` : ''}
-          ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
+          ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>

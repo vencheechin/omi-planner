@@ -899,7 +899,7 @@ const actions = {
     t.tbQueued = true; t.tbQueuedAt = Date.now(); t.tbRank = -1;
     setAllocationOrder(allocationOrder());
     commit();
-    toast('Added to Time Box Allocation. Drag it into the planner; the earlier time box stays.', { undo: () => { if (had) t.tbSessions = sessionsOf(t).filter((s) => s !== had); if (had) { t.slotDate = had.date; t.slotStart = had.start; } t.tbQueued = false; commit(); } });
+    toast('Added to Allocation. Drag it into the planner; the earlier time box stays.', { undo: () => { if (had) t.tbSessions = sessionsOf(t).filter((s) => s !== had); if (had) { t.slotDate = had.date; t.slotStart = had.start; } t.tbQueued = false; commit(); } });
   },
   tbDelSession: (el) => {
     const t = taskById(el.dataset.id);
