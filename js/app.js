@@ -1579,6 +1579,7 @@ const changes = {
     else if (choice === 'once') { ui.planMinOnce = m; render(); }
     else render();
   },
+  tbHideAlloc: (el) => { S.settings.tbHideAlloc = el.checked; commit(); },
   decSort: (el) => { S.settings.decisionSort = el.value; Store.save(); render(); },
   orgReportsTo: (el) => { const rt = { ...(org().reportsTo || {}) }; if (el.value) rt[el.dataset.p] = el.value; else delete rt[el.dataset.p]; if (el.value && isAbove(el.dataset.p, el.value)) { toast('That would make a loop.'); refreshSettings(); return; } org().reportsTo = rt; commit(); refreshSettings(); },
   stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },

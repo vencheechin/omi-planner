@@ -1455,3 +1455,11 @@ body.dragging .bp-row.drag-src { opacity: .4; }
   .card-tb svg { width: 22px; height: 22px; }
   .card .card-title { padding-right: 84px; }
 }
+
+/* Priority number on each time box */
+.tb-block .tb-b-rank { position: absolute; top: 3px; left: 4px; z-index: 1; display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+  font-size: 10.5px; font-weight: 800; line-height: 1; background: color-mix(in srgb, var(--ink) 70%, transparent); color: var(--surface); }
+.tb-block .tb-b-rank.top3 { background: var(--highlight); color: var(--surface); }
+.tb-block.short .tb-b-rank { top: 50%; transform: translateY(-50%); }
+.tb-side-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tb-hide-alloc { font-size: 12px; }

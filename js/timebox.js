@@ -933,6 +933,7 @@ function blockHTML(t, iso, ppm, y, lane, n) {
   const label = `${t.title || 'Untitled task'}, ${fmtTime(t.slotStart)} to ${fmtTime(endOf(t))}${items.length ? `, ${items.filter(isDone).length} of ${items.length} done` : ''}`;
   return `<div class="${cls}" style="top:${y(t.slotStart)}px;height:${h}px;left:calc(${lane / n} * 100% + 1px);width:calc(100% / ${n} - 2px);--c:${fillOf(t)}"
     data-open-task="${esc(realId(t))}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" data-tip="${esc(`${fmtTime(t.slotStart)} – ${fmtTime(endOf(t))}`)}">
+    ${(() => { const n = allocationNumber(t._task || t); return n ? `<b class="tb-b-rank ${n <= 3 ? 'top3' : ''}" title="Priority ${n}">${n}</b>` : ''; })()}
     <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${(() => { const all = bookingsOf(t._task || t); if (all.length < 2) return ''; const i = all.findIndex((b) => b.date === t.slotDate && b.start === t.slotStart); return ` <small class="tb-part" title="Time box ${i + 1} of ${all.length} for this task">${i + 1}/${all.length}</small>`; })()}${h < 38 ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
     ${h >= 38 ? `<small class="tb-b-dur">${dur}</small>` : ''}
     ${items.length ? `<ul class="tb-items">${fit.shown.map((i) => `<li class="${isDone(i) ? 'done' : ''}"><button class="check small ${isDone(i) ? 'on' : ''} ${i.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(i.id)}" aria-label="${esc(`${checkLabel(i)}: ${i.title}`)}" title="${checkLabel(i)}">${icon('check', 9)}</button><span>${esc(i.title || 'Untitled task')}</span></li>`).join('')}</ul>` : ''}
@@ -1104,12 +1105,14 @@ function renderPlanner() {
     <div class="tb-main">
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
       <aside class="tb-side">
-        <h3>Time Box Allocation <span class="count">${queue.length}</span></h3>
+        <div class="tb-side-head"><h3>Time Box Allocation <span class="count">${queue.length}</span></h3>
+          ${queue.some(isScheduled) ? `<label class="mini tb-hide-alloc"><input type="checkbox" data-change="tbHideAlloc" ${S.settings.tbHideAlloc ? 'checked' : ''}> Hide allocated</label>` : ''}</div>
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
           ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important. Your Top 3 become the day's 3 Most Important Outcomes when you give them a time. Drag an allocated task in again to give it another time box.</p>` : ''}
-          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t), false, isScheduled(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
+          ${queue.filter((t) => !(S.settings.tbHideAlloc && isScheduled(t))).map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t), false, isScheduled(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
+          ${S.settings.tbHideAlloc && queue.some(isScheduled) ? `<p class="small muted">${queue.filter(isScheduled).length} allocated hidden.</p>` : ''}
           ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
