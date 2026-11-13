@@ -2142,6 +2142,8 @@ document.addEventListener('click', (e) => {
   if (e.target.matches('[data-field="preview"]') && openTaskObj()?.preview === e.target.value) { setField(openTaskObj(), 'preview', 'auto'); return; }
   const el = e.target.closest('[data-act], [data-open-task]');
   if (el?.dataset.act) { e.preventDefault(); Usage.track(el.dataset.act); actions[el.dataset.act](el, e); return; }
+  // Changing a field inside a card (like the time pill) doesn't open the task.
+  if (el && e.target.closest('select, input, textarea, option, label') && el.contains(e.target.closest('select, input, textarea, option, label'))) return;
   if (el) { Usage.track('openTask'); openTask(el.dataset.openTask); return; }
   if (ui.navOpen && !e.target.closest('#sidebar')) { ui.navOpen = false; renderSidebar(); }
 }, true);

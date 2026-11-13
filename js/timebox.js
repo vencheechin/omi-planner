@@ -220,7 +220,13 @@ async function bookAgain(t, iso, start) {
 /** Planning is a default task: one waits in Time Box Allocation each day, at your usual length. */
 function ensureDailyPlanning() {
   const today = todayISO();
-  if (new Date().getHours() < 2 || S.tasks.some((t) => t.dailyPlan === today)) return false;
+  if (new Date().getHours() < 2) return false;
+  // Several devices (or the old Add button) can leave more than one waiting: keep one.
+  const spare = (t) => t.title === 'Planning' && t.workType === 'planning' && t.tbQueued && !isDone(t) && !isScheduled(t) && !sessionsOf(t).length && !t.comments?.length;
+  const waiting = S.tasks.filter(spare).sort((a, b) => (a.dailyPlan === today ? 0 : 1) - (b.dailyPlan === today ? 0 : 1) || String(a.id).localeCompare(String(b.id)));
+  if (waiting.length > 1) { const keep = waiting[0]; keep.dailyPlan = today; S.tasks = S.tasks.filter((t) => t === keep || !waiting.includes(t)); return true; }
+  if (waiting.length === 1 && waiting[0].dailyPlan !== today) { waiting[0].dailyPlan = today; return true; }
+  if (S.tasks.some((t) => t.dailyPlan === today)) return false;
   const p = personalPlan();
   if (!p) return false;
   const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: 'Planning', assignees: [S.meId], estimate: TB().planMin || 15, workType: 'planning' });
@@ -356,12 +362,22 @@ async function scheduleTask(t, iso, start, dur = durOf(t)) {
   dur = Math.max(5, dur); // 5- and 10-minute boxes are allowed; starts still snap to 15 minutes
   start = Math.min(Math.max(0, snapMin(start)), 1440 - dur);
   // It goes exactly where you put it; overlaps and capacity still show as warnings on the day.
+  const top = t.tbQueued ? allocationNumber(t) : 0;
   t.slotDate = iso;
   t.slotStart = start;
   t.estimate = dur;
   if (!t.workType) { const b = blockAt(iso, start); if (b && b.kind) t.workType = b.kind; }
+  if (top && top <= MIO_MAX) recordTop3(t, iso);
   commit();
   return true;
+}
+/** One of your Top 3 got a time: it becomes one of that day's 3 Most Important Outcomes. */
+function recordTop3(t, iso) {
+  const ids = mioIds(iso).filter((id) => taskById(id));
+  if (ids.includes(t.id) || ids.length >= MIO_MAX) return;
+  const day = { ...(S.days[iso] || {}), mio: [...ids, t.id] };
+  delete day.omio;
+  S.days[iso] = day;
 }
 function unschedule(t) { t.slotDate = null; t.slotStart = null; t.tbQueued = true; commit(); }
 /** Books the next free slot for one task, with Undo. */
@@ -996,10 +1012,12 @@ function allocationOrder() {
   const now = nowMin();
   const live = (t) => !isScheduled(t) || t.slotDate > today || (t.slotDate === today && endOf(t) > now);
   return S.tasks.filter((t) => t.tbQueued && !isDone(t) && !(t.boxId && taskById(t.boxId)) && live(t))
-    .sort((a, b) => (a.tbRank ?? 1e9) - (b.tbRank ?? 1e9) || a.priority - b.priority || String(a.due || '9').localeCompare(String(b.due || '9')));
+    .sort((a, b) => isPlanningTask(b) - isPlanningTask(a) || (a.tbRank ?? 1e9) - (b.tbRank ?? 1e9) || a.priority - b.priority || String(a.due || '9').localeCompare(String(b.due || '9')));
 }
 /** Its number in your order (1 is most important); it keeps it when it's given a time. */
-const allocationNumber = (t) => allocationOrder().indexOf(t) + 1;
+/** The daily Planning task: always first, never numbered, never one of the Top 3. */
+const isPlanningTask = (t) => !!t.dailyPlan || (t.workType === 'planning' && t.title === 'Planning');
+const allocationNumber = (t) => (isPlanningTask(t) ? 0 : allocationOrder().filter((x) => !isPlanningTask(x)).indexOf(t) + 1);
 /** Still waiting for a time. */
 function timeboxQueue() { return allocationOrder().filter((t) => !isScheduled(t)); }
 /** Given a time, soonest first. */
@@ -1034,8 +1052,8 @@ function otherOpenTasks() {
 /** The time choices in the Time Box Allocation list. */
 const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
 function queueItemHTML(t, anchor, picked, rank, again, allocated) {
-  return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank && !allocated ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
-    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again || allocated ? `<small class="tb-was" title="${allocated ? 'Time Box' : 'Booked before'}">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
+  return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${rank && rank <= 3 ? 'top3' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank && !allocated ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
+    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="${rank <= 3 ? `Top 3 · priority ${rank}` : `Priority ${rank}`}">${rank}</b>` : ''}${again || allocated ? `<small class="tb-was" title="${allocated ? 'Time Box' : 'Booked before'}">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} mins</option>`).join('')}</select>
       ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
@@ -1085,7 +1103,7 @@ function renderPlanner() {
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
-          ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important.</p>` : ''}
+          ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important. Your Top 3 become the day's 3 Most Important Outcomes when you give them a time.</p>` : ''}
           ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
           ${allocated.length ? `<h4 class="tb-sub">Time Box Allocated <span class="count">${allocated.length}</span></h4>${allocated.map((t) => queueItemHTML(t, anchor, false, allocationNumber(t), false, true)).join('')}` : ''}
           ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
