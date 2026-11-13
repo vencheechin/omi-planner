@@ -2415,6 +2415,14 @@ sheetSwipe($('#taskDialog'), () => actions.closeTask());
   if (S.settings.onboarded === false) setTimeout(setupDlg, 60);
   setTimeout(checkReminders, 1500);
   setInterval(checkReminders, 60000);
+  // New defaults, once: 30-minute rows and a day that runs to 9 pm (only where the old defaults were still set).
+  if (!S.settings.tbDefaultsV2) {
+    const tb = TB();
+    if (tb.interval === 15) tb.interval = 30;
+    if (tb.dayEnd === 1050) tb.dayEnd = 1260;
+    S.settings.tbDefaultsV2 = true;
+    commit();
+  }
   if (resetStaleQueue()) commit();
   setInterval(() => { if (resetStaleQueue()) commit(); }, 60000);
   if (new URLSearchParams(location.search).get('test') === '1') setTimeout(() => { if (!Team.dir && person(S.meId)?.email) Team.connectDevice({ quiet: true }); }, 400);

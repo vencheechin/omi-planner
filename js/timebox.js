@@ -103,7 +103,7 @@ const endOf = (t) => t.slotStart + durOf(t);
 // ---------- Rhythm settings ----------
 function defaultTimebox() {
   return {
-    workDays: [1, 2, 3, 4, 5], dayStart: 8 * 60 + 30, dayEnd: 17 * 60 + 30, capacity: 8, interval: 15, estimates: [...DEFAULT_ESTIMATES],
+    workDays: [1, 2, 3, 4, 5], dayStart: 8 * 60 + 30, dayEnd: 21 * 60, capacity: 8, interval: 30, estimates: [...DEFAULT_ESTIMATES],
     blocks: [
       { id: uid(), name: 'Focus', kind: 'focus', start: 8 * 60 + 30, end: 12 * 60 + 30, cadence: 'daily', protected: true,
         note: 'Strategy, culture, finances, planning, proposals, leadership, growth and long-term decisions. Protected from interruptions, except emergencies.' },
@@ -120,8 +120,8 @@ function normalizeTimebox(tb) {
   const kinds = new Set([...BASE_WORK_TYPES.map((w) => w.v), ...workTypes.map((w) => w.v)]);
   return {
     workDays: Array.isArray(tb.workDays) ? tb.workDays.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) : [1, 2, 3, 4, 5],
-    dayStart: mins(tb.dayStart, 510), dayEnd: mins(tb.dayEnd, 1050), capacity: Number.isFinite(tb.capacity) && tb.capacity > 0 ? tb.capacity : 8,
-    interval: INTERVALS.includes(tb.interval) ? tb.interval : 15,
+    dayStart: mins(tb.dayStart, 510), dayEnd: mins(tb.dayEnd, 1260), capacity: Number.isFinite(tb.capacity) && tb.capacity > 0 ? tb.capacity : 8,
+    interval: INTERVALS.includes(tb.interval) ? tb.interval : 30,
     addTo: tb.addTo && typeof tb.addTo.planId === 'string' && typeof tb.addTo.bucketId === 'string' ? { planId: tb.addTo.planId, bucketId: tb.addTo.bucketId } : null,
     workTypes,
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
