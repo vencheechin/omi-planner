@@ -1687,3 +1687,16 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 /* Phones: header controls wrap rather than run off the edge */
 @media (max-width: 760px) { .tb-head, .tb-head .tb-nav { flex-wrap: wrap; row-gap: 6px; } .tb-head .tb-nav { max-width: 100%; } }
 @media (max-width: 760px) { .tb-page .tb-head .row.tb-nav { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; row-gap: 6px; } }
+
+/* Phones: nothing may make the page wider than the screen (big text sizes included) */
+@media (max-width: 760px) {
+  html, body { max-width: 100%; overflow-x: hidden; }
+  #topbar { overflow: hidden; gap: 4px; }
+  #topbar .search { flex: 1 1 auto; min-width: 0; }
+  #topbar .search input { min-width: 0; width: 100%; text-overflow: ellipsis; }
+  #topbar .icon-btn { flex: none; }
+  #main, .page, .tb-page { min-width: 0; max-width: 100%; }
+  .tb-pager button { min-width: 0; overflow: hidden; }
+  .tb-pager button span:not(.count) { overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 760px) { .tb-grid.xl .tb-heads, .tb-grid.xl .tb-body-grid { grid-template-columns: calc(40px * var(--scale)) repeat(var(--cols), minmax(104px, 1fr)); } }
