@@ -350,10 +350,23 @@ function createLabel(name) {
 // ---------- Text sizes ----------
 const SIZE_DEFAULTS = { textScale: 1, bucketSize: 14 };
 const clampNum = (v, lo, hi, fallback) => (v !== null && v !== '' && Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : fallback);
+/**
+ * On a phone, the text follows the phone's own text size (iPhone: Settings › Display & Brightness › Text Size).
+ * Safari reports it through the system "body" font; 17px is the standard size. Elsewhere it's 1.
+ */
+function systemTextScale() {
+  if (!matchMedia('(max-width: 760px)').matches || !(window.CSS && CSS.supports('font', '-apple-system-body'))) return 1;
+  const probe = document.createElement('span');
+  probe.style.cssText = 'font: -apple-system-body; position: absolute; visibility: hidden;';
+  document.body.append(probe);
+  const px = parseFloat(getComputedStyle(probe).fontSize);
+  probe.remove();
+  return px ? Math.min(1.6, Math.max(0.85, px / 17)) : 1;
+}
 function applySizes() {
   const text = clampNum(S.settings.textScale, 0.8, 1.5, SIZE_DEFAULTS.textScale);
   const bucket = clampNum(S.settings.bucketSize, 12, 32, SIZE_DEFAULTS.bucketSize);
-  document.documentElement.style.setProperty('--scale', text);
+  document.documentElement.style.setProperty('--scale', Math.round(text * systemTextScale() * 1000) / 1000);
   document.documentElement.style.setProperty('--bucket-fs', `${bucket}px`);
   try { localStorage.setItem(lsKey('planner-sizes'), JSON.stringify({ text, bucket })); } catch { /* sizes still apply this session */ }
 }
@@ -2386,6 +2399,9 @@ function setFromBuckets(k, list) {
   if (!list.length) delete S.settings.fromBoards[k];
   commit();
 }
+// The phone's text size can change while Planner is in the background: pick it up on return.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof S !== 'undefined' && S) applySizes(); });
+addEventListener('resize', () => { if (typeof S !== 'undefined' && S) applySizes(); });
 // ---------- Startup ----------
 // Hover tip (mouse only): shows a Time Box slot's start and end time next to the pointer.
 if (matchMedia('(hover: hover)').matches) {

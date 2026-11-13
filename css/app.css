@@ -1677,3 +1677,9 @@ body.col-resizing { cursor: col-resize; user-select: none; }
   .tb-page .tb-main > * { flex: 0 0 100%; min-width: 100%; max-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
   .tb-page .tb-main > .tb-side { width: 100%; padding: 0 2px; }
 }
+
+/* Phones: bigger hour labels down the side of the Time Box */
+@media (max-width: 760px) {
+  .tb-grid.xl .tb-gutter span { font-size: calc(15px * var(--scale) * var(--type)); font-weight: 600; color: var(--ink); }
+  .tb-grid.xl .tb-gutter span:not(.hour) { font-size: calc(12.5px * var(--scale) * var(--type)); font-weight: 400; color: var(--ink-2); }
+}
