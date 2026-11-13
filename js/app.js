@@ -1529,6 +1529,14 @@ const changes = {
       if (!Number.isFinite(dur) || dur <= 0 || dur > 720) { toast('Enter a time up to 12 hours, like 40 or 1h 30m.', { error: true }); render(); return; }
     }
     if (isScheduled(t) && dur) scheduleTask(t, t.slotDate, t.slotStart, dur); else { t.estimate = dur; commit(); }
+    // Changing the daily Planning task's length: ask whether it becomes the usual length.
+    if (t.dailyPlan && dur && dur !== (TB().planMin || 15)) {
+      const choice = await choiceDlg('Save as your default?', `<p>Use <b>${dur} mins</b> for Planning every day?</p>`, [
+        { v: 'save', label: `Save ${dur} mins as my default`, primary: true },
+        { v: 'once', label: 'Just today' },
+      ]);
+      if (choice === 'save') { TB().planMin = dur; commit(); toast(`Planning is now ${dur} mins every day.`); }
+    }
   },
   boxAddExisting: (el) => { if (!el.value) return; putInBox(taskById(el.dataset.id), taskById(el.value)); commit(); },
   chatLang: (el) => { chatPrefs().lang = el.value; commit(); refreshSettings(); toast(`Messages will be shown in ${langName(el.value)}.`); },

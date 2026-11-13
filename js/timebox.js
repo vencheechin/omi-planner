@@ -126,7 +126,7 @@ function normalizeTimebox(tb) {
     workTypes,
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
     focusOnly: true,
-    planMin: [5, 10, 15, 20, 25, 30].includes(tb.planMin) ? tb.planMin : 15,
+    planMin: [5, 10, 15, 20, 25, 30, 60, 90].includes(tb.planMin) ? tb.planMin : 15,
     blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start)
       .filter((b) => tb.focusOnly || !['Decision Window', 'Collaboration', 'Tomorrow Planning', "Tomorrow's Planning"].includes(b.name)).map((b) => ({
       id: String(b.id || uid()), name: b.name === 'CEO Focus' ? 'Focus' : String(b.name || 'Block'), kind: kinds.has(b.kind) ? b.kind : '', color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '',
@@ -217,6 +217,16 @@ async function bookAgain(t, iso, start) {
   toast(`Booked again: ${dayLabel(slot.date)} ${fmtTime(slot.start)}–${fmtTime(slot.start + durOf(t))}.${had ? ' The earlier one stays.' : ''}`, { undo: () => { undo(); commit(); } });
   return true;
 }
+/** Planning is a default task: one waits in Time Box Allocation each day, at your usual length. */
+function ensureDailyPlanning() {
+  const today = todayISO();
+  if (new Date().getHours() < 2 || S.tasks.some((t) => t.dailyPlan === today)) return false;
+  const p = personalPlan();
+  if (!p) return false;
+  const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: 'Planning', assignees: [S.meId], estimate: TB().planMin || 15, workType: 'planning' });
+  Object.assign(t, { dailyPlan: today, tbQueued: true, tbQueuedAt: Date.now(), tbRank: -1 });
+  return true;
+}
 /** The unbooked Time Box list empties at 2am the next day; anything already in a time box stays. */
 function resetStaleQueue() {
   const now = new Date();
@@ -229,6 +239,10 @@ function resetStaleQueue() {
     if (!t.tbQueuedAt) { t.tbQueuedAt = Date.now(); changed = true; continue; }
     if (t.tbQueuedAt < cut.getTime()) { t.tbQueued = false; delete t.tbQueuedAt; delete t.tbRank; changed = true; }
   }
+  // A day's Planning task that was never booked or done goes away rather than cluttering your plan.
+  const stale = S.tasks.filter((t) => t.dailyPlan && t.dailyPlan < todayISO() && !isDone(t) && !isScheduled(t) && !sessionsOf(t).length && !t.tbQueued);
+  if (stale.length) { S.tasks = S.tasks.filter((t) => !stale.includes(t)); changed = true; }
+  if (ensureDailyPlanning()) changed = true;
   return changed;
 }
 const scheduledOn = (iso) => S.tasks.flatMap((t) => [
@@ -1005,15 +1019,22 @@ function otherOpenTasks() {
   return S.tasks.filter((t) => !isDone(t) && !isScheduled(t) && !t.tbQueued && !isBox(t) && !(t.boxId && taskById(t.boxId)) && mine(t)).slice(0, 60);
 }
 /** The time choices in the Time Box Allocation list. */
-const QUEUE_MINS = [15, 30, 45, 60, 90];
+const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
 function queueItemHTML(t, anchor, picked, rank, again) {
   return `<div class="tb-q ${picked ? 'picked' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
     <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
-      <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} min</option>`).join('')}</select>
+      <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} mins</option>`).join('')}</select>
       ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
       ${again || t.tbQueued ? '' : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
-    </div></div>`;
+    </div>${(() => {
+      // Worked on over several days: the time adds up across all its time boxes.
+      const all = bookingsOf(t);
+      if (!all.length || (all.length === 1 && !t.tbQueued && !again)) return '';
+      const days = new Set(all.map((b) => b.date)).size;
+      const booked = all.reduce((n, b) => n + b.dur, 0);
+      return `<small class="tb-total">So far ${esc(fmtDur(booked))} over ${days} day${days === 1 ? '' : 's'} · spent ${esc(fmtDur(timeSpentOf(t).total))}</small>`;
+    })()}</div>`;
 }
 function renderPlanner() {
   const mode = ['day', 'week', 'month'].includes(ui.dayView) ? ui.dayView : 'week';
@@ -1046,7 +1067,6 @@ function renderPlanner() {
     <div class="tb-main">
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
       <aside class="tb-side">
-        ${defaultTasksHTML()}
         <h3>Time Box Allocation <span class="count">${queue.length}</span></h3>
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
