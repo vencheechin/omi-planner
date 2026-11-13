@@ -1659,3 +1659,6 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .ss-who { grid-column: 2 / -1; }
 .ss-who:empty { display: none; }
 @media (max-width: 760px) { .ss-row { grid-template-columns: 1fr 28px; } .ss-bar { grid-column: 1 / -1; grid-row: 2; } .ss-who { grid-column: 1 / -1; } }
+
+.hover-tip { white-space: pre-line; text-align: left; }
+.hover-tip::first-line { font-weight: 800; }
