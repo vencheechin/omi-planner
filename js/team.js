@@ -195,7 +195,9 @@ function mergePeople(data) {
     } else if (p.id === owner.id && p.id !== S.meId) {
       local.name = String(p.name || local.name);
       local.email = email || local.email;
+      if (typeof p.style === 'string') local.style = p.style;
     }
+    if (!local && p.id === owner.id && typeof p.style === 'string') { const added = person(p.id); if (added) added.style = p.style; }
   }
 }
 function mergeRecord(kind, r, notices) {
@@ -346,7 +348,7 @@ function buildTeamFile() {
   });
   const ids = new Set([S.meId, ...tasks.flatMap((t) => [...t.assignees, t.assignedBy, ...t.history.flatMap((e) => [e.by, e.to]), ...t.comments.map((c) => c.author)]), ...plans.flatMap((p) => p.members)]);
   const people = S.people.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name, email: p.email || '', color: p.color }));
-  return { app: FILE_APP, v: 1, device: deviceId, person: people.find((p) => p.id === S.meId), people, plans, tasks, tombstones: S.sync.tombstones, stplans: stPlans().map(stWire), org: orgWire() };
+  return { app: FILE_APP, v: 1, device: deviceId, person: { ...people.find((p) => p.id === S.meId), style: currentStyle().id }, people, plans, tasks, tombstones: S.sync.tombstones, stplans: stPlans().map(stWire), org: orgWire() };
 }
 
 // ---------- Notifications ----------

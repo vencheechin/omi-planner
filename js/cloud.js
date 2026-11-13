@@ -210,7 +210,9 @@ const Cloud = {
   async flushUsage() {
     const u = S.usage;
     if (!this.session || !u?.dirty) return;
-    const rows = Object.entries(u.counts).map(([action, c]) => ({ email: this.session.email, team_id: this.team?.id || null, action, uses: c.n, first_used: new Date(c.first).toISOString(), last_used: new Date(c.last || c.first).toISOString() }));
+    const rows = Object.entries(u.counts).filter(([action]) => !action.startsWith('style:')).map(([action, c]) => ({ email: this.session.email, team_id: this.team?.id || null, action, uses: c.n, first_used: new Date(c.first).toISOString(), last_used: new Date(c.last || c.first).toISOString() }));
+    const now = new Date().toISOString();
+    STYLES.forEach((st) => rows.push({ email: this.session.email, team_id: this.team?.id || null, action: `style:${st.id}`, uses: st.id === currentStyle().id ? 1 : 0, first_used: now, last_used: now }));
     try {
       await this.req('/rest/v1/button_usage?on_conflict=email,action', { method: 'POST', body: rows, headers: { Prefer: 'return=minimal,resolution=merge-duplicates' } });
       u.dirty = false;

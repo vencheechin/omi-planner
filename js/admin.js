@@ -42,6 +42,33 @@ function adminLinesHTML() {
   </div>`;
 }
 
+// ---------- Colour styles ----------
+/** Who uses which colour style: from teammates' synced files (and, with cloud sync, the team's usage records). */
+function styleStatsHTML() {
+  const people = adminPeople();
+  const styleOfPerson = (p) => (isMeId(p.id) ? currentStyle().id : p.style || null);
+  const counts = Object.fromEntries(STYLES.map((s) => [s.id, []]));
+  const unknown = [];
+  for (const p of people) { const st = styleOfPerson(p); if (st && counts[st]) counts[st].push(p); else unknown.push(p); }
+  const cloud = ui.styleCloud;
+  if (cloud) Object.keys(counts).forEach((k) => { if ((cloud[k] || 0) > counts[k].length) counts[k].cloudOnly = cloud[k] - counts[k].length; });
+  const total = Math.max(1, ...STYLES.map((s) => counts[s.id].length + (counts[s.id].cloudOnly || 0)));
+  const rows = [...STYLES].sort((a, b) => (counts[b.id].length + (counts[b.id].cloudOnly || 0)) - (counts[a.id].length + (counts[a.id].cloudOnly || 0)));
+  return `<section class="dr-hub"><div class="grow-chart-head"><h2>Colour style in use</h2>${typeof Cloud !== 'undefined' && Cloud.team ? '<button class="btn ghost sm" data-act="adminStyleCloud">Include everyone in cloud sync</button>' : ''}</div>
+    <div class="style-stats">${rows.map((s) => { const n = counts[s.id].length + (counts[s.id].cloudOnly || 0); return `<div class="ss-row">
+      <span class="ss-name"><span class="ss-sw">${s.swatch.map((c) => `<i style="background:${c}"></i>`).join('')}</span><b>${esc(s.name)}</b></span>
+      <span class="ss-bar" title="${esc(`${s.name}: ${n} ${n === 1 ? 'person' : 'people'}`)}"><i style="width:${(n / total) * 100}%"></i></span>
+      <b class="ss-n">${n}</b>
+      <span class="ss-who small muted">${counts[s.id].map((p) => esc(p.name)).join(', ')}${counts[s.id].cloudOnly ? `${counts[s.id].length ? ', ' : ''}+${counts[s.id].cloudOnly} more` : ''}</span></div>`; }).join('')}</div>
+    ${unknown.length ? `<p class="small muted">Not known yet for ${unknown.map((p) => esc(p.name)).join(', ')}: it shows once they open the updated app and sync.</p>` : ''}
+  </section>`;
+}
+Object.assign(actions, {
+  adminStyleCloud: async () => {
+    try { const { counts } = await Cloud.readUsage(); ui.styleCloud = Object.fromEntries(STYLES.map((s) => [s.id, counts[`style:${s.id}`]?.n || 0])); render(); } catch (err) { toast(`Couldn’t read the team’s styles: ${err.message}`, { error: true }); }
+  },
+});
+
 // ---------- Dashboard ----------
 function adminDashHTML() {
   const period = ui.adminPeriod || '30';
@@ -138,5 +165,6 @@ function adminDashHTML() {
         <tbody>${stRows.map((x) => `<tr><th>${esc(stName(x.p))}</th><td>${esc(stStatus[x.status] || x.status)}</td><td class="num">${x.total}</td><td class="num">${x.green}</td><td class="num">${x.yellow}</td><td class="num ${x.red ? 'danger-text' : ''}">${x.red}</td></tr>`).join('')}</tbody></table></div>`
         : '<p class="muted small">No S-Team Plans yet.</p>'}
     </section>
+    ${styleStatsHTML()}
     <p class="small muted">Counts what has synced to this device: tasks you can see, including everything delegated through you.</p>`;
 }

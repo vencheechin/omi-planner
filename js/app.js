@@ -1272,7 +1272,7 @@ const actions = {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   setFont: (el) => { S.settings.font = el.dataset.v; applyFont(); Store.save(); refreshSettings(); },
-  setStyle: (el) => { S.settings.style = el.dataset.v; applyStyle(); Store.save(); render(); refreshSettings(); toast(`Colour style: ${styleOf(el.dataset.v).name}.`); },
+  setStyle: (el) => { S.settings.style = el.dataset.v; const me = person(S.meId); if (me) me.style = el.dataset.v; S.usage = S.usage || { since: Date.now(), counts: {} }; S.usage.dirty = true; applyStyle(); Store.save(); Team.schedulePush?.(); render(); refreshSettings(); toast(`Colour style: ${styleOf(el.dataset.v).name}.`); },
   setTheme: (el) => { S.settings.theme = el.dataset.v; applyTheme(); Store.save(); refreshSettings(); },
   delPerson: async (el) => {
     const id = el.dataset.id;
