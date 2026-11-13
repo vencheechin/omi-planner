@@ -1,7 +1,7 @@
 /* Admin Portal: reporting lines, admins and departments, and a dashboard of how work is going.
    Only admins see it. The numbers come from what has synced to this device. */
 
-const ADMIN_TABS = [['dash', 'Dashboard'], ['lines', 'Reporting Lines'], ['team', 'Admins & Departments']];
+const ADMIN_TABS = [['dash', 'Dashboard'], ['lines', 'Reporting Lines'], ['team', 'Admins & Departments'], ['usage', 'Button Usage']];
 const ADMIN_PERIODS = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['all', 'All time']];
 
 /** One entry per real person (the same email is the same person). */
@@ -17,7 +17,7 @@ function renderAdmin() {
   return `<div class="page admin-page">
     <header class="page-head"><h1>Admin Portal</h1></header>
     <div class="dr-tools"><div class="seg">${ADMIN_TABS.map(([v, l]) => `<button class="${tab === v ? 'on' : ''}" data-act="adminTab" data-v="${v}">${l}</button>`).join('')}</div></div>
-    ${tab === 'lines' ? adminLinesHTML() : tab === 'team' ? `<section class="dr-hub">${adminSettingsHTML()}</section>` : adminDashHTML()}
+    ${tab === 'usage' ? `<section class="dr-hub"><h2>Button Usage</h2><p class="small muted">Which buttons and pages get used, and suggestions for tidying the app.</p><div class="row"><button class="btn primary sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>` : tab === 'lines' ? adminLinesHTML() : tab === 'team' ? `<section class="dr-hub">${adminSettingsHTML()}</section>` : adminDashHTML()}
   </div>`;
 }
 

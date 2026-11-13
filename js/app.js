@@ -369,8 +369,9 @@ function sizeControls() {
 // ---------- Settings ----------
 /** Settings, one tab at a time. Each section goes to a tab by its heading. */
 const SETTINGS_TABS = [
-  ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style', 'Button Usage']],
-  ['timebox', 'Time Box', ["Time's up alert", 'Time boxing']],
+  ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style']],
+  ['timebox', 'Time Box', ['Time boxing']],
+  ['ringtone', 'Ringtone', ["Time's up alert"]],
   ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
   ['messages', 'Messages', ['Messages and Language']],
   ['sync', 'Sync & Data', ['Cloud sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
@@ -407,7 +408,6 @@ function settingsHTML() {
     <button class="btn ghost sm" data-act="runSetup">Focus sessions</button></section>
   <section class="set-sec"><h3>Font</h3>
     <div class="seg">${[['', 'Garamond (OMI)'], ['system', 'System (Apple)']].map(([v, l]) => `<button class="${(S.settings.font || '') === v ? 'on' : ''}" data-act="setFont" data-v="${v}">${l}</button>`).join('')}</div></section>
-  <section class="set-sec"><h3>Button Usage</h3><div class="row"><button class="btn ghost sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>
   <section class="set-sec"><h3>Colour Style</h3>${styleSettingsHTML()}</section>
   <section class="set-sec"><h3>Import from Microsoft Planner</h3>
     
