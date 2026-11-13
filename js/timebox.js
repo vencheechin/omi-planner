@@ -1010,8 +1010,8 @@ function queueItemHTML(t, anchor, picked, rank, again) {
     <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Estimate">${estimateOptions(t.estimate)}</select>
-      ${again ? `<button class="btn ghost xs" data-act="tbBookAgain" data-id="${esc(t.id)}">Book again</button>` : `<button class="btn ghost xs" data-act="bookNextFree" data-id="${esc(t.id)}" data-from="${anchor}">Next free</button>`}
-      ${again ? '' : t.tbQueued ? `<button class="icon-btn" data-act="tbUnqueue" data-id="${esc(t.id)}" aria-label="Remove from Time Box" title="Remove from Time Box">${icon('close', 12)}</button>` : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
+      ${again ? `<button class="btn ghost xs" data-act="tbBookAgain" data-id="${esc(t.id)}">Book again</button>` : ''}
+      ${again || t.tbQueued ? '' : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
     </div></div>`;
 }
 function renderPlanner() {
