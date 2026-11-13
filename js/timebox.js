@@ -944,8 +944,8 @@ function blockHTML(t, iso, ppm, y, lane, n) {
   return `<div class="${cls}" style="top:${y(t.slotStart)}px;height:${h}px;left:calc(${lane / n} * 100% + 1px);width:calc(100% / ${n} - 2px);--c:${fillOf(t)}"
     data-open-task="${esc(realId(t))}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" data-tip="${esc(`${fmtTime(t.slotStart)} – ${fmtTime(endOf(t))}`)}">
     ${(() => { const n = allocationNumber(t._task || t); return n ? `<b class="tb-b-rank ${n <= 3 ? 'top3' : ''}" title="Priority ${n}">${n}</b>` : ''; })()}
-    <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${(() => { const all = bookingsOf(t._task || t); if (all.length < 2) return ''; const i = all.findIndex((b) => b.date === t.slotDate && b.start === t.slotStart); return ` <small class="tb-part" title="Time box ${i + 1} of ${all.length} for this task">${i + 1}/${all.length}</small>`; })()}${h < 38 ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
-    ${h >= 38 ? `<small class="tb-b-dur">${dur}</small>` : ''}
+    <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${(() => { const all = bookingsOf(t._task || t); if (all.length < 2) return ''; const i = all.findIndex((b) => b.date === t.slotDate && b.start === t.slotStart); return ` <small class="tb-part" title="Time box ${i + 1} of ${all.length} for this task">${i + 1}/${all.length}</small>`; })()}${h < 38 || items.length ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
+    ${h >= 38 && !items.length ? `<small class="tb-b-dur">${dur}</small>` : ''}
     ${items.length ? `<ul class="tb-items">${fit.shown.map((i) => `<li class="${isDone(i) ? 'done' : ''}"><button class="check small ${isDone(i) ? 'on' : ''} ${i.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(i.id)}" aria-label="${esc(`${checkLabel(i)}: ${i.title}`)}" title="${checkLabel(i)}">${icon('check', 9)}</button><span>${esc(i.title || 'Untitled task')}</span></li>`).join('')}</ul>` : ''}
     <span class="tb-resize" data-drag="resize" data-id="${esc(t.id)}" aria-hidden="true"></span></div>`;
 }
@@ -976,7 +976,6 @@ function timeGridHTML(dates, mode) {
     return `<div class="tb-dayhead ${iso === today ? 'today' : ''}">
       <button class="tb-date" data-act="tbOpenDay" data-date="${iso}"><b>${pad(d.getDate())}/${pad(d.getMonth() + 1)}</b><span>${esc(d.toLocaleDateString(undefined, { weekday: 'short' }))}</span></button>
       ${cap ? `<div class="tb-cap ${planned > cap ? 'over' : ''}" title="${esc(`${fmtDur(planned)} planned of ${fmtDur(cap)}`)}"><i style="width:${Math.min(100, (planned / cap) * 100)}%"></i></div>` : ''}
-      <button class="tb-omio-mini ${mio.length ? 'set' : ''}" data-act="mioMenu" data-date="${iso}" title="${esc(mio.length ? mio.map((t, i) => `${i + 1}. ${t.title}`).join('\n') : '3 Most Important Outcomes')}">★ ${mio.length ? `${mio.length} MIO` : '3MIO'}</button>
       ${warn.length ? `<small class="tb-warn" title="${esc(warn.join('\n'))}">${icon('flag', 11)} ${esc(mode === 'week' ? `${warn.length} warning${warn.length === 1 ? '' : 's'}` : warn.join(' · '))}</small>` : ''}
     </div>`;
   };
@@ -1104,9 +1103,8 @@ function renderPlanner() {
       </div>
       <div class="spacer"></div>
       <button class="btn ghost sm alarm-btn ${alarmPrefs().on ? 'on' : ''}" data-act="alarmMenu" aria-haspopup="true" title="Alert when a time box ends">${icon('bell', 14)} ${alarmPrefs().on ? esc(toneName(alarmPrefs().tone)) : 'Alert off'}</button>
-      <button class="btn ghost sm" data-act="moveUnfinished" data-date="${mode === 'day' ? anchor : today}">Move unfinished</button>
     </header>
-    ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span><button class="btn ghost sm" data-act="moveUnfinished" data-date="past">Move to free slots</button></div>` : ''}
+    ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span></div>` : ''}
     <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}</div>
     <div class="tb-main">
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
