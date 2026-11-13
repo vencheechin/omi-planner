@@ -1,8 +1,8 @@
 # OMI Planner
 
 A task planner with boards, grids, a calendar and charts, styled to the OMI Branding Style Guide.
-It works fully offline. With a shared OneDrive, Dropbox or Google Drive folder, colleagues can
-assign each other tasks and check each other's work.
+It works fully offline. With a shared Dropbox folder (or cloud sync), colleagues can assign each
+other tasks, check each other's work, and see when someone else has the same task open.
 
 ## Open it
 
@@ -23,12 +23,16 @@ assigned tasks with your team. It works offline and catches up when you reconnec
 Supabase project: follow `cloud/README.md` once, then everyone signs in with their work email and a
 6-digit code.
 
-## Working with colleagues through a shared folder (older option, computers only)
+## Team sync with Dropbox (computers and phones)
 
-1. Create a folder in OneDrive (or Dropbox, or Google Drive) and share it with your colleagues,
-   with permission to edit. Each colleague adds it to their own OneDrive ("Add shortcut to My
-   files") so it appears on their computer.
-2. In Planner, open Settings > Team sharing. Enter your name and work email, then choose that folder.
+Settings > **Team sync with Dropbox** shares assigned tasks through a Dropbox folder your team
+shares. Planner talks to Dropbox directly (it doesn't need the folder synced on your computer), so
+it works on phones and changes arrive within seconds. Set it up once with `cloud/DROPBOX.md`, then:
+
+1. Share a Dropbox folder with your colleagues, with permission to edit. Each colleague adds it to
+   their own Dropbox.
+2. In Planner, open Settings > Team sync with Dropbox. Enter your name and work email, press
+   **Connect Dropbox…**, sign in, and pick that folder.
 3. Each colleague does the same in their own Planner, choosing the same folder.
 4. Add colleagues under Settings > People with their work email, or when assigning a task.
 
@@ -41,13 +45,16 @@ How it works:
   Only your tick completes it. You can also send it back with a note.
 - **Assignments** (left sidebar) is the report: who you assigned what, when, when it was
   submitted for review and when it was completed. Export it to Excel.
-- Offline, keep working as normal. Planner saves every change on your computer, writes it into the
-  folder, and OneDrive uploads it when you're back online. Changes to different parts of a task
-  merge; if two people change the same thing, the later change wins.
-- Only tasks assigned between people are shared. Your other tasks stay on your computer. Anyone
+- **Who else is viewing:** when you and a colleague have the same shared task open, both of you get
+  a notice, and a bar at the top of the task shows who else is in it.
+- Offline, keep working as normal. Planner saves every change on your device and sends it to
+  Dropbox when you're back online. Changes to different parts of a task merge; if two people change
+  the same thing, the later change wins.
+- Only tasks assigned between people are shared. Your other tasks stay on your device. Anyone
   with access to the shared folder can open its files, so share it only with your team.
-- Notifications appear while Planner is open. Chrome asks once for permission to the folder after
-  each restart; click the status at the top right to reconnect.
+
+Under **Other ways**, a folder on this computer still works with any service that keeps it synced,
+but OneDrive's on-demand files often stall it, so Dropbox is the recommended choice.
 
 ## Trying two people on one device
 
@@ -128,7 +135,8 @@ in `sw.js` and change `VERSION`.
 - `js/core.js`: data model, storage, backup
 - `js/views.js`: sidebar, board, grid, schedule, charts
 - `js/task.js`: task panel, pickers, dialogs
-- `js/team.js`: checking workflow, person plans, notifications, report, folder sync
+- `js/team.js`: checking workflow, person plans, notifications, report, team sync, who-else-is-viewing
+- `js/dropbox.js`: Dropbox sign-in and the Dropbox team folder; `cloud/DROPBOX.md` is the setup guide
 - `js/cloud.js`: cloud sync (sign-in, offline queue, field-by-field merge); `js/config.js` holds the project address
 - `cloud/setup.sql`, `cloud/README.md`: the database setup and the step-by-step guide
 - `js/timebox.js`: Time Box page (day, week, month), boxes, weekday rhythm, OMIO, traffic light, decisions

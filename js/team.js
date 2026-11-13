@@ -600,20 +600,159 @@ const Team = {
 function teamSettingsHTML() {
   const me = person(S.meId);
   const members = Object.keys(S.sync.files).length;
-  if (!Team.supported && !Team.dir) {
-    return `<div class="row"><button class="btn ghost sm" data-act="teamDevice">Test folder on this device</button></div>`;
-  }
-  return `
+  const dbx = Team.dir?.virtual === 'dropbox';
+  const who = `
     <div class="task-fields two">
       <label class="field"><span>Your name</span><input value="${esc(me.name)}" data-change="personName" data-id="${esc(me.id)}"></label>
       <label class="field"><span>Your email</span><input type="email" value="${esc(me.email || '')}" placeholder="name@company.com" data-change="personEmail" data-id="${esc(me.id)}"></label>
-    </div>
-    ${Team.dir
-      ? `<p class="small">Folder: <b>${esc(S.sync.folderName || Team.dir.name)}</b> · ${members} teammate file${members === 1 ? '' : 's'} found<br><span class="muted">Last synced: ${S.sync.lastSync ? esc(fmtDateTime(S.sync.lastSync)) : 'not yet'}${Team.error ? ` · ${esc(Team.error)}` : ''}</span></p>
-        <div class="row">${Team.state === 'permission' ? `<button class="btn primary sm" data-act="teamReconnect">Reconnect</button>` : `<button class="btn primary sm" data-act="teamSyncNow">Sync now</button>`}
-        <button class="btn ghost sm" data-act="teamDisconnect">Disconnect</button></div>`
-      : `<button class="btn primary sm" data-act="teamConnect">Choose shared folder…</button><button class="btn ghost sm" data-act="teamDevice">Test folder on this device</button>`}
-    ${'Notification' in window && Notification.permission === 'default' ? `<button class="btn ghost sm" data-act="enableNotifications">Turn on desktop notifications</button>` : ''}`;
+    </div>`;
+  const notif = 'Notification' in window && Notification.permission === 'default' ? `<button class="btn ghost sm" data-act="enableNotifications">Turn on desktop notifications</button>` : '';
+  if (Team.dir) {
+    const where = dbx ? `Dropbox folder: <b>${esc(Team.dir.path)}</b>${Team.dropboxEmail ? ` <span class="muted">(${esc(Team.dropboxEmail)})</span>` : ''}` : `Folder: <b>${esc(S.sync.folderName || Team.dir.name)}</b>`;
+    return `${who}
+      <p class="small">${where} · ${members} teammate file${members === 1 ? '' : 's'} found${dbx ? ' · changes arrive within seconds' : ''}<br><span class="muted">Last synced: ${S.sync.lastSync ? esc(fmtDateTime(S.sync.lastSync)) : 'not yet'}${Team.error ? ` · ${esc(Team.error)}` : ''}</span></p>
+      <div class="row">${Team.state === 'permission' ? `<button class="btn primary sm" data-act="teamReconnect">${dbx ? 'Sign in to Dropbox again' : 'Reconnect'}</button>` : `<button class="btn primary sm" data-act="teamSyncNow">Sync now</button>`}
+      <button class="btn ghost sm" data-act="teamDisconnect">Disconnect</button></div>${notif}`;
+  }
+  const key = Dbx.cfg().appKey;
+  return `${who}
+    <p class="small"><b>Dropbox (recommended).</b> Planner talks to Dropbox directly, on computers and phones, so nothing depends on a synced folder on this device. Everyone signs in to their own Dropbox and picks the same shared folder.</p>
+    ${key ? `<div class="row"><button class="btn primary sm" data-act="dropboxConnect">Connect Dropbox…</button><button class="btn ghost xs" data-act="dropboxKey">Change app key</button></div>`
+      : `<form class="row" data-submit="dropboxKey"><input name="key" required placeholder="Dropbox app key" autocomplete="off" aria-label="Dropbox app key" style="flex:1"><button class="btn primary sm">Save</button></form><p class="muted small">One person creates the app key once; the steps are in <b>cloud/DROPBOX.md</b>.</p>`}
+    <details class="small"><summary>Other ways</summary><div class="row">
+      ${Team.supported ? `<button class="btn ghost sm" data-act="teamConnect">Folder on this computer…</button>` : ''}
+      <button class="btn ghost sm" data-act="teamDevice">Test folder on this device</button></div>
+      ${Team.supported ? '<p class="muted small">A folder on this computer works with any service that syncs it. OneDrive folders often hold back files that aren’t downloaded yet, so use Dropbox above if sync stalls.</p>' : ''}</details>
+    ${notif}`;
+}
+
+/** Lists the folders in someone's Dropbox (shared ones included) and resolves to { path, name }. */
+function dropboxFolderDlg(client) {
+  return new Promise((resolve) => {
+    let result = null;
+    const d = showDialog({
+      title: 'Choose the team folder in Dropbox',
+      html: `<p class="small">Pick the folder your team shares. If a colleague shared it with you, add it to your Dropbox first (Dropbox: Shared › Add).</p>
+        <ul class="dbx-folders"><li class="muted small">Loading your Dropbox…</li></ul>
+        <form class="row" data-role="new"><input name="name" placeholder="Or create a new folder, e.g. OMI Planner Team" autocomplete="off" aria-label="New folder name" style="flex:1"><button class="btn ghost sm">Create</button></form>
+        <div class="dlg-foot"><button class="btn ghost" type="button" data-role="no">Cancel</button></div>`,
+      onClose: () => resolve(result),
+    });
+    const list = $('.dbx-folders', d);
+    const choose = (path, name) => { result = { path, name }; d.close(); };
+    client.list('').then((entries) => {
+      const dirs = entries.filter((e) => e['.tag'] === 'folder').sort((a, b) => a.name.localeCompare(b.name));
+      list.innerHTML = dirs.length ? dirs.map((e) => `<li><button class="btn ghost sm dbx-pick" type="button" data-path="${esc(e.path_display)}" data-name="${esc(e.name)}">${icon('folder', 14)} ${esc(e.name)}${e.shared_folder_id || e.sharing_info ? ' <small class="muted">shared</small>' : ''}</button></li>`).join('') : '<li class="muted small">No folders yet. Create one below.</li>';
+      $$('.dbx-pick', list).forEach((b) => { b.onclick = () => choose(b.dataset.path, b.dataset.name); });
+    }).catch((err) => { list.innerHTML = `<li class="danger-text small">${esc(err.message)}</li>`; });
+    $('[data-role=no]', d).onclick = () => d.close();
+    $('[data-role=new]', d).onsubmit = async (e) => {
+      e.preventDefault();
+      const name = String(new FormData(e.target).get('name') || '').trim().replace(/[\\/:*?"<>|]/g, '-');
+      if (!name) return;
+      try { await client.createFolder(`/${name}`); choose(`/${name}`, name); } catch (err) { toast(err.message, { error: true }); }
+    };
+  });
+}
+
+// ---------- Presence: who else has this task open ----------
+/* Each device writes presence/<person>-<device>.json in the team folder saying which shared task is
+   open, refreshed every 30 seconds. When two people have the same task open, both are told (a
+   notice and a bar at the top of the task) so they don't overwrite each other. */
+const Presence = {
+  others: {}, stamps: {}, seen: new Set(), mine: undefined, lastWrite: 0, timer: null, busy: false,
+  TTL: 90000,
+  fileName() { return `${S.meId}-${deviceId}.json`; },
+  openShared() { const t = ui.openTask && taskById(ui.openTask); return t && t.shared ? t.id : null; },
+  start() {
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), 4000);
+    if (!this.bound) {
+      this.bound = true;
+      // Closing or hiding Planner frees the task straight away.
+      addEventListener('pagehide', () => { if (Team.dir && this.mine) this.write(null, true); });
+      document.addEventListener('visibilitychange', () => { if (Team.dir) this.tick(true); });
+    }
+  },
+  stop() { clearInterval(this.timer); this.others = {}; this.mine = undefined; this.update(); },
+  async dir() { return Team.dir.getDirectoryHandle('presence', { create: true }); },
+  async write(taskId, keepalive = false) {
+    this.mine = taskId;
+    this.lastWrite = Date.now();
+    const me = person(S.meId);
+    const body = JSON.stringify({ app: FILE_APP, person: S.meId, email: me?.email || '', name: me?.name || '', device: deviceId, taskId, at: Date.now() });
+    const out = await (await (await this.dir()).getFileHandle(this.fileName(), { create: true })).createWritable({ keepalive });
+    await out.write(body);
+    await out.close();
+  },
+  /** Every few seconds: say which task is open (when it changes, or to stay fresh) and read teammates'. */
+  async tick(force = false) {
+    if (!Team.dir || this.busy || !['ok', 'error', 'offline'].includes(Team.state)) return;
+    this.busy = true;
+    try {
+      const open = document.visibilityState === 'visible' ? this.openShared() : null;
+      if (open !== this.mine || (open && Date.now() - this.lastWrite > 30000) || (force && open)) await this.write(open);
+      if (open) await this.read();
+      else if (Object.keys(this.others).length) this.update();
+    } catch (err) {
+      console.warn('Presence update failed', err);
+    } finally { this.busy = false; }
+  },
+  async read() {
+    if (!Team.dir) return;
+    const dir = await this.dir();
+    const live = new Set();
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind !== 'file' || !name.endsWith('.json') || name === this.fileName()) continue;
+      live.add(name);
+      const info = handle.peek ? handle.peek() : await handle.getFile();
+      const stamp = `${info.lastModified}:${info.size}:${info.rev || ''}`;
+      if (this.stamps[name] === stamp && this.others[name]) continue;
+      try {
+        const text = handle.peek ? await (await handle.getFile()).text() : await info.text();
+        const p = JSON.parse(text);
+        // Their clock may differ from ours; the file's own time is the fallback.
+        p.seenAt = Date.now();
+        this.others[name] = p;
+        this.stamps[name] = stamp;
+      } catch { /* half-written; next time */ }
+    }
+    Object.keys(this.others).forEach((n) => { if (!live.has(n)) delete this.others[n]; });
+    this.update();
+  },
+  /** Other people (not you on another device) who have this task open right now. */
+  viewers(taskId) {
+    if (!taskId) return [];
+    const now = Date.now(), out = new Map();
+    for (const p of Object.values(this.others)) {
+      if (p.taskId !== taskId || p.person === S.meId) continue;
+      if (now - p.seenAt > this.TTL && now - p.at > this.TTL) continue;
+      const known = S.people.find((x) => x.id === p.person || (p.email && x.email && x.email.toLowerCase() === p.email.toLowerCase()));
+      out.set(p.person, known?.name || p.name || 'A teammate');
+    }
+    return [...out.entries()].map(([id, name]) => ({ id, name }));
+  },
+  update() {
+    const id = this.openShared();
+    const v = this.viewers(id);
+    v.forEach((p) => {
+      const k = `${id}:${p.id}`;
+      if (this.seen.has(k)) return;
+      this.seen.add(k);
+      toast(`${p.name} also has this task open. Changes you both make merge; if you both edit the same box, the later one wins.`);
+    });
+    // Forget people who closed it, so reopening tells you again.
+    [...this.seen].forEach((k) => { const [tid, pid] = k.split(':'); if (tid !== id || !v.some((p) => p.id === pid)) this.seen.delete(k); });
+    const slot = $('#taskDialog [data-presence]');
+    if (slot) slot.outerHTML = presenceHTML(id ? taskById(id) : null);
+  },
+};
+function presenceHTML(t) {
+  const v = t && t.shared ? Presence.viewers(t.id) : [];
+  if (!v.length) return '<div data-presence hidden></div>';
+  const names = v.map((p) => p.name);
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `<div class="presence-bar" data-presence role="status"><span class="presence-dots">${v.map((p) => avatar(person(p.id) || { name: p.name }, 20)).join('')}</span><span><b>${esc(who)}</b> ${names.length === 1 ? 'is' : 'are'} also viewing this task</span></div>`;
 }
 
 // ---------- Task panel parts ----------

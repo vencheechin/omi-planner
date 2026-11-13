@@ -6,3 +6,8 @@ window.PLANNER_CLOUD = {
   url: '',
   key: '',
 };
+// Team sync with Dropbox (see cloud/DROPBOX.md). The app key is public by design: each person
+// still signs in to their own Dropbox, and Planner only sees what they allow.
+window.PLANNER_DROPBOX = {
+  appKey: '',
+};

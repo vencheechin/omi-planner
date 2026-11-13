@@ -10,7 +10,7 @@ Object.assign(ICON, { book: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2M4 5v14a2 2 0 
 const BP_STATUS = [
   { v: 'green', label: 'Green', meaning: 'On plan' },
   { v: 'yellow', label: 'Yellow', meaning: 'Off plan, recoverable' },
-  { v: 'red', label: 'Red', meaning: 'Needs CEO support' },
+  { v: 'red', label: 'Red', meaning: 'Need support' },
 ];
 // ---------- Many plans: one per department (run by its DIC) and one per person ----------
 const stPlans = () => (S.stPlans = Array.isArray(S.stPlans) ? S.stPlans : []);

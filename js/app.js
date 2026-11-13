@@ -390,7 +390,7 @@ const SETTINGS_TABS = [
   ['ringtone', 'Ringtone', ["Time's up alert"]],
   ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
   ['messages', 'Messages', ['Messages and Language']],
-  ['sync', 'Sync & Data', ['Cloud sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
+  ['sync', 'Sync & Data', ['Cloud sync', 'Team sync with Dropbox', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
 ];
 function settingsTabsHTML() {
   const cur = SETTINGS_TABS.some(([k]) => k === ui.settingsTab) ? ui.settingsTab : 'general';
@@ -406,7 +406,7 @@ function settingsTabsHTML() {
 function settingsHTML() {
   const last = S.settings.lastBackup;
   return `<section class="set-sec"><h3>Cloud sync</h3>${cloudSettingsHTML()}</section>
-  <section class="set-sec"><details ${Team.dir ? 'open' : ''}><summary><b>Shared folder (OneDrive, Dropbox)</b></summary>${teamSettingsHTML()}</details></section>
+  <section class="set-sec"><details ${Team.dir ? 'open' : ''}><summary><b>Team sync with Dropbox</b></summary>${teamSettingsHTML()}</details></section>
   <section class="set-sec"><h3>Time's up alert</h3>${alarmPickerHTML()}</section>
   <section class="set-sec"><h3>Time boxing</h3>${timeboxSettingsHTML()}</section>
   <section class="set-sec"><h3>People</h3>
@@ -581,6 +581,8 @@ const actions = {
     toast(Notification.permission === 'granted' ? 'Desktop notifications are on while Planner is open.' : 'Desktop notifications weren’t allowed. The bell still shows every notice.');
   },
   teamConnect: async () => { await Team.connect(); refreshSettings(); },
+  dropboxConnect: async () => { await Team.connectDropbox(); refreshSettings(); },
+  dropboxKey: () => { Dbx.setAppKey(''); refreshSettings(); },
   teamReconnect: async () => { await Team.reconnect(); refreshSettings(); },
   teamDisconnect: async () => {
     if (!await confirmDlg('Disconnect team folder?', 'Shared tasks stay on this device but stop syncing with your team until you connect again.', 'Disconnect', false)) return;
@@ -590,7 +592,7 @@ const actions = {
   teamSyncNow: async () => {
     await Team.sync();
     refreshSettings();
-    toast(Team.state === 'ok' ? 'Synced with the team folder.' : `Sync problem: ${Team.error}`, { error: Team.state !== 'ok' });
+    toast(Team.state === 'ok' ? (Team.dir?.virtual === 'dropbox' ? 'Synced with Dropbox.' : 'Synced with the team folder.') : `Sync problem: ${Team.error}`, { error: Team.state !== 'ok' });
   },
   personPlanMenu: (el) => {
     const pp = personPlanById(el.dataset.id);
@@ -1523,6 +1525,7 @@ const submits = {
     commit();
     refreshSettings();
   },
+  dropboxKey: (form, data) => { Dbx.setAppKey(data.get('key')); refreshSettings(); toast('Dropbox app key saved. Now choose Connect Dropbox.'); },
   cloudSendCode: async (form, data) => {
     const email = String(data.get('email') || '').trim().toLowerCase();
     if (!isEmail(email)) return;

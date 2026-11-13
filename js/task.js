@@ -181,6 +181,7 @@ function renderTask() {
       <button class="icon-btn" data-act="taskMenu" aria-label="Task options">${icon('more')}</button>
       <button class="icon-btn" data-act="closeTask" aria-label="Close task">${icon('close')}</button>
     </header>
+    ${presenceHTML(t)}
     <div class="task-scroll" data-scroll="task-panel">
       <div class="task-labels">
         ${orderedLabels(plan, t.labels).map((l) => `<span class="label-chip removable" style="background:${labelHex(plan, l)};color:${inkOn(labelHex(plan, l))}">${esc(labelName(plan, l))}<button class="chip-x" data-act="removeLabel" data-i="${l}" aria-label="Remove label ${esc(labelName(plan, l))}">${icon('close', 11)}</button></span>`).join('')}
