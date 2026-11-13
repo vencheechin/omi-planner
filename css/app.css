@@ -1758,3 +1758,7 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .nav-main .nav-item.nav-placeholder { background: color-mix(in srgb, var(--highlight) 12%, transparent); outline: 1.5px dashed color-mix(in srgb, var(--highlight) 60%, transparent); outline-offset: -2px; }
 .nav-main .nav-item.nav-placeholder > * { visibility: hidden; }
 .nav-main .nav-item { transition: background-color .15s ease; }
+/* Sections below the main links: drag by the heading */
+.nav-secs { display: contents; }
+.nav-sec > h3 { cursor: grab; touch-action: pan-y; user-select: none; }
+.nav-ghost.nav-sec { display: block; padding: 4px 6px 8px; overflow: hidden; }

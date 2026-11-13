@@ -61,9 +61,12 @@ renderSidebar = function renderSidebarWithHandle() {
 // The whole item lifts off and follows the pointer; a gap shows where it will land.
 let navDrag = null;
 document.addEventListener('pointerdown', (e) => {
-  const it = e.target.closest?.('.nav-main [data-navkey]');
+  // A main link, or a whole section below them (picked up by its heading).
+  const link = e.target.closest?.('.nav-main [data-navkey]');
+  const head = !link && e.target.closest?.('.nav-secs [data-seckey] > h3');
+  const it = link || (head && head.parentElement);
   if (!it || e.button !== 0) return;
-  navDrag = { it, x: e.clientX, y: e.clientY, active: false, touch: e.pointerType !== 'mouse' };
+  navDrag = { it, kind: link ? 'navkey' : 'seckey', x: e.clientX, y: e.clientY, active: false, touch: e.pointerType !== 'mouse' };
   if (navDrag.touch) navDrag.hold = setTimeout(() => { if (navDrag) startNavDrag(navDrag.y); }, 280);
 });
 function startNavDrag(y) {
@@ -94,7 +97,7 @@ document.addEventListener('pointermove', (e) => {
   e.preventDefault();
   d.ghost.style.top = `${e.clientY - d.offY}px`;
   const box = d.it.parentElement;
-  const others = [...box.querySelectorAll('[data-navkey]')].filter((x) => x !== d.it);
+  const others = [...box.querySelectorAll(`:scope > [data-${d.kind}]`)].filter((x) => x !== d.it);
   const before = others.find((x) => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
   if ((before || null) !== d.it.nextElementSibling) box.insertBefore(d.it, before || null);
 }, { passive: false });
@@ -113,7 +116,13 @@ function endNavDrag(drop) {
     d.ghost.remove();
     d.it.classList.remove('nav-placeholder');
     document.body.classList.remove('col-resizing');
-    if (drop) { S.settings.navOrder = [...d.it.parentElement.querySelectorAll('[data-navkey]')].map((x) => x.dataset.navkey); Store.save(); }
+    if (drop) {
+      const shown = [...d.it.parentElement.querySelectorAll(`:scope > [data-${d.kind}]`)].map((x) => x.getAttribute(`data-${d.kind}`));
+      const key = d.kind === 'navkey' ? 'navOrder' : 'navSecOrder';
+      // Sections hidden right now (nothing in them) keep their place after the ones you can see.
+      S.settings[key] = [...shown, ...(S.settings[key] || []).filter((k) => !shown.includes(k))];
+      Store.save();
+    }
     renderSidebar();
   }, 180);
   // The link you dropped shouldn't also open.

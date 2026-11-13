@@ -278,14 +278,22 @@ function renderSidebar() {
         const at = (k) => (order.includes(k) ? order.indexOf(k) : 100 + items.findIndex(([x]) => x === k));
         return items.sort((a, b) => at(a[0]) - at(b[0])).map(([, html]) => html).join('');
       })()}</div>
-      ${reqNavHTML(r, 'decision', 'from')}${reqNavHTML(r, 'decision', 'to')}
-      ${reqNavHTML(r, 'approval', 'from')}${reqNavHTML(r, 'approval', 'to')}
-      ${approvedNavHTML()}
-      ${decidedByMe().length ? `<h3><a class="${r.view === 'history' ? 'active' : ''}" href="#/history">Approval History</a></h3>` : ''}
-      ${S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''}
-      ${delegateFromNavHTML(r, planLink)}
-      ${pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''}
-      ${recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''}
+      <div class="nav-secs">${(() => {
+        // The sections below the main links, in the order you dragged them into (by their heading).
+        const secs = [
+          ['dec-from', reqNavHTML(r, 'decision', 'from')], ['dec-to', reqNavHTML(r, 'decision', 'to')],
+          ['apr-from', reqNavHTML(r, 'approval', 'from')], ['apr-to', reqNavHTML(r, 'approval', 'to')],
+          ['approved', approvedNavHTML()],
+          ['history', decidedByMe().length ? `<h3><a class="${r.view === 'history' ? 'active' : ''}" href="#/history">Approval History</a></h3>` : ''],
+          ['deleg-to', S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''],
+          ['deleg-from', delegateFromNavHTML(r, planLink)],
+          ['pinned', pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''],
+          ['recent', recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''],
+        ].filter(([, html]) => html);
+        const order = S.settings.navSecOrder || [];
+        const at = (k) => (order.includes(k) ? order.indexOf(k) : 100 + secs.findIndex(([x]) => x === k));
+        return secs.sort((a, b) => at(a[0]) - at(b[0])).map(([k, html]) => `<div class="nav-sec" data-seckey="${k}">${html}</div>`).join('');
+      })()}</div>
     </nav>`;
   document.body.classList.toggle('nav-open', ui.navOpen);
   document.title = plannerName();
