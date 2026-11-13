@@ -1359,3 +1359,14 @@ body.dragging .bp-row.drag-src { opacity: .4; }
 .org-tree ul { margin-left: 14px; padding-left: 14px; border-left: 1px solid var(--line); }
 .org-tree li { padding: 5px 0; }
 .org-tree small { margin-left: 4px; }
+
+/* Time Box side list: default tasks, ranks, Needs focus, not finished */
+.tb-defaults { margin-bottom: 14px; }
+.tb-defaults h4, .tb-sub { font-size: calc(12px * var(--scale) * var(--type)); color: var(--muted); font-weight: 700; margin: 0 0 6px; }
+.tb-sub { margin-top: 14px; }
+.tb-default { cursor: default; }
+.tb-rank { flex: none; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; font-size: 11.5px; background: var(--highlight); color: var(--surface); margin-right: 6px; }
+.tb-q.needs-focus { box-shadow: inset 3px 0 0 var(--highlight), 0 0 0 0.5px var(--line); }
+.focus-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--highlight); }
+.tb-was { flex: none; font-size: 11px; color: var(--muted); margin-right: 6px; }
+.tb-hint { margin: 0 0 6px; }

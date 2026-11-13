@@ -837,6 +837,21 @@ const actions = {
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   decShow: (el) => { ui.decShow = el.dataset.v; render(); },
+  tbAddPlanning: async (el) => {
+    const p = personalPlan();
+    if (!p) { toast('Make a plan first.', { error: true }); return; }
+    const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title: 'Planning', assignees: [S.meId], estimate: planningMin(), workType: 'planning' });
+    if (el.dataset.book) {
+      const from = searchStart(ui.dayDate);
+      const slot = freeSlot(t, from.date, from.min);
+      if (slot) { t.slotDate = slot.date; t.slotStart = slot.start; commit(); toast(`Planning booked ${dayLabel(slot.date)} ${fmtTime(slot.start)}–${fmtTime(slot.start + durOf(t))}.`); return; }
+    }
+    t.tbQueued = true;
+    t.tbRank = -1; // top of the list
+    timeboxQueue().forEach((x, i) => { x.tbRank = i; });
+    commit();
+    toast('Planning added to the top of your list. Drag it into the planner.');
+  },
   adminTab: (el) => { ui.adminTab = el.dataset.v; render(); },
   adminPeriod: (el) => { ui.adminPeriod = el.dataset.v; render(); },
   openAdmin: () => { $$('dialog.dlg[open]').forEach((d) => d.close()); location.hash = '#/admin'; },
@@ -1506,6 +1521,17 @@ const changes = {
   },
   stSwitch: (el) => { ui.stPlanId = el.value; render(); },
   fromBucketName: (el) => { const k = ui.route.id; const v = el.value.trim(); if (!v) { render(); return; } setFromBuckets(k, fromBuckets(k).map((b) => (b.id === el.dataset.id ? { ...b, name: v.slice(0, 60) } : b))); },
+  tbPlanMin: async (el) => {
+    const m = Number(el.value);
+    if (m === TB().planMin) { ui.planMinOnce = null; render(); return; }
+    const choice = await choiceDlg('Save as your default?', `<p>Use <b>${m} minutes</b> for Planning from now on?</p>`, [
+      { v: 'save', label: `Save ${m} min as my default`, primary: true },
+      { v: 'once', label: 'Just this time' },
+    ]);
+    if (choice === 'save') { TB().planMin = m; ui.planMinOnce = null; commit(); toast(`Planning is now ${m} minutes by default.`); }
+    else if (choice === 'once') { ui.planMinOnce = m; render(); }
+    else render();
+  },
   decSort: (el) => { S.settings.decisionSort = el.value; Store.save(); render(); },
   orgReportsTo: (el) => { const rt = { ...(org().reportsTo || {}) }; if (el.value) rt[el.dataset.p] = el.value; else delete rt[el.dataset.p]; if (el.value && isAbove(el.dataset.p, el.value)) { toast('That would make a loop.'); refreshSettings(); return; } org().reportsTo = rt; commit(); refreshSettings(); },
   stAdminAdd: (el) => { if (!el.value) return; org().admins = [...new Set([...(org().admins || []), el.value])]; commit(); refreshSettings(); },
@@ -1715,6 +1741,18 @@ function dragMove(x, y) {
       s.target = { monthDate: day.dataset.tbMonth };
       return;
     }
+    // Over the ranked Time Box list: show where it will sit.
+    const qItem = s.type === 'task' && hits.find((n) => n.classList?.contains('tb-q') && n.dataset.rank && n.dataset.id !== s.id);
+    const qList = s.type === 'task' && taskById(s.id)?.tbQueued && hits.find((n) => n.classList?.contains('tb-queue'));
+    if (qList) {
+      s.tbph?.remove();
+      const items = $$('.tb-q[data-rank]:not(.drag-src)', qList);
+      const before = items.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
+      qList.insertBefore(s.ph, before || items[items.length - 1]?.nextSibling || null);
+      s.target = { rankBefore: before ? before.dataset.id : null };
+      void qItem;
+      return;
+    }
     // Over the time-box planner: show where the block would land, snapped to 15 minutes.
     const col = hits.find((n) => n.dataset?.tbDate);
     if (col) {
@@ -1863,6 +1901,15 @@ function dragEnd(drop) {
     const iso = s.target.monthDate;
     const slot = freeSlot(t, iso, iso === todayISO() ? nowMin() : 0);
     scheduleTask(t, iso, slot && slot.date === iso ? slot.start : TB().dayStart);
+    return;
+  }
+  if (drop && s.target && 'rankBefore' in s.target) {
+    const moved = taskById(s.id);
+    const list = timeboxQueue().filter((x) => x !== moved);
+    const i = s.target.rankBefore ? list.findIndex((x) => x.id === s.target.rankBefore) : list.length;
+    list.splice(i < 0 ? list.length : i, 0, moved);
+    list.forEach((x, n) => { x.tbRank = n; });
+    commit();
     return;
   }
   if (drop && s.target?.tbDate) { scheduleTask(taskById(s.id), s.target.tbDate, s.target.tbStart); return; }

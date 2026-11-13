@@ -126,6 +126,7 @@ function normalizeTimebox(tb) {
     workTypes,
     estimates: (() => { const l = Array.isArray(tb.estimates) ? [...new Set(tb.estimates.filter((m) => Number.isInteger(m) && m > 0 && m <= 720))].sort((x, y) => x - y) : []; return l.length ? l : [...DEFAULT_ESTIMATES]; })(),
     focusOnly: true,
+    planMin: [5, 10, 15, 20, 25, 30].includes(tb.planMin) ? tb.planMin : 15,
     blocks: tb.blocks.filter((b) => b && Number.isFinite(b.start) && Number.isFinite(b.end) && b.end > b.start)
       .filter((b) => tb.focusOnly || !['Decision Window', 'Collaboration', 'Tomorrow Planning', "Tomorrow's Planning"].includes(b.name)).map((b) => ({
       id: String(b.id || uid()), name: b.name === 'CEO Focus' ? 'Focus' : String(b.name || 'Block'), kind: kinds.has(b.kind) ? b.kind : '', color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '',
@@ -639,7 +640,7 @@ function tbRowHTML(t) {
         <button class="need-focus ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}">${icon('target', 15)} Need Focus</button>
         <label class="time-req"><span>Time Required</span><select data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time Required">${estimateOptions(t.estimate)}<option value="custom">Other…</option></select></label>
         ${inTimebox
-          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
+          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${isScheduled(t) && !isDone(t) && !isBox(t) ? `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}" title="Move it to the next free slot">${icon('plus', 13)} Book again</button>` : ''}${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
       </div>`;
 }
@@ -907,20 +908,40 @@ function monthGridHTML(anchor) {
 /** The list on the right: tasks added with "Add to Time Box" that don't have a time yet. */
 function timeboxQueue() {
   return S.tasks.filter((t) => t.tbQueued && !isScheduled(t) && !isDone(t) && !(t.boxId && taskById(t.boxId)))
-    .sort((a, b) => (isBox(b) - isBox(a)) || a.priority - b.priority || String(a.due || '9').localeCompare(String(b.due || '9')));
+    .sort((a, b) => (a.tbRank ?? 1e9) - (b.tbRank ?? 1e9) || a.priority - b.priority || String(a.due || '9').localeCompare(String(b.due || '9')));
+}
+/** Booked but not ticked off, and its time has passed: you can book it again. */
+function unfinishedBooked() {
+  const today = todayISO();
+  const now = nowMin();
+  return S.tasks.filter((t) => isScheduled(t) && !isDone(t) && !isBox(t) && (t.slotDate < today || (t.slotDate === today && endOf(t) <= now)))
+    .sort((a, b) => String(b.slotDate).localeCompare(String(a.slotDate)) || b.slotStart - a.slotStart).slice(0, 30);
+}
+/** The default tasks you can drop into any day: Planning, at your preferred length. */
+const PLAN_MINS = [5, 10, 15, 20, 25, 30];
+const planningMin = () => ui.planMinOnce || TB().planMin || 15;
+function defaultTasksHTML() {
+  return `<div class="tb-defaults"><h4>Default tasks</h4>
+    <div class="tb-q tb-default" style="--c:${workTypeOf('planning').color}">
+      <div class="tb-q-title"><span>Planning</span></div>
+      <div class="tb-q-meta">${typeTag({ workType: 'planning' })}
+        <select class="tb-q-est" data-change="tbPlanMin" aria-label="Planning length">${PLAN_MINS.map((m) => `<option value="${m}" ${m === planningMin() ? 'selected' : ''}>${m}m</option>`).join('')}</select>
+        <button class="btn ghost xs" data-act="tbAddPlanning" data-book="1" title="Book the next free slot">Next free</button>
+        <button class="btn ghost xs" data-act="tbAddPlanning" title="Add to the list, then drag it where you want">Add</button>
+      </div></div></div>`;
 }
 /** Your other open, unscheduled tasks, offered under the list. */
 function otherOpenTasks() {
   const mine = (t) => t.assignees.includes(S.meId) || (!t.assignees.length && (planById(t.planId)?.owner || S.meId) === S.meId);
   return S.tasks.filter((t) => !isDone(t) && !isScheduled(t) && !t.tbQueued && !isBox(t) && !(t.boxId && taskById(t.boxId)) && mine(t)).slice(0, 60);
 }
-function queueItemHTML(t, anchor, picked) {
-  return `<div class="tb-q ${picked ? 'picked' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" style="--c:${fillOf(t)}">
-    <div class="tb-q-title">${t.tbQueued ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
-    <div class="tb-q-meta">${typeTag(t)}
+function queueItemHTML(t, anchor, picked, rank, again) {
+  return `<div class="tb-q ${picked ? 'picked' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} style="--c:${fillOf(t)}">
+    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
+    <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Estimate">${estimateOptions(t.estimate)}</select>
       <button class="btn ghost xs" data-act="bookNextFree" data-id="${esc(t.id)}" data-from="${anchor}">Next free</button>
-      ${t.tbQueued ? `<button class="icon-btn" data-act="tbUnqueue" data-id="${esc(t.id)}" aria-label="Remove from Time Box" title="Remove from Time Box">${icon('close', 12)}</button>` : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
+      ${again ? '' : t.tbQueued ? `<button class="icon-btn" data-act="tbUnqueue" data-id="${esc(t.id)}" aria-label="Remove from Time Box" title="Remove from Time Box">${icon('close', 12)}</button>` : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
     </div></div>`;
 }
 function renderPlanner() {
@@ -934,6 +955,7 @@ function renderPlanner() {
   const queue = timeboxQueue();
   const picked = (ui.tbPicked || []).filter((id) => queue.some((t) => t.id === id));
   const others = ui.tbShowOthers ? otherOpenTasks() : [];
+  const again = unfinishedBooked();
   return `<div class="tb-page">
     <header class="tb-head">
       <div class="tb-title"><h1>Time Box</h1><p class="muted">${esc(title)}</p></div>
@@ -964,11 +986,14 @@ function renderPlanner() {
     <div class="tb-main">
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
       <aside class="tb-side">
+        ${defaultTasksHTML()}
         <h3>Time Box <span class="count">${queue.length}</span></h3>
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
-          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id))).join('') || '<p class="muted small">Nothing waiting.</p>'}
+          ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important.</p>` : ''}
+          ${queue.map((t, i) => queueItemHTML(t, anchor, picked.includes(t.id), i + 1)).join('') || '<p class="muted small">Nothing waiting.</p>'}
+          ${again.length ? `<h4 class="tb-sub">Not finished <span class="count">${again.length}</span></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner or tap Next free to book it again.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>
