@@ -34,15 +34,23 @@ function fitDone(tg, days = fitWeek()) {
 const fitBooked = (tg, days = fitWeek()) => S.tasks.filter((t) => t.fitAct === tg.id && !isDone(t) && isScheduled(t) && days.includes(t.slotDate));
 const fitBreaksOn = (iso) => fit().log.filter((l) => l.act === 'break' && l.date === iso);
 
+/** The week you're looking at (Monday's date), and the targets for it: your usual ones unless you set that week differently. */
+const fitWeekStart = () => ui.fitWeek || weekStartOf(todayISO());
+const weekTimes = (tg, ws = fitWeekStart()) => tg.weeks?.[ws] ?? tg.times;
+const weekBreakGoal = (ws = fitWeekStart()) => fit().breaks.weeks?.[ws] ?? fit().breaks.perDay;
+const minsLabel = (v) => (v === 60 ? '1 hour' : v % 60 === 0 ? `${v / 60} hours` : `${v} mins`);
 function renderFitness() {
   const f = fit();
-  const days = fitWeek();
+  const ws = fitWeekStart();
+  const days = fitWeek(ws);
   const today = todayISO();
+  const thisWeek = ws === weekStartOf(today);
+  const weekName = thisWeek ? 'This week' : ws === addDays(weekStartOf(today), 7) ? 'Next week' : ws === addDays(weekStartOf(today), -7) ? 'Last week' : `Week of ${fmtDate(ws)}`;
   const dayName = (iso) => parseISO(iso).toLocaleDateString(undefined, { weekday: 'narrow' });
-  const targetMin = f.targets.reduce((n, tg) => n + tg.times * tg.min, 0);
-  const doneMin = f.targets.reduce((n, tg) => n + fitDone(tg).reduce((m, d) => m + d.min, 0), 0);
-  const doneSessions = f.targets.reduce((n, tg) => n + Math.min(tg.times, fitDone(tg).length), 0);
-  const targetSessions = f.targets.reduce((n, tg) => n + tg.times, 0);
+  const targetMin = f.targets.reduce((n, tg) => n + weekTimes(tg, ws) * tg.min, 0);
+  const doneMin = f.targets.reduce((n, tg) => n + fitDone(tg, days).reduce((m, d) => m + d.min, 0), 0);
+  const doneSessions = f.targets.reduce((n, tg) => n + Math.min(weekTimes(tg, ws), fitDone(tg, days).length), 0);
+  const targetSessions = f.targets.reduce((n, tg) => n + weekTimes(tg, ws), 0);
   const workMin = days.reduce((n, iso) => n + scheduledOn(iso).filter((t) => t.workType !== 'exercise' && !(t._task || t).fitAct).reduce((m, t) => m + durOf(t), 0), 0);
   const breaksToday = fitBreaksOn(today);
   const breakMin = days.reduce((n, iso) => n + fitBreaksOn(iso).reduce((m, l) => m + l.min, 0), 0);
@@ -51,13 +59,20 @@ function renderFitness() {
   const ratio = workMin ? Math.round(((doneMin + breakMin) / workMin) * 100) : null;
 
   const card = (tg) => {
-    const done = fitDone(tg);
-    const booked = fitBooked(tg);
-    const need = Math.max(0, tg.times - done.length - booked.length);
+    const done = fitDone(tg, days);
+    const booked = fitBooked(tg, days);
+    const times = weekTimes(tg, ws);
+    const own = tg.weeks?.[ws] !== undefined;
+    const need = days[6] < today ? 0 : Math.max(0, times - done.length - booked.length);
     return `<article class="fit-card">
       <header><h3>${esc(tg.name)}</h3><span class="muted small">${tg.times}× a week · ${esc(fmtDur(tg.min))} each · ${esc(fmtTime(tg.at))}</span>
         <button class="icon-btn" data-act="fitEdit" data-id="${esc(tg.id)}" aria-label="Edit ${esc(tg.name)}" title="Edit">${icon('more', 15)}</button></header>
-      <div class="fit-progress" role="img" aria-label="${done.length} of ${tg.times} done this week"><i style="width:${pct(done.length, tg.times)}%"></i></div>
+      <div class="fit-wk-target"><span class="small">${esc(weekName)}:</span>
+        <button class="icon-btn sm" data-act="fitWeekTimes" data-id="${esc(tg.id)}" data-d="-1" aria-label="One fewer" ${times <= 0 ? 'disabled' : ''}>−</button>
+        <b>${times}×</b>
+        <button class="icon-btn sm" data-act="fitWeekTimes" data-id="${esc(tg.id)}" data-d="1" aria-label="One more" ${times >= 14 ? 'disabled' : ''}>+</button>
+        ${own ? `<button class="link-btn small" data-act="fitWeekReset" data-id="${esc(tg.id)}">Usual (${tg.times}×)</button>` : '<span class="small muted">usual</span>'}</div>
+      <div class="fit-progress" role="img" aria-label="${done.length} of ${times} done"><i style="width:${pct(done.length, times)}%"></i></div>
       <div class="fit-week">${days.map((iso) => {
         const d = done.some((x) => x.date === iso);
         const b = booked.some((t) => t.slotDate === iso);
@@ -66,24 +81,30 @@ function renderFitness() {
         return `<button class="fit-day ${d ? 'done' : b ? 'booked' : ''} ${chosen ? 'chosen' : ''} ${iso === today ? 'today' : ''}" data-act="fitDayToggle" data-id="${esc(tg.id)}" data-d="${wd}" aria-pressed="${chosen}" title="${esc(`${dayLabel(iso)}: ${d ? 'done' : b ? 'booked' : '—'}${chosen ? ' · your day' : ''}. Tap to ${chosen ? 'drop' : 'make it'} one of your ${tg.name} days.`)}">${esc(dayName(iso))}</button>`;
       }).join('')}</div>
       <p class="small muted fit-days-hint">${(tg.days || []).length ? `On ${(tg.days || []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((wd) => new Date(2024, 0, 7 + wd).toLocaleDateString(undefined, { weekday: 'short' })).join(', ')} it waits in Time Box Allocation.` : 'Tap the days you usually do it: it will wait in Time Box Allocation on those days.'}</p>
-      <p class="small"><b>${done.length} of ${tg.times}</b> done${booked.length ? ` · ${booked.length} booked` : ''}${need ? ` · ${need} to plan` : done.length >= tg.times ? ' · target met' : ''}</p>
+      <p class="small"><b>${done.length} of ${times}</b> done${booked.length ? ` · ${booked.length} booked` : ''}${need ? ` · ${need} to plan` : done.length >= times && times ? ' · target met' : ''}</p>
       <div class="row"><button class="btn ghost sm" data-act="fitLog" data-id="${esc(tg.id)}">${icon('check', 13)} Log a session</button>
         ${need ? `<button class="btn primary sm" data-act="fitBook" data-id="${esc(tg.id)}">${icon('clock', 13)} Book ${need} in Time Box</button>` : ''}</div>
     </article>`;
   };
   const b = f.breaks;
-  const opt = (list, cur) => list.map((v) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${v === 60 ? '1 hour' : `${v} mins`}</option>`).join('');
+  // Always show your actual setting, even if it isn't one of the usual choices.
+  const opt = (list, cur) => [...new Set([...list, cur])].sort((x, y) => x - y).map((v) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${minsLabel(v)}</option>`).join('');
+  const goal = weekBreakGoal(ws);
+  const ownGoal = b.weeks?.[ws] !== undefined;
   const recent = [...f.log].sort((x, y) => y.at - x.at).slice(0, 12);
   return `<div class="page fit-page">
-    <header class="page-head"><h1>Fitness</h1><span class="muted">Work–exercise balance · ${esc(fmtDate(days[0]))} – ${esc(fmtDate(days[6]))}</span></header>
+    <header class="page-head"><h1>Fitness</h1><span class="muted">Work–exercise balance</span>
+      <div class="row fit-weeknav"><button class="icon-btn" data-act="fitWeekNav" data-d="-1" aria-label="Previous week">${icon('chevL')}</button>
+        <button class="btn ghost sm" data-act="fitWeekNav" data-d="0" title="Back to this week"><b>${esc(weekName)}</b> <span class="muted">${esc(fmtDate(days[0]))} – ${esc(fmtDate(days[6]))}</span></button>
+        <button class="icon-btn" data-act="fitWeekNav" data-d="1" aria-label="Next week">${icon('chevR')}</button></div></header>
     <div class="stat-row">
-      ${tile('Exercise this week', `${fmtDur(doneMin) === '0m' ? '0m' : fmtDur(doneMin)}`, `of ${fmtDur(targetMin)} target`)}
-      ${tile('Sessions', `${doneSessions} / ${targetSessions}`, doneSessions >= targetSessions && targetSessions ? 'weekly target met' : 'this week')}
-      ${tile('Movement breaks today', `${breaksToday.length} / ${b.perDay}`, b.on ? `every ${b.every} min at work` : 'reminders off')}
+      ${tile(`Exercise · ${esc(weekName.toLowerCase())}`, `${fmtDur(doneMin) === '0m' ? '0m' : fmtDur(doneMin)}`, `of ${fmtDur(targetMin)} target`)}
+      ${tile('Sessions', `${doneSessions} / ${targetSessions}`, doneSessions >= targetSessions && targetSessions ? 'weekly target met' : esc(weekName.toLowerCase()))}
+      ${tile(thisWeek ? 'Movement breaks today' : 'Movement breaks', thisWeek ? `${breaksToday.length} / ${goal}` : `${days.reduce((n, iso) => n + fitBreaksOn(iso).length, 0)} / ${goal * 5}`, b.on ? `every ${minsLabel(b.every)} at work` : 'reminders off')}
       ${tile('Balance', ratio === null ? '–' : `${ratio}%`, workMin ? `${fmtDur(doneMin + breakMin)} moving for ${fmtDur(workMin)} booked work` : 'book work in the Time Box to compare')}
     </div>
 
-    <section class="dr-hub"><h2>Weekly exercise targets</h2>
+    <section class="dr-hub"><h2>Weekly exercise targets <span class="muted small">· ${esc(weekName)}</span></h2>
       <div class="fit-grid">${f.targets.map(card).join('')}
         <button class="fit-add" data-act="fitAdd">${icon('plus', 16)} Add an activity<small class="muted">Swimming, yoga, cycling…</small></button></div>
     </section>
@@ -94,11 +115,16 @@ function renderFitness() {
         <label class="mini"><input type="checkbox" data-change="fitBreakOn" ${b.on ? 'checked' : ''}> Remind me</label>
         <label class="mini">Every <select data-change="fitBreakSet" data-k="every">${opt([25, 30, 60, 90], b.every)}</select></label>
         <label class="mini">For <select data-change="fitBreakSet" data-k="min">${opt([5, 10, 15, 30, 45, 60], b.min)}</select></label>
-        <label class="mini">Goal <select data-change="fitBreakSet" data-k="perDay">${[2, 3, 4, 5, 6, 8].map((v) => `<option value="${v}" ${v === b.perDay ? 'selected' : ''}>${v} a day</option>`).join('')}</select></label>
+        <label class="mini">Usual goal <select data-change="fitBreakSet" data-k="perDay">${[...new Set([2, 3, 4, 5, 6, 8, b.perDay])].sort((x, y) => x - y).map((v) => `<option value="${v}" ${v === b.perDay ? 'selected' : ''}>${v} a day</option>`).join('')}</select></label>
       </div>
-      <p class="fit-selected">${b.on ? `Reminding you every <b>${b.every === 60 ? '1 hour' : `${b.every} mins`}</b>, for <b>${b.min === 60 ? '1 hour' : `${b.min} mins`}</b>, goal <b>${b.perDay} a day</b>.` : 'Reminders are off.'}</p>
-      <div class="fit-dots" aria-label="${breaksToday.length} of ${b.perDay} breaks today">${Array.from({ length: Math.max(b.perDay, breaksToday.length) }, (_, i) => `<i class="${i < breaksToday.length ? 'on' : ''}" title="${esc(breaksToday[i] ? `${breaksToday[i].type || 'Break'} · ${new Date(breaksToday[i].at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Not yet')}"></i>`).join('')}</div>
-      <p class="small fit-today">Today: <b>${breaksToday.length} of ${b.perDay}</b>${breaksToday.length ? ` · ${[...new Set(breaksToday.map((l) => l.type || 'Break'))].map((ty) => `${esc(ty)} × ${breaksToday.filter((l) => (l.type || 'Break') === ty).length}`).join(', ')}` : ''}</p>
+      <div class="fit-wk-target"><span class="small">${esc(weekName)}:</span>
+        <button class="icon-btn sm" data-act="fitWeekGoal" data-d="-1" aria-label="Lower" ${goal <= 1 ? 'disabled' : ''}>−</button><b>${goal} a day</b>
+        <button class="icon-btn sm" data-act="fitWeekGoal" data-d="1" aria-label="Higher" ${goal >= 12 ? 'disabled' : ''}>+</button>
+        ${ownGoal ? `<button class="link-btn small" data-act="fitWeekGoalReset">Usual (${b.perDay} a day)</button>` : '<span class="small muted">usual</span>'}</div>
+      <p class="fit-selected">${b.on ? `Reminding you every <b>${minsLabel(b.every)}</b>, for <b>${minsLabel(b.min)}</b>, goal <b>${goal} a day</b>${ownGoal ? ` ${esc(weekName.toLowerCase())}` : ''}.` : 'Reminders are off.'}</p>
+      <div class="fit-break-week">${days.map((iso) => { const n = fitBreaksOn(iso).length; return `<div class="fbw-day ${iso === today ? 'today' : ''} ${n >= goal ? 'met' : ''}" title="${esc(`${dayLabel(iso)}: ${n} of ${goal}`)}"><small>${esc(dayName(iso))}</small><b>${n}</b><span><i style="height:${Math.min(100, (n / Math.max(1, goal)) * 100)}%"></i></span></div>`; }).join('')}</div>
+      <div class="fit-dots" aria-label="${breaksToday.length} of ${goal} breaks today">${Array.from({ length: Math.max(goal, breaksToday.length) }, (_, i) => `<i class="${i < breaksToday.length ? 'on' : ''}" title="${esc(breaksToday[i] ? `${breaksToday[i].type || 'Break'} · ${new Date(breaksToday[i].at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Not yet')}"></i>`).join('')}</div>
+      <p class="small fit-today">Today: <b>${breaksToday.length} of ${goal}</b>${breaksToday.length ? ` · ${[...new Set(breaksToday.map((l) => l.type || 'Break'))].map((ty) => `${esc(ty)} × ${breaksToday.filter((l) => (l.type || 'Break') === ty).length}`).join(', ')}` : ''}</p>
       <div class="fit-types">${b.types.map((ty) => { const n = breaksToday.filter((l) => l.type === ty).length; return `<span class="fit-type ${n ? 'done' : ''}"><button class="btn ghost sm" data-act="fitBreak" data-v="${esc(ty)}">${n ? icon('check', 12) : icon('plus', 12)} ${esc(ty)}${n ? ` <b class="fit-count">× ${n}</b>` : ''}</button><button class="chip-x" data-act="fitTypeDel" data-v="${esc(ty)}" aria-label="Remove ${esc(ty)}">${icon('close', 10)}</button></span>`; }).join('')}
         <button class="btn ghost sm" data-act="fitTypeAdd">${icon('plus', 12)} Another kind</button></div>
       <p class="small muted">Tap a kind after you've done it to count the break.</p>
@@ -145,9 +171,11 @@ function fitEditDlg(tg) {
 
 /** Puts the sessions still needed this week into the Time Box at your usual time, spread across the days left. */
 function fitBookWeek(tg) {
-  const days = fitWeek().filter((iso) => iso >= todayISO());
+  const ws = fitWeekStart();
+  const all = fitWeek(ws);
+  const days = all.filter((iso) => iso >= todayISO());
   const taken = new Set([...fitDone(tg).map((x) => x.date), ...fitBooked(tg).map((t) => t.slotDate)]);
-  let need = tg.times - fitDone(tg).length - fitBooked(tg).length;
+  let need = weekTimes(tg, ws) - fitDone(tg, all).length - fitBooked(tg, all).length;
   const free = days.filter((iso) => !taken.has(iso) && !(iso === todayISO() && nowMin() > tg.at));
   // Spread them out: every other day first, then fill the gaps.
   const pick = [...free.filter((_, i) => i % 2 === 0), ...free.filter((_, i) => i % 2 === 1)].slice(0, need).sort();
@@ -169,7 +197,7 @@ function fitNudge() {
   const now = nowMin();
   if (!isWorkDay(iso) || now < TB().dayStart + f.breaks.every || now > TB().dayEnd) return;
   const done = fitBreaksOn(iso);
-  if (done.length >= f.breaks.perDay) return;
+  if (done.length >= (f.breaks.weeks?.[weekStartOf(iso)] ?? f.breaks.perDay)) return;
   const lastBreak = done.length ? Math.max(...done.map((l) => { const d = new Date(l.at); return d.getHours() * 60 + d.getMinutes(); })) : TB().dayStart;
   const lastNudge = ui.fitNudgedAt || 0;
   if (now - lastBreak < f.breaks.every || Date.now() - lastNudge < f.breaks.every * 60000) return;
@@ -206,6 +234,11 @@ function ensureDailyFitness() {
   return changed;
 }
 Object.assign(actions, {
+  fitWeekNav: (el) => { const d = Number(el.dataset.d); ui.fitWeek = d ? addDays(fitWeekStart(), 7 * d) : null; render(); },
+  fitWeekTimes: (el) => { const tg = fitTarget(el.dataset.id); const ws = fitWeekStart(); const v = Math.max(0, Math.min(14, weekTimes(tg, ws) + Number(el.dataset.d))); tg.weeks = { ...(tg.weeks || {}), [ws]: v }; if (v === tg.times) delete tg.weeks[ws]; commit(); },
+  fitWeekReset: (el) => { const tg = fitTarget(el.dataset.id); if (tg.weeks) delete tg.weeks[fitWeekStart()]; commit(); },
+  fitWeekGoal: (el) => { const b = fit().breaks; const ws = fitWeekStart(); const v = Math.max(1, Math.min(12, weekBreakGoal(ws) + Number(el.dataset.d))); b.weeks = { ...(b.weeks || {}), [ws]: v }; if (v === b.perDay) delete b.weeks[ws]; commit(); },
+  fitWeekGoalReset: () => { const b = fit().breaks; if (b.weeks) delete b.weeks[fitWeekStart()]; commit(); },
   fitDayToggle: (el) => {
     const tg = fitTarget(el.dataset.id);
     const wd = Number(el.dataset.d);

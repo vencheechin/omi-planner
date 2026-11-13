@@ -1631,3 +1631,18 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .scan-match img { border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); }
 .scan-match div { display: grid; gap: 2px; }
 .scan-match b { font-size: calc(16px * var(--scale) * var(--type)); }
+
+/* Fitness by week */
+.fit-page .page-head { flex-wrap: wrap; }
+.fit-weeknav { margin-left: auto; gap: 4px; align-items: center; }
+.fit-wk-target { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fit-wk-target b { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+.fit-wk-target .icon-btn.sm { width: 26px; height: 26px; border-radius: 8px; font-weight: 800; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.fit-break-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 4px 0 12px; max-width: 420px; }
+.fbw-day { display: grid; justify-items: center; gap: 2px; padding: 6px 0; border-radius: 8px; background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.fbw-day.today { outline: 1.5px solid var(--ink-2); }
+.fbw-day small { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+.fbw-day b { font-size: 13px; }
+.fbw-day span { width: 8px; height: 28px; border-radius: 4px; background: color-mix(in srgb, var(--highlight) 18%, transparent); display: flex; align-items: flex-end; overflow: hidden; }
+.fbw-day span i { display: block; width: 100%; background: var(--highlight); border-radius: 4px; }
+.fbw-day.met b { color: var(--highlight); }
