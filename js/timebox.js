@@ -737,7 +737,6 @@ function tbRowHTML(t) {
     : inBox ? `in “${boxOf(t).title}”${isScheduled(boxOf(t)) ? `, ${slotText(boxOf(t))}` : ''}` : 'waiting in the Time Box list';
   // Need Focus first, then the Time Box: assign it, or once it's there, a button that takes you to it.
   return `<div class="tb-row">
-        <button class="need-focus ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}">${icon('target', 15)} Need Focus</button>
         ${inTimebox
           ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${isScheduled(t) && !isDone(t) && !isBox(t) ? `<button class="btn ghost sm" data-act="tbRequeue" data-id="${esc(t.id)}" title="Keep this time box and put the task back on the list to place again">${icon('plus', 13)} Add to Time Box Allocation</button>` : ''}${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
@@ -1053,7 +1052,7 @@ function otherOpenTasks() {
 function allocTagHTML(t) {
   const day = t.slotDate;
   const same = bookingsOf(t).filter((b) => b.date === day);
-  return `<div class="alloc-tag"><b>Allocated${same.length > 1 ? ` × ${same.length}` : ''}</b><span>${esc(dayLabel(day))} ${same.map((b) => esc(fmtTime(b.start))).join(', ')}</span></div>`;
+  return `<span class="alloc-tag" title="${esc(`${dayLabel(day)} ${same.map((b) => fmtTime(b.start)).join(', ')}`)}"><b>Allocated${same.length > 1 ? ` × ${same.length}` : ''}</b><small>${esc(dayLabel(day))} ${same.map((b) => esc(fmtTime(b.start))).join(', ')}</small></span>`;
 }
 /** The time choices in the Time Box Allocation list. */
 const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
@@ -1061,8 +1060,8 @@ function queueItemHTML(t, anchor, picked, rank, again, allocated) {
   return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${rank && rank <= 3 ? 'top3' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
     <div class="tb-q-title">${rank ? `<b class="tb-rank" title="${rank <= 3 ? `Top 3 · priority ${rank}` : `Priority ${rank}`}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     ${allocated ? allocTagHTML(t) : ''}
-    <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
-      <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} mins</option>`).join('')}</select>
+    <div class="tb-q-meta">${isPlanningTask(t) ? typeTag(t) : `<button class="focus-toggle ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}" title="Need focus">${icon('target', 13)} ${t.workType === 'focus' ? 'Needs focus' : 'Need focus?'}</button>${t.workType && t.workType !== 'focus' ? typeTag(t) : ''}`}
+      <button class="tb-q-est" data-act="tbEstMenu" data-id="${esc(t.id)}" aria-haspopup="true" aria-label="Time required">${t.estimate ? `${t.estimate} mins` : 'Time required'} ${icon('chevD', 12)}</button>
       ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
       ${again || t.tbQueued ? '' : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
     </div></div>`;

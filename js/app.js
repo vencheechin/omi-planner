@@ -891,6 +891,12 @@ const actions = {
     commit();
     toast('Planning added to the top of your list. Drag it into the planner.');
   },
+  // Time required: a branded menu instead of the phone's plain list.
+  tbEstMenu: (el) => {
+    const t = taskById(el.dataset.id);
+    openPop(el, () => `<div class="menu est-menu" role="menu"><h4>Time required</h4>${QUEUE_MINS.map((m) => `<button role="menuitemradio" aria-checked="${m === t.estimate}" class="${m === t.estimate ? 'on' : ''}" data-act="tbEstPick" data-id="${esc(t.id)}" data-m="${m}"><span>${m} mins</span>${m === t.estimate ? icon('check', 14) : ''}</button>`).join('')}</div>`);
+  },
+  tbEstPick: (el) => { closePop(); changes.tbQueueEstimate({ dataset: { id: el.dataset.id }, value: el.dataset.m }); },
   adminTab: (el) => { ui.adminTab = el.dataset.v; render(); },
   adminPeriod: (el) => { ui.adminPeriod = el.dataset.v; render(); },
   openAdmin: () => { $$('dialog.dlg[open]').forEach((d) => d.close()); location.hash = '#/admin'; },
