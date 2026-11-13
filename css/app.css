@@ -1774,3 +1774,12 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 .tb-bucket b { font-weight: 700; }
 .tb-bucket span { font-variant-numeric: tabular-nums; color: var(--ink-2); }
 .tb-bucket small { color: var(--muted); font-size: .85em; }
+
+/* S-Team Plan: item rows under a brand */
+.bp-table tr.bp-row.has-items > th.bp-brand input { font-weight: 700; }
+.bp-table tr.bp-itemrow > th.bp-brand input { padding-left: 32px; font-weight: 400; }
+.bp-table tr.bp-itemrow > th.bp-brand::before { content: ''; position: absolute; left: 20px; top: 0; bottom: 50%; width: 8px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); pointer-events: none; }
+.bp-additem { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--muted); padding: 4px; border-radius: 6px; cursor: pointer; opacity: .35; display: inline-flex; }
+.bp-row:hover .bp-additem, .bp-additem:focus-visible { opacity: 1; }
+.bp-additem:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.bp-row:not(.bp-itemrow) .bp-brand input { padding-right: 22px; }

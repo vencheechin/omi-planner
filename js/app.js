@@ -1210,7 +1210,14 @@ const actions = {
   bpMenu: (el) => {
     const { g, r } = el.dataset;
     const target = r ? bpRowOf(g, r) : bpGroup(g);
+    const isBrand = r && !bpParentOf(g, r);
+    const hasTasks = isBrand && Object.keys(target?.cells || {}).length;
     openMenu(el, [
+      ...(isBrand ? [{ label: 'Add item', icon: 'plus', run: () => actions.bpAddItem(el) }] : []),
+      ...(hasTasks ? [{ label: 'Split tasks into item rows', icon: 'list', run: async () => {
+        if (!await confirmDlg(`Split ${target.brand || 'this brand'} into item rows?`, 'Each task in its months becomes its own row underneath, with its PIC, traffic light and progress. You can use Undo if you change your mind.', 'Split')) return;
+        const n = bpSplitItems(target); commit(); toast(`${n} item row${n === 1 ? '' : 's'} under ${target.brand || 'the brand'}.`);
+      } }] : []),
       { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML(r ? 'bprow' : 'bpgroup', r ? `${g}|${r}` : g, target?.color, 'transparent', 'None')) },
       { label: 'Delete', icon: 'trash', danger: true, selfConfirm: true, run: () => actions[r ? 'bpDelRow' : 'bpDelGroup'](el) },
     ]);
@@ -1223,11 +1230,24 @@ const actions = {
     commit();
   },
   bpAddRow: (el) => { if (!stCanEdit(stCurrent())) return; const r = { id: uid(), brand: '', pic: '', cells: {} }; bpGroup(el.dataset.g).rows.push(r); ui.focusEl = `[data-r="${r.id}"][data-k="brand"]`; commit(); setTimeout(() => $(ui.focusEl)?.focus(), 30); },
+  bpAddItem: (el) => {
+    if (!stCanEdit(stCurrent())) return;
+    const parent = bpRowOf(el.dataset.g, el.dataset.r);
+    if (!parent) return;
+    const it = { id: uid(), brand: '', pic: '', cells: {} };
+    parent.items = [...(parent.items || []), it];
+    ui.focusEl = `[data-r="${it.id}"][data-k="brand"]`;
+    commit();
+    setTimeout(() => $(ui.focusEl)?.focus(), 30);
+  },
   bpDelRow: async (el) => {
     const g = bpGroup(el.dataset.g);
     const r = bpRowOf(el.dataset.g, el.dataset.r);
-    if (!await confirmDlg(`Delete ${r.brand || 'this brand'}?`, Object.keys(r.cells).length ? 'Its months go too.' : 'It has nothing planned yet.', 'Delete')) return;
-    g.rows = g.rows.filter((x) => x !== r);
+    const parent = bpParentOf(el.dataset.g, el.dataset.r);
+    const n = r.items?.length || 0;
+    if (!await confirmDlg(`Delete ${r.brand || (parent ? 'this item' : 'this brand')}?`, n ? `Its ${n} item${n === 1 ? '' : 's'} and all their months go too.` : Object.keys(r.cells).length ? 'Its months go too.' : 'It has nothing planned yet.', 'Delete')) return;
+    if (parent) parent.items = parent.items.filter((x) => x !== r);
+    else g.rows = g.rows.filter((x) => x !== r);
     commit();
   },
   bpCell: (el) => {
@@ -1980,9 +2000,26 @@ async function dragEnd(drop) {
     const to = bpGroup(t.g);
     const row = bpRowOf(g, r);
     if (!from || !to || !row) { render(); return; }
+    const oldParent = bpParentOf(g, r);
+    if (oldParent) {
+      // An item: drop beside another item, or onto a brand to go first under it.
+      const tParent = t.r ? bpParentOf(t.g, t.r) : null;
+      const host = tParent || (t.r ? bpRowOf(t.g, t.r) : null);
+      if (!host || host === row) { render(); return; }
+      oldParent.items = oldParent.items.filter((x) => x !== row);
+      host.items = host.items || [];
+      let i = tParent ? host.items.findIndex((x) => x.id === t.r) + (t.after ? 1 : 0) : 0;
+      if (i < 0) i = host.items.length;
+      host.items.splice(i, 0, row);
+      commit();
+      return;
+    }
+    // A brand (with its items): dropping on an item counts as its brand.
+    const tid = t.r ? (bpParentOf(t.g, t.r)?.id || t.r) : null;
+    if (tid === r) { render(); return; }
     from.rows = from.rows.filter((x) => x !== row);
-    let i = t.r ? to.rows.findIndex((x) => x.id === t.r) : 0;
-    if (i < 0) i = to.rows.length; else if (t.r && t.after) i += 1;
+    let i = tid ? to.rows.findIndex((x) => x.id === tid) : 0;
+    if (i < 0) i = to.rows.length; else if (tid && t.after) i += 1;
     to.rows.splice(i, 0, row);
     commit();
     return;

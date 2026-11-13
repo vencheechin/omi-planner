@@ -128,13 +128,21 @@ function normalizeBrandPlan(b) {
     ...(b.cfg && typeof b.cfg === 'object' ? { cfg: bpNormCfg(b.cfg) } : {}),
     groups: b.groups.filter((g) => g && g.id).map((g) => ({
       id: String(g.id), name: String(g.name || 'Group'), color: bpHex(g.color),
-      rows: (Array.isArray(g.rows) ? g.rows : []).filter((r) => r && r.id).map((r) => ({
-        id: String(r.id), brand: String(r.brand || ''), pic: String(r.pic || ''), color: bpHex(r.color),
-        cells: Object.fromEntries(Object.entries(r.cells && typeof r.cells === 'object' ? r.cells : {})
-          .filter(([k, c]) => /^\d{4}-\d{2}$/.test(k) && c)
-          .map(([k, c]) => [k, { items: cellItems(c) }]).filter(([, c]) => c.items.length)),
-      })),
+      rows: (Array.isArray(g.rows) ? g.rows : []).filter((r) => r && r.id).map((r) => {
+        const row = bpNormRow(r);
+        const items = (Array.isArray(r.items) ? r.items : []).filter((i) => i && i.id).map(bpNormRow);
+        return items.length ? { ...row, items } : row;
+      }),
     })),
+  };
+}
+/** One brand row, or one item row under a brand (the item's name is kept in `brand`). */
+function bpNormRow(r) {
+  return {
+    id: String(r.id), brand: String(r.brand || ''), pic: String(r.pic || ''), color: bpHex(r.color),
+    cells: Object.fromEntries(Object.entries(r.cells && typeof r.cells === 'object' ? r.cells : {})
+      .filter(([k, c]) => /^\d{4}-\d{2}$/.test(k) && c)
+      .map(([k, c]) => [k, { items: cellItems(c) }]).filter(([, c]) => c.items.length)),
   };
 }
 /** A cell's tasks. Older cells kept one text (maybe several lines), one PIC and one status. */
@@ -230,12 +238,23 @@ function renderBrandPlan() {
     const items = cellItems(r.cells[k]);
     const one = items.length === 1 ? items[0] : null;
     const label = items.map((i) => `${i.text}${i.pic ? ` (${i.pic})` : ''}${i.status ? `, ${i.status}` : ''}`).join('; ') || 'empty';
+    const who = r._parent ? `${r._parent.brand} · ${r.brand || 'item'}` : r.brand;
     const drag = (n) => (ro ? '' : `data-drag="bpitem" data-id="${esc(`${g.id}|${r.id}|${k}|${n}`)}"`);
     const body = one
       ? `<div class="bp-one" ${drag(0)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}</div>`
       : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''}" ${drag(n)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
     const tint = r.color || mcol[k] || '';
-    return `<td class="bp-cell ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${r.brand}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
+    return `<td class="bp-cell ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ro ? '' : 'data-act="bpCell"'} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}`)}">${body}</td>`;
+  };
+  const rowHTML = (g, r, parent) => {
+    const sub = !!parent;
+    const view = sub ? { ...r, _parent: parent } : r;
+    return `<tr class="bp-row ${sub ? 'bp-itemrow' : ''} ${r.items?.length ? 'has-items' : ''} ${r.color ? 'tinted' : ''}" ${r.color ? `style="--tc:${r.color}"` : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}">
+          <th class="bp-brand">${ro ? '' : `<span class="bp-grip" data-drag="bprow" data-id="${esc(`${g.id}|${r.id}`)}" title="Drag to move" aria-hidden="true">⋮⋮</span>`}<input value="${esc(r.brand)}" placeholder="${sub ? 'Item' : 'Brand'}" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="${sub ? `Item under ${esc(parent.brand || 'brand')}` : 'Brand'}" ${ro ? 'disabled' : ''}>${ro || sub ? '' : `<button class="bp-additem" data-act="bpAddItem" data-g="${esc(g.id)}" data-r="${esc(r.id)}" title="Add an item under ${esc(r.brand || 'this brand')}" aria-label="Add item">${icon('plus', 12)}</button>`}</th>
+          <td class="bp-pic"><input value="${esc(r.pic)}" placeholder="PIC" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ro ? 'disabled' : ''}></td>
+          ${months.map((k) => cell(g, view, k)).join('')}
+          <td class="bp-x">${more(`data-g="${esc(g.id)}" data-r="${esc(r.id)}"`, `Options for ${r.brand || (sub ? 'item' : 'brand')}`)}</td></tr>
+        ${(r.items || []).map((it) => rowHTML(g, it, r)).join('')}`;
   };
   return `<div class="page bp-page">
     <header class="bp-head">
@@ -256,11 +275,7 @@ function renderBrandPlan() {
       <tbody>${groups.map((g) => `
         <tr class="bp-group ${g.color ? 'tinted' : ''}" ${g.color ? `style="--tc:${g.color}"` : ''} data-g="${esc(g.id)}"><th colspan="2" class="bp-brand"><input value="${esc(g.name)}" data-change="bpGroupName" data-g="${esc(g.id)}" aria-label="Group name" ${ro ? 'disabled' : ''}></th><td colspan="${months.length}"></td>
           <td class="bp-x">${more(`data-g="${esc(g.id)}"`, `Options for ${g.name}`)}</td></tr>
-        ${g.rows.map((r) => `<tr class="bp-row ${r.color ? 'tinted' : ''}" ${r.color ? `style="--tc:${r.color}"` : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}">
-          <th class="bp-brand">${ro ? '' : `<span class="bp-grip" data-drag="bprow" data-id="${esc(`${g.id}|${r.id}`)}" title="Drag to move" aria-hidden="true">⋮⋮</span>`}<input value="${esc(r.brand)}" placeholder="Brand" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="Brand" ${ro ? 'disabled' : ''}></th>
-          <td class="bp-pic"><input value="${esc(r.pic)}" placeholder="PIC" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ro ? 'disabled' : ''}></td>
-          ${months.map((k) => cell(g, r, k)).join('')}
-          <td class="bp-x">${more(`data-g="${esc(g.id)}" data-r="${esc(r.id)}"`, `Options for ${r.brand || 'brand'}`)}</td></tr>`).join('')}
+        ${g.rows.map((r) => rowHTML(g, r, null)).join('')}
         ${ro ? '' : `<tr class="bp-add"><td colspan="${months.length + 3}"><button class="btn ghost sm" data-act="bpAddRow" data-g="${esc(g.id)}">${icon('plus', 13)} Brand</button></td></tr>`}`).join('')}
       </tbody></table></div>` : `<div class="empty"><h2>No brands yet</h2>${ro ? '' : '<div class="row" style="justify-content:center"><button class="btn primary" data-act="bpExample">Start with OMI and LHS</button></div>'}</div>`}
     ${ro ? '' : `<div class="row"><button class="btn ghost sm" data-act="bpAddGroup">${icon('plus', 13)} Group</button></div>`}
@@ -281,7 +296,7 @@ function bpItemRow(it, n) {
 function bpCellPicker(g, r, k) {
   const items = cellItems(r.cells[k]);
   return `<form class="picker bp-pick" data-autosave data-submit="bpCellSave" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}">
-    <h4>${esc(r.brand || 'Brand')} · ${esc(bpMonthLabel(k))}</h4>
+    <h4>${bpParentOf(g.id, r.id) ? `${esc(bpParentOf(g.id, r.id).brand || 'Brand')} · ` : ''}${esc(r.brand || 'Brand')} · ${esc(bpMonthLabel(k))}</h4>
     <div class="bp-items">${(items.length ? items : [{ text: '', pic: '', status: '' }]).map(bpItemRow).join('')}</div>
     <div class="row"><button class="btn ghost sm" type="button" data-role="add">${icon('plus', 13)} Task</button><button class="btn ghost sm" type="button" data-act="bpCellClear">Clear</button><span class="spacer"></span><button class="btn primary sm">Save</button></div></form>`;
 }
@@ -440,7 +455,27 @@ function adminSettingsHTML() {
       }).join('') || '<p class="small muted">No plans yet.</p>'}</div>`;
 }
 const bpGroup = (id) => bp().groups.find((g) => g.id === id);
-const bpRowOf = (gid, rid) => bpGroup(gid)?.rows.find((r) => r.id === rid);
+/** A brand row or an item row, by id. */
+const bpRowOf = (gid, rid) => { for (const r of bpGroup(gid)?.rows || []) { if (r.id === rid) return r; const it = (r.items || []).find((x) => x.id === rid); if (it) return it; } return null; };
+/** The brand an item row sits under (null for a brand). */
+const bpParentOf = (gid, rid) => (bpGroup(gid)?.rows || []).find((r) => (r.items || []).some((x) => x.id === rid)) || null;
+/** Turns the tasks inside a brand's months into item rows: one row per task name, keeping PIC, light and progress. */
+function bpSplitItems(r) {
+  const byName = new Map();
+  for (const [k, c] of Object.entries(r.cells)) {
+    for (const it of cellItems(c)) {
+      const name = it.text || 'Item';
+      let row = byName.get(name.toLowerCase());
+      if (!row) { row = (r.items || []).find((x) => x.brand.toLowerCase() === name.toLowerCase()) || { id: uid(), brand: name, pic: '', cells: {} }; byName.set(name.toLowerCase(), row); }
+      if (!row.pic && it.pic) row.pic = it.pic;
+      row.cells[k] = { items: [...cellItems(row.cells[k]), { text: '', pic: it.pic && it.pic !== row.pic ? it.pic : '', status: it.status, progress: it.progress }] };
+    }
+  }
+  const fresh = [...byName.values()].filter((x) => !(r.items || []).includes(x));
+  r.items = [...(r.items || []), ...fresh];
+  r.cells = {};
+  return byName.size;
+}
 function bpExample() {
   const row = (brand, pic) => ({ id: uid(), brand, pic, cells: {} });
   bp().groups = [

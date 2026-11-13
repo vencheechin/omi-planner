@@ -108,7 +108,7 @@ function adminDashHTML() {
   const reds = open.filter((t) => t.health === 'red').sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))).slice(0, 6);
 
   const stRows = stPlans().filter((p) => !p.deleted).map((p) => {
-    const items = p.groups.flatMap((g) => g.rows.flatMap((r) => Object.values(r.cells).flatMap((c) => cellItems(c))));
+    const items = p.groups.flatMap((g) => g.rows.flatMap((r) => [r, ...(r.items || [])]).flatMap((r) => Object.values(r.cells).flatMap((c) => cellItems(c))));
     const n = (s) => items.filter((i) => i.status === s).length;
     return { p, total: items.length, green: n('green'), yellow: n('yellow'), red: n('red'), status: p.approval?.status || 'draft' };
   });
