@@ -275,7 +275,6 @@ function warningChips(iso) {
   const out = [];
   if (w.overlaps) out.push(`${w.overlaps} blocks overlap`);
   if (w.over) out.push(`Over capacity by ${fmtDur(w.over)}`);
-  if (w.intrusions) out.push(`${w.intrusions} non-focus task${w.intrusions === 1 ? '' : 's'} in protected focus time`);
   if (w.offDay) out.push('Work planned on a non-working day');
   return out;
 }
@@ -1049,11 +1048,18 @@ function otherOpenTasks() {
   const mine = (t) => t.assignees.includes(S.meId) || (!t.assignees.length && (planById(t.planId)?.owner || S.meId) === S.meId);
   return S.tasks.filter((t) => !isDone(t) && !isScheduled(t) && !t.tbQueued && !isBox(t) && !(t.boxId && taskById(t.boxId)) && mine(t)).slice(0, 60);
 }
+/** "Allocated" on a list item: × 2 or × 3 when it has more than one time box that day, and when. */
+function allocTagHTML(t) {
+  const day = t.slotDate;
+  const same = bookingsOf(t).filter((b) => b.date === day);
+  return `<div class="alloc-tag"><b>Allocated${same.length > 1 ? ` × ${same.length}` : ''}</b><span>${esc(dayLabel(day))} ${same.map((b) => esc(fmtTime(b.start))).join(', ')}</span></div>`;
+}
 /** The time choices in the Time Box Allocation list. */
 const QUEUE_MINS = [5, 10, 15, 20, 30, 60, 90];
 function queueItemHTML(t, anchor, picked, rank, again, allocated) {
-  return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${rank && rank <= 3 ? 'top3' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank && !allocated ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
-    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="${rank <= 3 ? `Top 3 · priority ${rank}` : `Priority ${rank}`}">${rank}</b>` : ''}${again || allocated ? `<small class="tb-was" title="${allocated ? 'Time Box' : 'Booked before'}">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
+  return `<div class="tb-q ${picked ? 'picked' : ''} ${allocated ? 'allocated' : ''} ${rank && rank <= 3 ? 'top3' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
+    <div class="tb-q-title">${rank ? `<b class="tb-rank" title="${rank <= 3 ? `Top 3 · priority ${rank}` : `Priority ${rank}`}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again && !allocated ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
+    ${allocated ? allocTagHTML(t) : ''}
     <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time required">${QUEUE_MINS.includes(t.estimate) ? '' : `<option value="" selected disabled>${t.estimate ? esc(fmtDur(t.estimate)) : 'Time required'}</option>`}${QUEUE_MINS.map((m) => `<option value="${m}" ${m === t.estimate ? 'selected' : ''}>${m} mins</option>`).join('')}</select>
       ${again ? `<button class="btn ghost xs" data-act="tbRequeue" data-id="${esc(t.id)}">Add to Time Box Allocation</button>` : ''}
@@ -1075,11 +1081,10 @@ function renderPlanner() {
   const title = mode === 'day' ? parseISO(anchor).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : mode === 'week' ? `${fmtDate(dates[0])} – ${fmtDate(dates[6])}` : parseISO(`${anchor.slice(0, 8)}01`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const past = S.tasks.filter((t) => isScheduled(t) && !isDone(t) && t.slotDate < today).length;
-  const queue = timeboxQueue();
-  const picked = (ui.tbPicked || []).filter((id) => queue.some((t) => t.id === id));
+  const queue = allocationOrder();
+  const picked = (ui.tbPicked || []).filter((id) => queue.some((t) => t.id === id && !isScheduled(t)));
   const others = ui.tbShowOthers ? otherOpenTasks() : [];
   const again = unfinishedBooked();
-  const allocated = timeboxAllocated();
   return `<div class="tb-page">
     <header class="tb-head">
       <div class="tb-title"><h1>Time Box</h1><p class="muted">${esc(title)}</p></div>
@@ -1103,9 +1108,8 @@ function renderPlanner() {
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
-          ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important. Your Top 3 become the day's 3 Most Important Outcomes when you give them a time.</p>` : ''}
-          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
-          ${allocated.length ? `<h4 class="tb-sub">Time Box Allocated <span class="count">${allocated.length}</span></h4>${allocated.map((t) => queueItemHTML(t, anchor, false, allocationNumber(t), false, true)).join('')}` : ''}
+          ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important. Your Top 3 become the day's 3 Most Important Outcomes when you give them a time. Drag an allocated task in again to give it another time box.</p>` : ''}
+          ${queue.map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t), false, isScheduled(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
           ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}

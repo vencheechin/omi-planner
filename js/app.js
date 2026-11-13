@@ -588,12 +588,12 @@ const actions = {
     const iso = el.dataset.tbDate;
     const block = blockAt(iso, start);
     const anchor = { getBoundingClientRect: () => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }), contains: () => false };
-    const queue = timeboxQueue();
+    const queue = allocationOrder();
     openPop(anchor, () => `<form class="picker tb-tap" data-submit="tbPopAdd" data-date="${iso}" data-start="${start}">
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
       ${queue.length ? `
       <p class="small muted tb-tap-hint">Your priority list: tap one to put it here.</p>
-      <div class="tb-tap-list">${queue.map((q) => { const n = allocationNumber(q); return `<button type="button" class="tb-tap-item ${n && n <= 3 ? 'top3' : ''}" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}">${n ? `<b class="tb-rank">${n}</b>` : '<i></i>'}<span>${healthDot(q)}${esc(q.title || 'Untitled task')}${q.workType === 'focus' ? ` <small class="focus-tag">${icon('target', 11)} Focus</small>` : ''}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`; }).join('')}</div><hr>` : ``}
+      <div class="tb-tap-list">${queue.map((q) => { const n = allocationNumber(q); return `<button type="button" class="tb-tap-item ${n && n <= 3 ? 'top3' : ''}" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}">${n ? `<b class="tb-rank">${n}</b>` : '<i></i>'}<span>${healthDot(q)}${esc(q.title || 'Untitled task')}${q.workType === 'focus' ? ` <small class="focus-tag">${icon('target', 11)} Focus</small>` : ''}${isScheduled(q) ? ` <small class="alloc-mini">Allocated${bookingsOf(q).filter((b) => b.date === q.slotDate).length > 1 ? ` × ${bookingsOf(q).filter((b) => b.date === q.slotDate).length}` : ''}</small>` : ''}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`; }).join('')}</div><hr>` : ``}
       <textarea name="title" rows="1" required aria-label="Task name (several lines share one time box)"></textarea>
       <label class="field"><span>Time Box</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
       <input type="hidden" name="workType" value="${esc(block?.kind || '')}">
@@ -601,7 +601,7 @@ const actions = {
     // With a list to pick from, don't pop the phone keyboard up over it.
     if (!queue.length) $('textarea', ui.pop.el).focus();
   },
-  tbPlaceQueued: (el) => { const t = taskById(el.dataset.id); closePop(); if (t) scheduleTask(t, el.dataset.date, Number(el.dataset.start)); },
+  tbPlaceQueued: (el) => { const t = taskById(el.dataset.id); closePop(); if (!t) return; if (isScheduled(t)) bookAgain(t, el.dataset.date, Number(el.dataset.start)); else scheduleTask(t, el.dataset.date, Number(el.dataset.start)); },
   mioMenu: (el) => openPop(el, () => mioPickerHTML(el.dataset.date)),
   pickMio: (el) => { toggleMio(el.dataset.date, el.dataset.id); refreshPop(); },
   assignTimebox: (el) => { taskById(el.dataset.id).tbQueued = true; commit(); toast('Added to the Time Box list. Drag it onto a time from the Time Box page.'); },
@@ -1997,17 +1997,15 @@ function dragEnd(drop) {
   }
   if (drop && s.target && 'rankBefore' in s.target) {
     const moved = taskById(s.id);
-    // Reorder only the waiting tasks, in the places they hold: allocated tasks keep their numbers.
-    const full = allocationOrder();
-    const slots = full.map((x, n) => (isScheduled(x) ? -1 : n)).filter((n) => n >= 0);
-    const waiting = full.filter((x) => !isScheduled(x) && x !== moved);
-    const i = s.target.rankBefore ? waiting.findIndex((x) => x.id === s.target.rankBefore) : -1;
-    waiting.splice(i < 0 ? waiting.length : i, 0, moved);
-    slots.forEach((n, k) => { full[n] = waiting[k]; });
+    // One list: allocated tasks hold their place unless you move them.
+    const full = allocationOrder().filter((x) => x !== moved);
+    const i = s.target.rankBefore ? full.findIndex((x) => x.id === s.target.rankBefore) : -1;
+    full.splice(i < 0 ? full.length : i, 0, moved);
     setAllocationOrder(full);
     commit();
     return;
   }
+  if (drop && s.target?.tbDate && s.el?.classList.contains('tb-q') && !s.el.dataset.again && isScheduled(taskById(s.id))) { bookAgain(taskById(s.id), s.target.tbDate, s.target.tbStart); return; }
   if (drop && s.target?.tbDate && s.el?.dataset.again) { bookAgain(taskById(s.id), s.target.tbDate, s.target.tbStart); return; }
   if (drop && s.target?.tbDate) { scheduleTask(taskById(s.id), s.target.tbDate, s.target.tbStart); return; }
   if (!drop || !s.target) return;
