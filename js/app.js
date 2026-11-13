@@ -924,6 +924,8 @@ const actions = {
   },
   tbEstPick: (el) => { closePop(); changes.tbQueueEstimate({ dataset: { id: el.dataset.id }, value: el.dataset.m }); },
   settingsTab: (el) => { ui.settingsTab = el.dataset.v; refreshSettings(); $('dialog.settings .dlg-body')?.scrollTo(0, 0); },
+  // Phones: the calendar and Time Box Allocation sit side by side; swipe or tap a tab to switch.
+  tbPane: (el) => { const m = $('.tb-main'); if (!m) return; ui.tbPane = Number(el.dataset.v); m.scrollTo({ left: ui.tbPane * m.clientWidth, behavior: calmMotion() ? 'auto' : 'smooth' }); $$('.tb-pager button').forEach((b, i) => b.classList.toggle('on', i === ui.tbPane)); },
   adminTab: (el) => { ui.adminTab = el.dataset.v; render(); },
   adminPeriod: (el) => { ui.adminPeriod = el.dataset.v; render(); },
   openAdmin: () => { $$('dialog.dlg[open]').forEach((d) => d.close()); location.hash = '#/admin'; },

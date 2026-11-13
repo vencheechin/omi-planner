@@ -1662,3 +1662,18 @@ body.col-resizing { cursor: col-resize; user-select: none; }
 
 .hover-tip { white-space: pre-line; text-align: left; }
 .hover-tip::first-line { font-weight: 800; }
+
+/* Phones: calendar and Time Box Allocation side by side, swipe between them */
+.tb-pager { display: none; }
+@media (max-width: 760px) {
+  .tb-pager { display: flex; gap: 6px; position: sticky; top: 0; z-index: 6; padding: 6px 0; background: var(--bg, var(--surface)); }
+  .tb-pager button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 999px; font-weight: 700;
+    font-size: calc(13px * var(--scale) * var(--type)); color: var(--ink-2); background: color-mix(in srgb, var(--ink) 7%, transparent); }
+  .tb-pager button.on { background: var(--highlight); color: var(--surface); }
+  .tb-pager .count { font-size: 11px; opacity: .85; }
+  .tb-page .tb-main { flex-direction: row; align-items: flex-start; gap: 0; overflow-x: auto; overflow-y: visible; scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tb-page .tb-main::-webkit-scrollbar { display: none; }
+  .tb-page .tb-main > * { flex: 0 0 100%; min-width: 100%; max-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+  .tb-page .tb-main > .tb-side { width: 100%; padding: 0 2px; }
+}

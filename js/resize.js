@@ -100,3 +100,19 @@ document.addEventListener('pointerup', () => {
   setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 50);
   renderSidebar();
 });
+
+// Phones: keep the Calendar / Time Box Allocation tabs in step with swiping.
+document.addEventListener('scroll', (e) => {
+  const m = e.target;
+  if (!(m instanceof Element) || !m.classList.contains('tb-main') || innerWidth > 760) return;
+  const pane = Math.round(m.scrollLeft / Math.max(1, m.clientWidth));
+  if (pane !== ui.tbPane) { ui.tbPane = pane; $$('.tb-pager button').forEach((b, i) => b.classList.toggle('on', i === pane)); }
+}, true);
+// After a redraw, stay on the pane you were on (Calendar or Time Box Allocation).
+const origRenderForPanes = render;
+// eslint-disable-next-line no-global-assign
+render = function renderKeepingPane() {
+  origRenderForPanes();
+  const m = innerWidth <= 760 && $('.tb-main');
+  if (m && ui.tbPane) m.scrollLeft = ui.tbPane * m.clientWidth;
+};
