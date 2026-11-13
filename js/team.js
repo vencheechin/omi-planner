@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval', 'bookRec'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder'];
 const FILE_APP = 'planner-team';
@@ -40,6 +40,7 @@ const EVENT_TEXT = {
   decision: (e) => `sent a decision request to ${nameOf(e.to)}`,
   decided: (e) => `${e.value === 'approved' ? 'approved' : 'rejected'} the decision request`,
   approvalReq: (e) => `sent an approval request to ${nameOf(e.to)}`,
+  bookRec: (e) => `recommended a book to ${nameOf(e.to)}`,
   approvalDone: (e) => `${e.value === 'approved' ? 'approved' : 'rejected'} the approval request`,
   changeReq: (e) => `asked ${nameOf(e.to)} to change ${e.text}`, changeOk: () => 'approved the change', changeNo: () => 'declined the change',
 };
@@ -267,6 +268,7 @@ function newEvents(t, known) {
     else if (e.type === 'completed' && t.assignees.includes(S.meId)) out.push({ kind: 'completed', text: `${who} approved “${t.title}”` });
     else if (e.type === 'decision' && e.to === S.meId && t.decisionReq?.status === 'pending') out.push({ kind: 'review', text: `${who} sent you a decision request: “${t.title}”` });
     else if (e.type === 'decided' && t.decisionReq?.by === S.meId) out.push({ kind: e.value === 'approved' ? 'completed' : 'returned', text: `${who} ${e.value === 'approved' ? 'approved' : 'rejected'} your decision request “${t.title}”`, note: e.note });
+    else if (e.type === 'bookRec' && isMeId(e.to) && t.bookRec) out.push({ kind: 'review', text: `${who} recommended a book: “${t.bookRec.title}”`, note: t.bookRec.note });
     else if (e.type === 'approvalReq' && isMeId(e.to) && t.approvalReq?.status === 'pending') out.push({ kind: 'review', text: `${who} sent you an approval request: “${t.title}”` });
     else if (e.type === 'approvalDone' && isMeId(t.approvalReq?.by)) out.push({ kind: e.value === 'approved' ? 'completed' : 'returned', text: `${who} ${e.value === 'approved' ? 'approved' : 'rejected'} your approval request “${t.title}”`, note: e.note });
     else if (e.type === 'changeReq' && e.to === S.meId && t.changeReq?.status === 'pending') out.push({ kind: 'review', text: `${who} requests a change to “${t.title}”`, note: e.note });
@@ -331,6 +333,7 @@ function buildTeamFile() {
     delete o.fitAct;
     delete o.dailyPlan;
     delete o.fitDay;
+    delete o.growBook;
     return o;
   });
   const planIds = new Set(tasks.map((t) => t.planId));

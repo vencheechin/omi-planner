@@ -146,13 +146,17 @@ async function timesUpPopup(t, end) {
     const nextHTML = next
       ? `<div class="next-up"><small>Next up</small><b>${isExercise(nextReal) ? '🏃 ' : ''}${esc(nextReal.title || 'Untitled task')}</b><span>${esc(fmtTime(next.slotStart))} – ${esc(fmtTime(next.slotStart + durOf(next)))} · ${esc(fmtDur(durOf(next)))}${isExercise(nextReal) ? ' · Exercise' : ''}</span></div>`
       : '<div class="next-up"><small>Next up</small><span>Nothing else booked today.</span></div>';
-    const ex = isExercise(real);
+    const ex = isExercise(real) || !!real.growBook;
     const head = `<p class="tu-title"><b>${esc(real.title || 'Untitled task')}</b><span class="muted"> · ${esc(fmtTime(box.slotStart))} – ${esc(fmtTime(stop))}</span></p>`;
-    const choice = await choiceDlg(ex ? 'Did you finish your exercise?' : 'Time’s up', `${head}${nextHTML}`, ex
+    const choice = await choiceDlg(real.growBook ? 'Did you do your reading?' : ex ? 'Did you finish your exercise?' : 'Time’s up', `${head}${nextHTML}`, ex
       ? [{ v: 'yes', label: 'Yes, finished', primary: true }, { v: 'no', label: 'No' }, { v: 'more', label: '+5 min' }]
       : [{ v: 'ok', label: next ? `OK, on to ${nextReal.title || 'the next one'}` : 'OK', primary: true }, { v: 'done', label: 'Mark done' }, { v: 'more', label: '+5 min' }]);
     if (choice === 'more') extendBox(box);
-    else if (choice === 'yes' || choice === 'done') { setProgress(real, 100); commit(); toast(ex ? `Well done: ${real.title} counted in Fitness.` : `Done: ${real.title}.`); }
+    else if (choice === 'yes' || choice === 'done') {
+      if (real.growBook) growSessionDone(real, durOf(box));
+      setProgress(real, 100); commit();
+      toast(real.growBook ? `${fmtHours(durOf(box))} counted in Growth.` : ex ? `Well done: ${real.title} counted in Fitness.` : `Done: ${real.title}.`);
+    }
     else if (choice === 'no' && ex) toast('Not counted. You can add it to Time Box Allocation to do it later.');
     popupQueue.shift();
   }

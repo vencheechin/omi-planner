@@ -148,6 +148,8 @@ function duplicatePlan(plan) {
 function planMenu(anchor) {
   const plan = currentPlan();
   openMenu(anchor, [
+    { label: 'New plan', icon: 'plus', run: () => actions.newPlan() },
+    '-',
     { label: 'Labels', icon: 'tag', run: () => openLabels(anchor, { taskId: null, planId: plan.id }) },
     { label: 'Change colour', icon: 'flag', run: () => colourPicker(anchor, plan) },
     { label: 'Copy plan', icon: 'copy', run: () => duplicatePlan(plan) },
@@ -614,8 +616,9 @@ const actions = {
       <h4>${esc(dayLabel(iso))}, ${esc(fmtTime(start))}${block ? ` · ${esc(block.name)}` : ''}</h4>
       ${queue.length ? `
       <p class="small muted tb-tap-hint">Your priority list: tap one to put it here.</p>
-      <div class="tb-tap-list">${queue.map((q) => { const n = allocationNumber(q); return `<button type="button" class="tb-tap-item ${n && n <= 3 ? 'top3' : ''}" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}">${n ? `<b class="tb-rank">${n}</b>` : '<i></i>'}<span>${healthDot(q)}${esc(q.title || 'Untitled task')}${q.workType === 'focus' ? ` <small class="focus-tag">${icon('target', 11)} Focus</small>` : ''}${isScheduled(q) ? ` <small class="alloc-mini">Allocated${bookingsOf(q).filter((b) => b.date === q.slotDate).length > 1 ? ` × ${bookingsOf(q).filter((b) => b.date === q.slotDate).length}` : ''}</small>` : ''}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span><small class="muted">${esc(fmtDur(durOf(q)))}</small></button>`; }).join('')}</div><hr>` : ``}
-      <textarea name="title" rows="1" required aria-label="Task name (several lines share one time box)"></textarea>
+      <div class="tb-tap-list">${queue.map((q) => { const n = allocationNumber(q); return `<button type="button" class="tb-tap-item ${n && n <= 3 ? 'top3' : ''}" data-act="tbPlaceQueued" data-id="${esc(q.id)}" data-date="${iso}" data-start="${start}" style="--c:${fillOf(q)}">${n ? `<b class="tb-rank">${n}</b>` : '<i></i>'}<span>${healthDot(q)}${esc(q.title || 'Untitled task')}${q.workType === 'focus' ? ` <small class="focus-tag">${icon('target', 11)} Focus</small>` : ''}${isBox(q) ? ` <small>(${boxItems(q).length} items)</small>` : ''}</span>${isScheduled(q) ? `<small class="alloc-mini">Allocated${bookingsOf(q).filter((b) => b.date === q.slotDate).length > 1 ? ` × ${bookingsOf(q).filter((b) => b.date === q.slotDate).length}` : ''}</small>` : ''}</button>`; }).join('')}</div><hr>` : ``}
+      <h4 class="tb-tap-new">${queue.length ? 'or Add a New Task' : 'Add a New Task'}</h4>
+      <textarea name="title" rows="1" required aria-label="Task name (several lines share one time box)" placeholder="Task name"></textarea>
       <label class="field"><span>Time Box</span><select name="estimate">${estimateList().map((m) => `<option value="${m}" ${m === defaultEstimate() ? 'selected' : ''}>${fmtDur(m)}</option>`).join('')}</select></label>
       <input type="hidden" name="workType" value="${esc(block?.kind || '')}">
       <button class="btn primary sm tb-tap-add">Add</button></form>`);
@@ -2343,7 +2346,7 @@ function route() {
   Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
     : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
-    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : a === 'growth' ? { view: 'growth' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   // My Planner with just one plan opens that plan; with more, you pick one.
   if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
     history.replaceState(null, '', `#/plan/${S.plans[0].id}`);

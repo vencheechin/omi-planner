@@ -255,7 +255,7 @@ function delegateFromNavHTML(r, planLink) {
 function renderSidebar() {
   renderTabbar();
   const r = ui.route;
-  const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view ? 'active' : ''}" href="#/${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
+  const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view ? 'active' : ''}" href="#/${view}" data-navkey="${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
   const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
   const pinned = S.plans.filter((p) => p.pinned && !sharedWithMe(p));
   const recent = S.plans.filter((p) => !p.pinned && !sharedWithMe(p)).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
@@ -267,9 +267,17 @@ function renderSidebar() {
   };
   $('#sidebar').innerHTML = `
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
-    <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
-      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}${link('fitness', 'Fitness', 'pulse')}${stAdmin() ? link('admin', 'Admin Portal', 'shield') : ''}
+      <div class="nav-main">${(() => {
+        // The main links, in the order you dragged them into (new ones go at the end).
+        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ['hub', link('hub', 'Planner', 'home', dueSoonCount())],
+          ['timebox', link('timebox', 'Time Box', 'clock', timeboxQueue().length)], ['report', link('report', 'Assignments', 'chart', toCheck)],
+          ['fitness', link('fitness', 'Fitness', 'pulse')], ['growth', link('growth', 'Growth', 'book', typeof recsForMe === 'function' ? recsForMe().length : 0)],
+          ...(stAdmin() ? [['admin', link('admin', 'Admin Portal', 'shield')]] : [])];
+        const order = S.settings.navOrder || [];
+        const at = (k) => (order.includes(k) ? order.indexOf(k) : 100 + items.findIndex(([x]) => x === k));
+        return items.sort((a, b) => at(a[0]) - at(b[0])).map(([, html]) => html).join('');
+      })()}</div>
       ${reqNavHTML(r, 'decision', 'from')}${reqNavHTML(r, 'decision', 'to')}
       ${reqNavHTML(r, 'approval', 'from')}${reqNavHTML(r, 'approval', 'to')}
       ${approvedNavHTML()}
@@ -420,7 +428,7 @@ function renderHub() {
   return `<div class="page">
     <header class="page-head"><h1>Planner</h1></header>
     ${dueSoonHTML()}
-    ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}</div>`
+    ${plans.length ? `<div class="plan-grid">${plans.map(card).join('')}<button class="plan-card plan-new" data-act="newPlan">${icon('plus', 20)}<span>New plan</span></button></div>`
       : `<div class="empty"><h2>No plans yet</h2><button class="btn primary" data-act="newPlan">${icon('plus')} New plan</button></div>`}
   </div>`;
 }
@@ -738,6 +746,7 @@ function renderMain() {
   if (r.view === 'history') return renderApprovalHistory();
   if (r.view === 'admin') return renderAdmin();
   if (r.view === 'fitness') return renderFitness();
+  if (r.view === 'growth') return renderGrowth();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan') return renderBrandPlan();
   return renderHub();
