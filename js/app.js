@@ -379,7 +379,7 @@ function settingsHTML() {
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>
-  ${stAdmin() ? `<section class="set-sec"><h3>Admin</h3>${adminSettingsHTML()}</section>` : ''}
+  ${stAdmin() ? `<section class="set-sec"><h3>Admin</h3><p class="small muted">Reporting lines, admins, departments and the team dashboard are in the Admin Portal.</p><button class="btn primary sm" data-act="openAdmin">${icon('shield', 14)} Open Admin Portal</button></section>` : ''}
   <section class="set-sec"><h3>Planner</h3>
     <label class="field"><span>Planner Name</span><input value="${esc(plannerName())}" data-change="plannerName" autocomplete="off"></label>
     <button class="btn ghost sm" data-act="runSetup">Focus sessions</button></section>
@@ -837,6 +837,9 @@ const actions = {
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   decShow: (el) => { ui.decShow = el.dataset.v; render(); },
+  adminTab: (el) => { ui.adminTab = el.dataset.v; render(); },
+  adminPeriod: (el) => { ui.adminPeriod = el.dataset.v; render(); },
+  openAdmin: () => { $$('dialog.dlg[open]').forEach((d) => d.close()); location.hash = '#/admin'; },
   goTimebox: (el) => {
     const t = taskById(el.dataset.id);
     const box = t.boxId && boxOf(t);
@@ -2137,7 +2140,7 @@ function route() {
   Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
     : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
-    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   // My Planner with just one plan opens that plan; with more, you pick one.
   if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
     history.replaceState(null, '', `#/plan/${S.plans[0].id}`);

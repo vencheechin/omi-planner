@@ -269,7 +269,7 @@ function renderSidebar() {
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <button class="btn primary new-plan" data-act="newPlan">${icon('plus')} New plan</button>
     <nav aria-label="Main">
-      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}
+      ${link('halfplan', 'S-Team Plan', 'table')}${link('hub', 'Planner', 'home', dueSoonCount())}${link('timebox', 'Time Box', 'clock', timeboxQueue().length)}${link('report', 'Assignments', 'chart', toCheck)}${stAdmin() ? link('admin', 'Admin Portal', 'shield') : ''}
       ${reqNavHTML(r, 'decision', 'from')}${reqNavHTML(r, 'decision', 'to')}
       ${reqNavHTML(r, 'approval', 'from')}${reqNavHTML(r, 'approval', 'to')}
       ${approvedNavHTML()}
@@ -735,6 +735,7 @@ function renderMain() {
   if (r.view === 'req') return renderRequests();
   if (r.view === 'from') return renderDelegatedFrom();
   if (r.view === 'history') return renderApprovalHistory();
+  if (r.view === 'admin') return renderAdmin();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan') return renderBrandPlan();
   return renderHub();

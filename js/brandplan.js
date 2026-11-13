@@ -5,7 +5,7 @@
    It's shared with your team (cloud sync or the shared folder). Each group syncs on its own, so
    two people editing different groups never overwrite each other; within a group the latest edit wins. */
 
-Object.assign(ICON, { approve: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 12.5l2.7 2.7L16 9.5', send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z', table: 'M3 5h18v14H3zM3 10h18M3 15h18M9 5v14', target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 12.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1' });
+Object.assign(ICON, { shield: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6zM9 12l2 2 4-4', approve: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8 12.5l2.7 2.7L16 9.5', send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z', table: 'M3 5h18v14H3zM3 10h18M3 15h18M9 5v14', target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8M12 12.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1' });
 
 const BP_STATUS = [
   { v: 'green', label: 'Green', meaning: 'On plan' },
@@ -94,7 +94,7 @@ const canSendUpTo = (id) => pkey(id) !== pkey(S.meId) && (!hierarchyOn() || isAb
 function reportingLinesHTML() {
   const people = [...new Map(S.people.map((x) => [pkey(x.id), x])).values()].sort((a, b) => a.name.localeCompare(b.name));
   const edit = stAdmin();
-  return `<p class="small muted">Requests go up: you send Decision Requests, Approval Requests and S-Team Plans to the people you report to. Delegating goes down, to the people who report to you.${edit ? '' : ' Only an admin can change these.'}</p>
+  return `${edit && ui.route.view !== 'admin' ? `<p><button class="btn ghost sm" data-act="openAdmin">${icon('shield', 13)} Edit in Admin Portal</button></p>` : ''}<p class="small muted">Requests go up: you send Decision Requests, Approval Requests and S-Team Plans to the people you report to. Delegating goes down, to the people who report to you.${edit ? '' : ' Only an admin can change these.'}</p>
     <div class="adm-block">${people.map((x) => { const m = org().reportsTo?.[pkey(x.id)] || ''; return `<div class="adm-row"><span>${esc(x.name)}</span>
       <label class="mini">Reports to <select data-change="orgReportsTo" data-p="${esc(pkey(x.id))}" ${edit ? '' : 'disabled'}><option value="">— Top</option>${people.filter((y) => pkey(y.id) !== pkey(x.id)).map((y) => `<option value="${esc(pkey(y.id))}" ${pkey(y.id) === m ? 'selected' : ''}>${esc(y.name)}</option>`).join('')}</select></label></div>`; }).join('')}</div>`;
 }
