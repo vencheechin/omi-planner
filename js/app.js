@@ -837,6 +837,18 @@ const actions = {
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   decShow: (el) => { ui.decShow = el.dataset.v; render(); },
+  tbClearUnfinished: () => {
+    // Off the Not finished list; each time box stays where it was (and still counts as time spent).
+    const list = unfinishedBooked();
+    if (!list.length) return;
+    const before = list.map((t) => [t, t.slotDate, t.slotStart, sessionsOf(t)]);
+    for (const t of list) {
+      t.tbSessions = [...sessionsOf(t), { id: uid(), date: t.slotDate, start: t.slotStart, dur: durOf(t) }];
+      t.slotDate = null; t.slotStart = null;
+    }
+    commit();
+    toast(`Cleared ${list.length} from Not finished. Their time boxes stay on the calendar.`, { undo: () => { before.forEach(([t, d, s, sess]) => { t.slotDate = d; t.slotStart = s; t.tbSessions = sess; }); commit(); } });
+  },
   tbRequeue: (el) => {
     // The time box it had stays (and counts as time spent); the task goes back on the list to place again.
     const t = taskById(el.dataset.id);

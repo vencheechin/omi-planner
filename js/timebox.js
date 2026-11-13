@@ -1073,7 +1073,7 @@ function renderPlanner() {
         <div class="tb-queue" data-scroll="tb-queue">
           ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important.</p>` : ''}
           ${queue.map((t, i) => queueItemHTML(t, anchor, picked.includes(t.id), i + 1)).join('') || '<p class="muted small">Nothing waiting.</p>'}
-          ${again.length ? `<h4 class="tb-sub">Not finished <span class="count">${again.length}</span></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
+          ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Time Box Allocation to put it back on the list. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>
