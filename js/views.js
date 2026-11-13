@@ -454,6 +454,7 @@ function cardHTML(t, { showPlan } = {}) {
   return `<article class="card ${isDone(t) ? 'done' : ''}" data-open-task="${esc(t.id)}" data-drag="task" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title || 'Untitled task')}">
     ${t.labels.length ? `<div class="card-labels">${orderedLabels(plan, t.labels).map((l) => labelChip(plan, l)).join('')}</div>` : ''}
     <div class="card-title"><button class="check ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 12)}</button><span>${esc(t.title || 'Untitled task')}</span></div>
+    ${t.box ? '' : `<button class="icon-btn card-tb ${isScheduled(t) ? 'booked' : t.tbQueued ? 'on' : ''}" data-act="cardTimebox" data-id="${esc(t.id)}" aria-label="${isScheduled(t) ? 'Go to its Time Box' : t.tbQueued ? 'In your Time Box list (tap to take it off)' : 'Assign to Time Box'}" title="${isScheduled(t) ? `Time Box: ${esc(slotText(t))}` : t.tbQueued ? 'In your Time Box list' : 'Assign to Time Box'}">${icon('clock', 15)}</button>`}
     <button class="icon-btn card-more" data-act="cardMenu" data-id="${esc(t.id)}" aria-label="More options for ${esc(t.title || 'Untitled task')}" title="More options">${icon('more', 16)}</button>
     ${cardPreview(t)}
     ${showPlan && plan ? `<div class="card-plan">${planTile(plan, 14)}${esc(plan.name)}</div>` : ''}

@@ -154,7 +154,87 @@ function nextWorkDay(iso) {
 }
 
 // ---------- Day contents and warnings ----------
-const scheduledOn = (iso) => S.tasks.filter((t) => t.slotDate === iso && Number.isFinite(t.slotStart));
+/** Extra time boxes for the same task. The latest booking is slotDate/slotStart; earlier and other ones live here. */
+const sessionsOf = (t) => (Array.isArray(t?.tbSessions) ? t.tbSessions : []);
+/** One extra time box, shaped like a task so the planner can lay it out (it reads through to the real task). */
+function sessionProxy(t, s) {
+  return Object.create(t, {
+    id: { value: `${t.id}~${s.id}` }, slotDate: { value: s.date, writable: true }, slotStart: { value: s.start, writable: true },
+    estimate: { value: s.dur, writable: true }, _task: { value: t }, _sess: { value: s },
+  });
+}
+const realId = (t) => (t?._task ? t._task.id : t?.id);
+/** Every booking of a task, in time order: { date, start, dur, sid } (sid is null for the main one). */
+function bookingsOf(t) {
+  const list = sessionsOf(t).map((s) => ({ date: s.date, start: s.start, dur: s.dur, sid: s.id }));
+  if (isScheduled(t)) list.push({ date: t.slotDate, start: t.slotStart, dur: durOf(t), sid: null });
+  return list.sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start);
+}
+/** Minutes spent so far: time boxes that have passed (the one running now counts up to now). */
+function timeSpentOf(t) {
+  const today = todayISO();
+  const now = nowMin();
+  const days = new Map();
+  for (const b of bookingsOf(t)) {
+    const m = b.date < today ? b.dur : b.date === today ? Math.max(0, Math.min(b.dur, now - b.start)) : 0;
+    if (m) days.set(b.date, (days.get(b.date) || 0) + m);
+  }
+  return { days: [...days.entries()].sort((a, b) => a[0].localeCompare(b[0])), total: [...days.values()].reduce((n, m) => n + m, 0) };
+}
+/** Time spent and every time box, under the Time Box row of the task panel. */
+function timeSpentHTML(t) {
+  const all = bookingsOf(t);
+  if (!all.length) return '';
+  const spent = timeSpentOf(t);
+  const today = todayISO();
+  const ahead = all.filter((b) => b.date > today || (b.date === today && b.start >= nowMin()));
+  return `<div class="tb-spent">
+    <div><b>Time spent</b> <span class="tb-spent-total">${spent.total ? esc(fmtDur(spent.total)) : 'none yet'}</span>${spent.days.length ? ` · ${spent.days.map(([d, m]) => `${esc(dayLabel(d))} ${esc(fmtDur(m))}`).join(' · ')}` : ''}</div>
+    ${all.length > 1 || ahead.length ? `<div class="tb-sessions">${all.map((b, i) => `<span class="tb-sess ${ahead.includes(b) ? 'ahead' : ''}">${i + 1}. ${esc(dayLabel(b.date))} ${esc(fmtTime(b.start))} · ${esc(fmtDur(b.dur))}${b.sid ? `<button class="chip-x" data-act="tbDelSession" data-id="${esc(t.id)}" data-s="${esc(b.sid)}" aria-label="Remove this time box">${icon('close', 10)}</button>` : ''}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
+/** Books the task into another time box and keeps the one it had. Without a time, the next free slot after it. */
+async function bookAgain(t, iso, start) {
+  if (!t || isBox(t)) return false;
+  const had = isScheduled(t) ? { id: uid(), date: t.slotDate, start: t.slotStart, dur: durOf(t) } : null;
+  const prev = [t.slotDate, t.slotStart];
+  if (had) { t.tbSessions = [...sessionsOf(t), had]; t.slotDate = null; t.slotStart = null; }
+  const undo = () => { if (had) t.tbSessions = sessionsOf(t).filter((s) => s !== had); [t.slotDate, t.slotStart] = prev; };
+  if (iso) {
+    const ok = await scheduleTask(t, iso, start);
+    if (!ok) { undo(); commit(); }
+    else if (had) toast('Booked again. The earlier time box stays where it was.');
+    return ok;
+  }
+  let from = searchStart();
+  if (had && (had.date > from.date || (had.date === from.date && had.start + had.dur > from.min))) from = { date: had.date, min: had.start + had.dur };
+  const slot = freeSlot(t, from.date, from.min);
+  if (!slot) { undo(); toast('No free slot in the next 4 weeks.', { error: true }); return false; }
+  t.slotDate = slot.date;
+  t.slotStart = slot.start;
+  t.tbQueued = false;
+  commit();
+  toast(`Booked again: ${dayLabel(slot.date)} ${fmtTime(slot.start)}–${fmtTime(slot.start + durOf(t))}.${had ? ' The earlier one stays.' : ''}`, { undo: () => { undo(); commit(); } });
+  return true;
+}
+/** The unbooked Time Box list empties at 2am the next day; anything already in a time box stays. */
+function resetStaleQueue() {
+  const now = new Date();
+  const cut = new Date(now);
+  cut.setHours(2, 0, 0, 0);
+  if (now < cut) cut.setDate(cut.getDate() - 1);
+  let changed = false;
+  for (const t of S.tasks) {
+    if (!t.tbQueued || isScheduled(t)) { if (t.tbQueuedAt && !t.tbQueued) { delete t.tbQueuedAt; changed = true; } continue; }
+    if (!t.tbQueuedAt) { t.tbQueuedAt = Date.now(); changed = true; continue; }
+    if (t.tbQueuedAt < cut.getTime()) { t.tbQueued = false; delete t.tbQueuedAt; delete t.tbRank; changed = true; }
+  }
+  return changed;
+}
+const scheduledOn = (iso) => S.tasks.flatMap((t) => [
+  ...(t.slotDate === iso && Number.isFinite(t.slotStart) ? [t] : []),
+  ...sessionsOf(t).filter((s) => s.date === iso).map((s) => sessionProxy(t, s)),
+]);
 const plannedMinutes = (iso) => scheduledOn(iso).reduce((n, t) => n + durOf(t), 0);
 const allowedInProtected = (t) => t.workType === 'focus' || t.urgency === 'emergency';
 const overlapsOf = (t) => (isScheduled(t) ? scheduledOn(t.slotDate).filter((x) => x.id !== t.id && x.slotStart < endOf(t) && t.slotStart < endOf(x)) : []);
@@ -640,9 +720,9 @@ function tbRowHTML(t) {
         <button class="need-focus ${t.workType === 'focus' ? 'on' : ''}" data-act="toggleFocus" data-id="${esc(t.id)}" aria-pressed="${t.workType === 'focus'}">${icon('target', 15)} Need Focus</button>
         <label class="time-req"><span>Time Required</span><select data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Time Required">${estimateOptions(t.estimate)}<option value="custom">Other…</option></select></label>
         ${inTimebox
-          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${isScheduled(t) && !isDone(t) && !isBox(t) ? `<button class="btn ghost sm" data-act="bookNextFree" data-id="${esc(t.id)}" title="Move it to the next free slot">${icon('plus', 13)} Book again</button>` : ''}${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
+          ? `<button class="need-focus go-tb" data-act="goTimebox" data-id="${esc(t.id)}" title="Time Box: ${esc(where)}">${icon('clock', 15)} Go to Time Box</button>${isScheduled(t) && !isDone(t) && !isBox(t) ? `<button class="btn ghost sm" data-act="tbBookAgain" data-id="${esc(t.id)}" title="Add another time box for this task (the current one stays)">${icon('plus', 13)} Book again</button>` : ''}${overlapsOf(t).length ? '<span class="danger-text small">Overlaps</span>' : ''}`
           : `<button class="btn primary sm" data-act="assignTimebox" data-id="${esc(t.id)}">${icon('clock', 14)} Assign to Time Box</button>`}
-      </div>`;
+      </div>${timeSpentHTML(t)}`;
 }
 /** Progress as a bar you tap: 10%, 50%, 80%, 100% (tap the current step again to go back one). */
 function progressPickHTML(t) {
@@ -833,8 +913,8 @@ function blockHTML(t, iso, ppm, y, lane, n) {
   const cls = ['tb-block', isBox(t) ? 'box' : '', isDone(t) ? 'done' : '', overlapsOf(t).length ? 'overlap' : '', intrudes(t) ? 'intrude' : '', h < 30 ? 'short' : '', omio ? 'is-omio' : ''].join(' ');
   const label = `${t.title || 'Untitled task'}, ${fmtTime(t.slotStart)} to ${fmtTime(endOf(t))}${items.length ? `, ${items.filter(isDone).length} of ${items.length} done` : ''}`;
   return `<div class="${cls}" style="top:${y(t.slotStart)}px;height:${h}px;left:calc(${lane / n} * 100% + 1px);width:calc(100% / ${n} - 2px);--c:${fillOf(t)}"
-    data-open-task="${esc(t.id)}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" data-tip="${esc(`${fmtTime(t.slotStart)} – ${fmtTime(endOf(t))}`)}">
-    <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${h < 38 ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
+    data-open-task="${esc(realId(t))}" data-drag="block" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(label)}" data-tip="${esc(`${fmtTime(t.slotStart)} – ${fmtTime(endOf(t))}`)}">
+    <div class="tb-b-title">${omio ? '★ ' : ''}${healthDot(t)}${esc(t.title || 'Untitled task')}${(() => { const all = bookingsOf(t._task || t); if (all.length < 2) return ''; const i = all.findIndex((b) => b.date === t.slotDate && b.start === t.slotStart); return ` <small class="tb-part" title="Time box ${i + 1} of ${all.length} for this task">${i + 1}/${all.length}</small>`; })()}${h < 38 ? ` <small class="tb-b-dur">${dur}</small>` : ''}${items.length ? ` <small>${items.filter(isDone).length}/${items.length}${fit.hidden ? ` · +${fit.hidden} more` : ''}</small>` : ''}</div>
     ${h >= 38 ? `<small class="tb-b-dur">${dur}</small>` : ''}
     ${items.length ? `<ul class="tb-items">${fit.shown.map((i) => `<li class="${isDone(i) ? 'done' : ''}"><button class="check small ${isDone(i) ? 'on' : ''} ${i.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(i.id)}" aria-label="${esc(`${checkLabel(i)}: ${i.title}`)}" title="${checkLabel(i)}">${icon('check', 9)}</button><span>${esc(i.title || 'Untitled task')}</span></li>`).join('')}</ul>` : ''}
     <span class="tb-resize" data-drag="resize" data-id="${esc(t.id)}" aria-hidden="true"></span></div>`;
@@ -897,7 +977,7 @@ function monthGridHTML(anchor) {
       <button class="tb-mdate" data-act="tbOpenDay" data-date="${iso}">${parseISO(iso).getDate()}</button>
       ${cap && planned ? `<span class="tb-mload ${planned > cap ? 'over' : ''}">${esc(fmtDur(planned))}</span>` : ''}
       ${mio.map((t) => `<div class="tb-momio" title="Most Important Outcome">★ ${esc(t.title)}</div>`).join('')}
-      ${shown.map((t) => `<button class="tb-mchip ${isDone(t) ? 'done' : ''}" style="--c:${fillOf(t)}" data-open-task="${esc(t.id)}" data-drag="block" data-id="${esc(t.id)}"><b>${esc(rowLabel(t.slotStart))}</b> ${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>${boxItems(t).filter(isDone).length}/${boxItems(t).length}</small>` : ''}</button>`).join('')}
+      ${shown.map((t) => `<button class="tb-mchip ${isDone(t) ? 'done' : ''}" style="--c:${fillOf(t)}" data-open-task="${esc(realId(t))}" data-drag="block" data-id="${esc(t.id)}"><b>${esc(rowLabel(t.slotStart))}</b> ${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>${boxItems(t).filter(isDone).length}/${boxItems(t).length}</small>` : ''}</button>`).join('')}
       ${entries.length > shown.length ? `<button class="tb-mmore" data-act="tbOpenDay" data-date="${iso}">+${entries.length - shown.length} more</button>` : ''}
     </div>`;
   };
@@ -936,11 +1016,11 @@ function otherOpenTasks() {
   return S.tasks.filter((t) => !isDone(t) && !isScheduled(t) && !t.tbQueued && !isBox(t) && !(t.boxId && taskById(t.boxId)) && mine(t)).slice(0, 60);
 }
 function queueItemHTML(t, anchor, picked, rank, again) {
-  return `<div class="tb-q ${picked ? 'picked' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} style="--c:${fillOf(t)}">
+  return `<div class="tb-q ${picked ? 'picked' : ''} ${t.workType === 'focus' ? 'needs-focus' : ''}" data-drag="task" data-id="${esc(t.id)}" data-open-task="${esc(t.id)}" ${rank ? 'data-rank="1"' : ''} ${again ? 'data-again="1"' : ''} style="--c:${fillOf(t)}">
     <div class="tb-q-title">${rank ? `<b class="tb-rank" title="Priority ${rank}">${rank}</b>` : ''}${again ? `<small class="tb-was" title="Booked before">${esc(dayLabel(t.slotDate))} ${esc(fmtTime(t.slotStart))}</small>` : ''}${t.tbQueued && !again ? `<input type="checkbox" class="tb-pick" data-change="tbPick" data-id="${esc(t.id)}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.title)}" title="Select to combine into one time box">` : ''}${healthDot(t)}<span>${esc(t.title || 'Untitled task')}${isBox(t) ? ` <small>(${boxItems(t).length} items)</small>` : ''}</span></div>
     <div class="tb-q-meta">${t.workType === 'focus' ? `<span class="focus-tag">${icon('target', 12)} Needs focus</span>` : typeTag(t)}
       <select class="tb-q-est" data-change="tbQueueEstimate" data-id="${esc(t.id)}" aria-label="Estimate">${estimateOptions(t.estimate)}</select>
-      <button class="btn ghost xs" data-act="bookNextFree" data-id="${esc(t.id)}" data-from="${anchor}">Next free</button>
+      ${again ? `<button class="btn ghost xs" data-act="tbBookAgain" data-id="${esc(t.id)}">Book again</button>` : `<button class="btn ghost xs" data-act="bookNextFree" data-id="${esc(t.id)}" data-from="${anchor}">Next free</button>`}
       ${again ? '' : t.tbQueued ? `<button class="icon-btn" data-act="tbUnqueue" data-id="${esc(t.id)}" aria-label="Remove from Time Box" title="Remove from Time Box">${icon('close', 12)}</button>` : `<button class="btn ghost xs" data-act="tbQueue" data-id="${esc(t.id)}">Add</button>`}
     </div></div>`;
 }
@@ -969,7 +1049,6 @@ function renderPlanner() {
       </div>
       <div class="spacer"></div>
       <button class="btn ghost sm" data-act="moveUnfinished" data-date="${mode === 'day' ? anchor : today}">Move unfinished</button>
-      <button class="btn primary sm" data-act="planTomorrow">Tomorrow Planning</button>
     </header>
     <form class="tb-quick" data-submit="tbQuickAdd">
       <input name="title" placeholder="Add a task to the Time Box" data-focus="tb-quick" autocomplete="off" aria-label="Task name" required>
@@ -987,13 +1066,13 @@ function renderPlanner() {
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
       <aside class="tb-side">
         ${defaultTasksHTML()}
-        <h3>Time Box <span class="count">${queue.length}</span></h3>
+        <h3>Time Box Allocation <span class="count">${queue.length}</span></h3>
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
           ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important.</p>` : ''}
           ${queue.map((t, i) => queueItemHTML(t, anchor, picked.includes(t.id), i + 1)).join('') || '<p class="muted small">Nothing waiting.</p>'}
-          ${again.length ? `<h4 class="tb-sub">Not finished <span class="count">${again.length}</span></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner or tap Next free to book it again.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
+          ${again.length ? `<h4 class="tb-sub">Not finished <span class="count">${again.length}</span></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner or tap Book again: the earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>

@@ -605,6 +605,7 @@ const actions = {
   pickMio: (el) => { toggleMio(el.dataset.date, el.dataset.id); refreshPop(); },
   assignTimebox: (el) => { taskById(el.dataset.id).tbQueued = true; commit(); toast('Added to the Time Box list. Drag it onto a time from the Time Box page.'); },
   removeFromTimebox: (el) => {
+    if (String(el.dataset.id).includes('~')) { const [tid, sid] = el.dataset.id.split('~'); const p = taskById(tid); p.tbSessions = sessionsOf(p).filter((s) => s.id !== sid); commit(); toast('Time box removed.'); return; }
     const t = taskById(el.dataset.id);
     const before = JSON.stringify(S);
     if (t.boxId && boxOf(t)) takeOutOfBox(t);
@@ -694,7 +695,6 @@ const actions = {
   },
   resetWorkTypes: (el) => { TB().workTypes = []; el.closest('dialog').close(); commit(); editWorkTypesDlg(); },
   moveUnfinished: (el) => moveUnfinishedDlg(el.dataset.date),
-  planTomorrow: () => planTomorrowDlg(),
   tbToggleDay: (el) => {
     const d = Number(el.dataset.d);
     const days = TB().workDays;
@@ -837,6 +837,22 @@ const actions = {
   },
   decisionWithdraw: (el) => { const t = taskById(el.dataset.id); t.decisionReq = null; commit(); toast('Decision request withdrawn.'); },
   decShow: (el) => { ui.decShow = el.dataset.v; render(); },
+  tbBookAgain: (el) => bookAgain(taskById(el.dataset.id)),
+  tbDelSession: (el) => {
+    const t = taskById(el.dataset.id);
+    const keep = sessionsOf(t);
+    t.tbSessions = keep.filter((s) => s.id !== el.dataset.s);
+    commit();
+    toast('Time box removed.', { undo: () => { t.tbSessions = keep; commit(); } });
+  },
+  cardTimebox: (el) => {
+    const t = taskById(el.dataset.id);
+    if (isScheduled(t)) { ui.dayView = 'day'; ui.dayDate = t.slotDate; location.hash = '#/timebox'; return; }
+    t.tbQueued = !t.tbQueued;
+    if (t.tbQueued) t.tbQueuedAt = Date.now(); else { delete t.tbQueuedAt; delete t.tbRank; }
+    commit();
+    toast(t.tbQueued ? 'Added to your Time Box list. If it isn’t booked by 2am tomorrow, it comes off the list.' : 'Taken off the Time Box list.');
+  },
   tbAddPlanning: async (el) => {
     const p = personalPlan();
     if (!p) { toast('Make a plan first.', { error: true }); return; }
@@ -1770,6 +1786,9 @@ function dragMove(x, y) {
       return;
     }
     s.tbph?.remove();
+    const side = s.type === 'block' && hits.find((n) => n.classList?.contains('tb-side'));
+    $$('.tb-side.drop-back').forEach((n) => n.classList.remove('drop-back'));
+    if (side) { side.classList.add('drop-back'); s.target = { toList: true }; return; }
     if (s.type === 'block') return;
   }
   if (s.type === 'task') {
@@ -1880,6 +1899,42 @@ function dragEnd(drop) {
     commit();
     return;
   }
+  $$('.tb-side.drop-back').forEach((n) => n.classList.remove('drop-back'));
+  if (drop && s.type === 'block' && s.target?.toList) {
+    const id = String(s.id);
+    if (id.includes('~')) {
+      // An extra time box: just that one goes; the task's other time boxes stay.
+      const [tid, sid] = id.split('~');
+      const p = taskById(tid);
+      const keep = sessionsOf(p);
+      p.tbSessions = keep.filter((x) => x.id !== sid);
+      commit();
+      toast('Time box taken out.', { undo: () => { p.tbSessions = keep; commit(); } });
+      return;
+    }
+    const t = taskById(id);
+    if (isBox(t)) { render(); toast('Open the box to take its tasks out.'); return; }
+    const before = [t.slotDate, t.slotStart, t.tbQueued];
+    t.slotDate = null; t.slotStart = null; t.tbQueued = true; t.tbQueuedAt = Date.now();
+    commit();
+    toast('Back in Time Box Allocation.', { undo: () => { [t.slotDate, t.slotStart, t.tbQueued] = before; commit(); } });
+    return;
+  }
+  if ((s.type === 'block' || s.type === 'resize') && String(s.id).includes('~')) {
+    $$('.merge-target').forEach((n) => n.classList.remove('merge-target'));
+    s.tbph?.remove();
+    s.source?.classList.remove('resizing');
+    const [tid, sid] = String(s.id).split('~');
+    const sess = sessionsOf(taskById(tid)).find((x) => x.id === sid);
+    const t = s.target;
+    if (drop && sess && t) {
+      if (s.type === 'resize' && t.dur) sess.dur = t.dur;
+      else if (t.tbDate) { sess.date = t.tbDate; sess.start = t.tbStart; }
+      else if (t.monthDate) { const slot = freeSlot(sessionProxy(taskById(tid), sess), t.monthDate, 0); sess.date = t.monthDate; sess.start = slot && slot.date === t.monthDate ? slot.start : TB().dayStart; }
+      commit();
+    } else render();
+    return;
+  }
   if (s.type === 'bucketorder') {
     // The list's new order becomes the board's bucket order.
     const plan = currentPlan();
@@ -1912,6 +1967,7 @@ function dragEnd(drop) {
     commit();
     return;
   }
+  if (drop && s.target?.tbDate && s.el?.dataset.again) { bookAgain(taskById(s.id), s.target.tbDate, s.target.tbStart); return; }
   if (drop && s.target?.tbDate) { scheduleTask(taskById(s.id), s.target.tbDate, s.target.tbStart); return; }
   if (!drop || !s.target) return;
   if (s.type === 'task') {
@@ -2282,6 +2338,8 @@ sheetSwipe($('#taskDialog'), () => actions.closeTask());
   if (S.settings.onboarded === false) setTimeout(setupDlg, 60);
   setTimeout(checkReminders, 1500);
   setInterval(checkReminders, 60000);
+  if (resetStaleQueue()) commit();
+  setInterval(() => { if (resetStaleQueue()) commit(); }, 60000);
   if (new URLSearchParams(location.search).get('test') === '1') setTimeout(() => { if (!Team.dir && person(S.meId)?.email) Team.connectDevice({ quiet: true }); }, 400);
   updateStatus();
   Store.collectGarbage().catch(console.error);

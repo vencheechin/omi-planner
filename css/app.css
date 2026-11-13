@@ -1370,3 +1370,21 @@ body.dragging .bp-row.drag-src { opacity: .4; }
 .focus-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--highlight); }
 .tb-was { flex: none; font-size: 11px; color: var(--muted); margin-right: 6px; }
 .tb-hint { margin: 0 0 6px; }
+
+/* Time Box button on planner cards */
+.card-tb { position: absolute; top: 5px; right: 35px; width: 28px; height: 28px; background: var(--surface); color: var(--accent); opacity: 0; }
+.card:hover .card-tb, .card:focus-within .card-tb, .card-tb:focus-visible, .card-tb.on, .card-tb.booked { opacity: 1; }
+.card-tb.on, .card-tb.booked { color: var(--highlight); }
+.card-tb.booked { background: color-mix(in srgb, var(--highlight) 18%, var(--surface)); }
+.card-tb:hover { background: var(--hover); }
+.card .card-title { padding-right: 58px; }
+/* Several time boxes for one task, and time spent */
+.tb-part { font-size: 10.5px; font-weight: 700; opacity: .8; }
+.tb-spent { display: grid; gap: 6px; margin: -4px 0 10px; font-size: calc(13px * var(--scale) * var(--type)); color: var(--ink-2); }
+.tb-spent-total { font-weight: 700; color: var(--highlight); }
+.tb-sessions { display: flex; flex-wrap: wrap; gap: 6px; }
+.tb-sess { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 7%, transparent); font-size: 12px; }
+.tb-sess.ahead { background: color-mix(in srgb, var(--highlight) 16%, transparent); }
+
+/* Dropping a time box back into the right column */
+.tb-side.drop-back { outline: 2px dashed var(--highlight); outline-offset: 4px; border-radius: 12px; background: color-mix(in srgb, var(--highlight) 8%, transparent); }

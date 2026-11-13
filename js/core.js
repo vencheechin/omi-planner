@@ -302,7 +302,15 @@ const Store = {
 // ---------- Queries ----------
 const person = (id) => S.people.find((p) => p.id === id);
 const planById = (id) => S.plans.find((p) => p.id === id);
-const taskById = (id) => S.tasks.find((t) => t.id === id);
+/** A task, or one of its extra time boxes ("taskId~sessionId", read-only stand-in for the planner). */
+const taskById = (id) => {
+  const t = S.tasks.find((x) => x.id === id);
+  if (t || !String(id).includes('~')) return t;
+  const [tid, sid] = String(id).split('~');
+  const p = S.tasks.find((x) => x.id === tid);
+  const s = p && (p.tbSessions || []).find((x) => x.id === sid);
+  return s ? sessionProxy(p, s) : undefined;
+};
 const tasksOf = (planId) => S.tasks.filter((t) => t.planId === planId);
 const byOrder = (a, b) => a.order - b.order;
 const isDone = (t) => t.progress === 100;

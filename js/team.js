@@ -326,6 +326,8 @@ function buildTeamFile() {
     delete o.fromBucketId;
     delete o.fromOrder;
     delete o.tbRank;
+    delete o.tbSessions;
+    delete o.tbQueuedAt;
     return o;
   });
   const planIds = new Set(tasks.map((t) => t.planId));
