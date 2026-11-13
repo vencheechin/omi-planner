@@ -661,10 +661,11 @@ function renderReport() {
       <div class="stat"><span>Completed</span><b>${count('done')}</b></div>
       <div class="stat"><span>Late</span><b>${rows.filter((r) => r.late).length}</b></div>
     </div>
-    ${rows.length ? `<div class="grid-wrap flat"><table class="grid report"><thead><tr><th>Task</th><th>Plan</th><th>Assigned to</th><th>Assigned on</th><th>Submitted for review</th><th>Completed on</th><th>Days</th><th>Status</th></tr></thead><tbody>
+    ${rows.length ? `<div class="grid-wrap flat"><table class="grid report"><thead><tr><th>Task</th><th>Plan</th><th>Assigned to</th><th>Assigned on</th><th>Submitted for review</th><th>Completed on</th><th>Days</th><th>Progress</th><th>Status</th></tr></thead><tbody>
       ${rows.map((r) => `<tr><td class="c-title">${healthDot(r.t)}<button class="link-btn" data-open-task="${esc(r.t.id)}">${esc(r.t.title || 'Untitled task')}</button></td>
         <td class="muted">${esc(planById(r.t.planId)?.name || '')}</td><td>${avatar(person(r.to), 22)} ${esc(person(r.to)?.name || 'Unknown')}</td>
         <td>${shortDate(r.assignedAt)}</td><td>${shortDate(r.submittedAt)}</td><td>${shortDate(r.completedAt)}</td><td>${r.days ?? '<span class="muted">–</span>'}</td>
+        <td class="c-progress">${(() => { const v = r.status === 'done' ? 100 : r.t.progress || 0; return `<span class="rep-bar ${v === 100 ? 'done' : ''}" role="img" aria-label="${v}% done"><span><i style="width:${v}%"></i></span><b>${v}%</b></span>`; })()}</td>
         <td><span class="pill pill-${r.status}">${esc(STATUS_LABEL[r.status])}</span>${r.late ? ' <span class="pill pill-late">Late</span>' : ''}</td></tr>`).join('')}
     </tbody></table></div>`
       : `<div class="empty"><h2>No assignments yet</h2></div>`}

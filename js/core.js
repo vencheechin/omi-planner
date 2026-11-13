@@ -312,7 +312,7 @@ const taskById = (id) => {
   return s ? sessionProxy(p, s) : undefined;
 };
 /** A plan's tasks. The daily Planning task lives only in the Time Box, so plans never show it. */
-const tasksOf = (planId) => S.tasks.filter((t) => t.planId === planId && !t.dailyPlan && !t.fitDay && !t.bookRec && !t.growBook);
+const tasksOf = (planId) => S.tasks.filter((t) => t.planId === planId && !t.dailyPlan && !t.fitDay && !t.fitAct && !t.bookRec && !t.growBook);
 const byOrder = (a, b) => a.order - b.order;
 const isDone = (t) => t.progress === 100;
 const isLate = (t) => !isDone(t) && !!t.due && t.due < todayISO();
