@@ -14,10 +14,10 @@
 
    No Supabase library is needed: sign-in (emailed 6-digit code) and data use plain fetch. */
 
-const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired', 'myOrder', 'myBucketId', 'fromBucketId', 'fromOrder', 'tbRank', 'tbSessions', 'tbQueuedAt'];
+const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired', 'myOrder', 'myBucketId', 'fromBucketId', 'fromOrder', 'tbRank', 'tbSessions', 'tbQueuedAt', 'fitAct'];
 const PLAN_LOCAL_FIELDS = ['pinned', 'personal', 'fromPos', 'fromColor'];
 const PERSON_FIELDS = ['name', 'email', 'color'];
-const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat', 'fromBoards'];
+const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat', 'fromBoards', 'fitness'];
 const ALL_TASK_FIELDS = [...TASK_FIELDS, ...TASK_LOCAL_FIELDS];
 const ALL_PLAN_FIELDS = [...PLAN_FIELDS, ...PLAN_LOCAL_FIELDS];
 const KIND_ORDER = { person: 0, prefs: 1, plan: 2, planLocal: 3, task: 4, taskLocal: 5 };
@@ -31,7 +31,7 @@ const pickFields = (obj, fields) => {
   return out;
 };
 /** The preferences that follow you between devices, as one record. */
-const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat, fromBoards: S.settings.fromBoards || {} });
+const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat, fromBoards: S.settings.fromBoards || {}, fitness: S.settings.fitness || null });
 
 /**
  * Notes field changes (with time and author) and marks changed records for upload. Runs after
@@ -514,6 +514,7 @@ function applyCloudRow(row, notices, adoptMine = false) {
         else if (f === 'personPlans') S.personPlans = Array.isArray(d.personPlans) ? clone(d.personPlans) : S.personPlans;
         else if (f === 'days') S.days = d.days && typeof d.days === 'object' ? clone(d.days) : S.days;
         else if (f === 'chat') S.settings.chat = normalizeChatPrefs(clone(d.chat));
+        else if (f === 'fitness') S.settings.fitness = d.fitness && typeof d.fitness === 'object' ? clone(d.fitness) : S.settings.fitness;
         else if (f === 'fromBoards') S.settings.fromBoards = d.fromBoards && typeof d.fromBoards === 'object' ? clone(d.fromBoards) : S.settings.fromBoards;
         holder._v[f] = rv;
         sh('prefs')[f] = fieldHash(prefsRecord()[f]);

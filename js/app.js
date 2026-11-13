@@ -2257,7 +2257,7 @@ function route() {
   Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
     : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
-    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
+    : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : ['report', 'timebox', 'halfplan'].includes(a) ? { view: a } : { view: 'hub' };
   // My Planner with just one plan opens that plan; with more, you pick one.
   if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
     history.replaceState(null, '', `#/plan/${S.plans[0].id}`);

@@ -42,6 +42,12 @@ function toast(msg, opts = {}) {
   el.className = `toast ${opts.error ? 'error' : ''}`;
   el.setAttribute('role', 'status');
   el.innerHTML = `<span>${esc(msg)}</span>`;
+  if (opts.action) {
+    const b = document.createElement('button');
+    b.textContent = opts.action.label;
+    b.onclick = () => { opts.action.run(); el.remove(); };
+    el.append(b);
+  }
   if (opts.undo) {
     const b = document.createElement('button');
     b.textContent = 'Undo';
@@ -49,7 +55,7 @@ function toast(msg, opts = {}) {
     el.append(b);
   }
   host.append(el);
-  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }, opts.undo ? 7000 : 3500);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }, opts.action ? 30000 : opts.undo ? 7000 : 3500);
 }
 /** Runs a destructive change and offers to roll the whole state back. */
 function undoable(msg, fn) {
