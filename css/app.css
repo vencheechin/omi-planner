@@ -1700,3 +1700,8 @@ body.col-resizing { cursor: col-resize; user-select: none; }
   .tb-pager button span:not(.count) { overflow: hidden; text-overflow: ellipsis; }
 }
 @media (max-width: 760px) { .tb-grid.xl .tb-heads, .tb-grid.xl .tb-body-grid { grid-template-columns: calc(40px * var(--scale)) repeat(var(--cols), minmax(104px, 1fr)); } }
+
+/* Bigger priority numbers: Allocation list, tap-a-time list and time boxes */
+.tb-q .tb-rank, .tb-tap-item .tb-rank { min-width: calc(28px * var(--scale)); height: calc(28px * var(--scale)); border-radius: 999px; padding: 0 6px;
+  font-size: calc(15px * var(--scale) * var(--type)); font-weight: 800; margin-right: 10px; }
+.tb-block .tb-b-rank { min-width: calc(21px * var(--scale)); height: calc(21px * var(--scale)); border-radius: 999px; font-size: calc(12.5px * var(--scale) * var(--type)); }
