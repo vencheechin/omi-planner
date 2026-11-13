@@ -93,8 +93,15 @@ const canSendUpTo = (id) => pkey(id) !== pkey(S.meId) && (!hierarchyOn() || isAb
 /** Reporting lines, as a Settings section: admins edit, everyone else can see them. */
 function reportingLinesHTML() {
   const people = [...new Map(S.people.map((x) => [pkey(x.id), x])).values()].sort((a, b) => a.name.localeCompare(b.name));
-  const edit = stAdmin();
-  return `${edit && ui.route.view !== 'admin' ? `<p><button class="btn ghost sm" data-act="openAdmin">${icon('shield', 13)} Edit in Admin Portal</button></p>` : ''}<p class="small muted">Requests go up: you send Decision Requests, Approval Requests and S-Team Plans to the people you report to. Delegating goes down, to the people who report to you.${edit ? '' : ' Only an admin can change these.'}</p>
+  // Edited only in the Admin Portal; everywhere else it's shown as plain text.
+  const inPortal = ui.route.view === 'admin' && stAdmin();
+  const intro = `<p class="small muted">Requests go up: you send Decision Requests, Approval Requests and S-Team Plans to the people you report to. Delegating goes down, to the people who report to you.</p>`;
+  if (!inPortal) {
+    return `${intro}<ul class="lines-ro">${people.map((x) => { const m = personByKey(org().reportsTo?.[pkey(x.id)] || ''); return `<li><span class="org-node">${avatar(x, 22)}<b>${esc(x.name)}</b></span><span class="muted">${m ? `reports to <b>${esc(m.name)}</b>` : 'Top'}</span></li>`; }).join('')}</ul>
+      ${stAdmin() ? `<p><button class="btn ghost sm" data-act="openAdmin">${icon('shield', 13)} Edit in Admin Portal</button></p>` : '<p class="small muted">Only an admin can change these.</p>'}`;
+  }
+  const edit = true;
+  return `${intro}
     <div class="adm-block">${people.map((x) => { const m = org().reportsTo?.[pkey(x.id)] || ''; return `<div class="adm-row"><span>${esc(x.name)}</span>
       <label class="mini">Reports to <select data-change="orgReportsTo" data-p="${esc(pkey(x.id))}" ${edit ? '' : 'disabled'}><option value="">— Top</option>${people.filter((y) => pkey(y.id) !== pkey(x.id)).map((y) => `<option value="${esc(pkey(y.id))}" ${pkey(y.id) === m ? 'selected' : ''}>${esc(y.name)}</option>`).join('')}</select></label></div>`; }).join('')}</div>`;
 }

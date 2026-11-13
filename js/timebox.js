@@ -1123,7 +1123,7 @@ function renderPlanner() {
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}
         </div>
-        <div class="tb-bin" aria-label="Recycle bin: drag a time box here to remove it">${icon('trash', 18)}<span>Drag a time box here to remove it</span></div>
+        <div class="tb-bin" role="img" aria-label="Recycle bin: drag a time box here to remove it" title="Drag a time box here to remove it">${icon('trash', 30)}</div>
       </aside>
     </div>
   </div>`;

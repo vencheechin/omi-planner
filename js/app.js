@@ -365,6 +365,25 @@ function sizeControls() {
 }
 
 // ---------- Settings ----------
+/** Settings, one tab at a time. Each section goes to a tab by its heading. */
+const SETTINGS_TABS = [
+  ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style', 'Button Usage']],
+  ['timebox', 'Time Box', ["Time's up alert", 'Time boxing']],
+  ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
+  ['messages', 'Messages', ['Messages and Language']],
+  ['sync', 'Sync & Data', ['Cloud sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
+];
+function settingsTabsHTML() {
+  const cur = SETTINGS_TABS.some(([k]) => k === ui.settingsTab) ? ui.settingsTab : 'general';
+  const tabOf = (part) => {
+    const m = part.match(/<h3>([^<]+)<\/h3>/) || part.match(/<summary><b>([^<(]+)/);
+    const name = m ? m[1].trim() : '';
+    return (SETTINGS_TABS.find(([, , names]) => names.some((n) => name.startsWith(n))) || SETTINGS_TABS[0])[0];
+  };
+  const parts = settingsHTML().split('<section class="set-sec">').filter((p) => p.trim());
+  return `<nav class="set-tabs" role="tablist">${SETTINGS_TABS.map(([k, label]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}" data-act="settingsTab" data-v="${k}">${label}</button>`).join('')}</nav>
+    ${parts.map((p) => `<section class="set-sec" ${tabOf(p) === cur ? '' : 'hidden'}>${p}`).join('')}`;
+}
 function settingsHTML() {
   const last = S.settings.lastBackup;
   return `<section class="set-sec"><h3>Cloud sync</h3>${cloudSettingsHTML()}</section>
@@ -400,7 +419,7 @@ function settingsHTML() {
 async function refreshSettings() {
   const d = $('dialog.settings');
   if (!d) return;
-  $('.dlg-body', d).innerHTML = settingsHTML();
+  $('.dlg-body', d).innerHTML = settingsTabsHTML();
   if (navigator.storage?.estimate) {
     const { usage } = await navigator.storage.estimate();
     const el = $('#storageUse');
@@ -900,6 +919,7 @@ const actions = {
     openPop(el, () => `<div class="menu est-menu" role="menu"><h4>Time required</h4>${QUEUE_MINS.map((m) => `<button role="menuitemradio" aria-checked="${m === t.estimate}" class="${m === t.estimate ? 'on' : ''}" data-act="tbEstPick" data-id="${esc(t.id)}" data-m="${m}"><span>${m} mins</span>${m === t.estimate ? icon('check', 14) : ''}</button>`).join('')}</div>`);
   },
   tbEstPick: (el) => { closePop(); changes.tbQueueEstimate({ dataset: { id: el.dataset.id }, value: el.dataset.m }); },
+  settingsTab: (el) => { ui.settingsTab = el.dataset.v; refreshSettings(); $('dialog.settings .dlg-body')?.scrollTo(0, 0); },
   adminTab: (el) => { ui.adminTab = el.dataset.v; render(); },
   adminPeriod: (el) => { ui.adminPeriod = el.dataset.v; render(); },
   openAdmin: () => { $$('dialog.dlg[open]').forEach((d) => d.close()); location.hash = '#/admin'; },
@@ -1069,7 +1089,7 @@ const actions = {
 
   // settings
   openSettings: () => {
-    const d = showDialog({ title: 'Settings', html: settingsHTML() });
+    const d = showDialog({ title: 'Settings', html: settingsTabsHTML() });
     d.classList.add('settings');
     refreshSettings();
   },
