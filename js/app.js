@@ -891,6 +891,8 @@ const actions = {
     commit();
     toast('Planning added to the top of your list. Drag it into the planner.');
   },
+  // MIT: one of the day's 3 Most Important Tasks (up to three a day).
+  tbMit: (el) => { if (toggleMio(el.dataset.date, el.dataset.id)) toast(isMio(taskById(el.dataset.id), el.dataset.date) ? `Most Important Task for ${dayLabel(el.dataset.date)}.` : 'No longer a Most Important Task.'); },
   // Time required: a branded menu instead of the phone's plain list.
   tbEstMenu: (el) => {
     const t = taskById(el.dataset.id);
