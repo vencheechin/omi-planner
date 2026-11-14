@@ -326,7 +326,7 @@ function renderBrandPlan() {
         ${ro ? '' : `<tr class="bp-add"><td colspan="${months.length + 3}"><button class="btn ghost sm" data-act="bpAddRow" data-g="${esc(g.id)}">${icon('plus', 13)} Brand</button></td></tr>`}`).join('')}
       </tbody></table></div>` : `<div class="empty"><h2>No brands yet</h2>${ro ? '' : '<div class="row" style="justify-content:center"><button class="btn primary" data-act="bpExample">Start with OMI and LHS</button></div>'}</div>`}
     ${ro ? '' : `<div class="row"><button class="btn ghost sm" data-act="bpAddGroup">${icon('plus', 13)} Group</button></div>`}
-    <div class="bp-legend">${BP_STATUS.map((s) => `<span><i class="bp-dot bp-${s.v}"></i><b>${s.label}</b> ${esc(s.meaning)}</span>`).join('')}</div>
+    <div class="bp-legend">${[...BP_STATUS].reverse().map((s) => `<span><i class="bp-dot bp-${s.v}"></i><b>${s.label}</b> ${esc(s.meaning)}</span>`).join('')}</div>
   </div>`;
 }
 /** A small progress bar with the percentage (shown once work has started). */
@@ -338,7 +338,7 @@ function bpItemRow(it, n) {
     <input name="text" value="${esc(it.text)}" placeholder="Task" aria-label="Task" autocomplete="off">
     <input name="pic" value="${esc(it.pic)}" placeholder="PIC" aria-label="PIC" autocomplete="off">
     <select name="progress" aria-label="Progress">${[0, 10, 50, 80, 100].map((v) => `<option value="${v}" ${Number(it.progress || 0) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>
-    <div class="bp-tl" role="radiogroup" aria-label="Traffic light">${BP_STATUS.map((s) => `<label title="${esc(`${s.label}: ${s.meaning}`)}"><input type="radio" name="st${n}" value="${s.v}" ${it.status === s.v ? 'checked' : ''}><i class="bp-dot bp-${s.v}"></i></label>`).join('')}</div>
+    <div class="bp-tl" role="radiogroup" aria-label="Traffic light">${[...BP_STATUS].reverse().map((s) => `<label title="${esc(`${s.label}: ${s.meaning}`)}"><input type="radio" name="st${n}" value="${s.v}" ${it.status === s.v ? 'checked' : ''}><i class="bp-dot bp-${s.v}"></i></label>`).join('')}</div>
     <button type="button" class="icon-btn" data-role="del" aria-label="Remove task">${icon('close', 12)}</button></div>`;
 }
 function bpCellPicker(g, r, k) {
