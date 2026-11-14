@@ -160,3 +160,53 @@ document.addEventListener('change', (e) => {
   if (pv) { pv.style.background = c; pv.style.color = inkOn(c); }
   f.querySelectorAll('.sw').forEach((s) => s.classList.toggle('on', s.contains(e.target)));
 });
+
+// ---------- S-Team / PD Plan: drag a column heading's edge ----------
+// Brand and PIC each have their own width; all month columns share one so the grid stays even.
+let bpColDrag = null;
+document.addEventListener('pointerdown', (e) => {
+  const h = e.target.closest?.('[data-bpresize]');
+  if (!h || e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const th = h.closest('th');
+  const table = h.closest('table');
+  if (!th || !table) return;
+  const w = { ...bpColW() };
+  // Freeze what is on screen now, so only the dragged column moves.
+  for (const k of ['brand', 'pic']) w[k] = w[k] || Math.round($(`thead .bp-${k}`, table).getBoundingClientRect().width);
+  bpColDrag = { k: h.dataset.bpresize, h, table, x: e.clientX, start: Math.round(th.getBoundingClientRect().width), w, n: Number(table.style.getPropertyValue('--bp-cols')) || 6 };
+  h.classList.add('active');
+  document.body.classList.add('col-resizing');
+  h.setPointerCapture?.(e.pointerId);
+}, true);
+document.addEventListener('pointermove', (e) => {
+  const d = bpColDrag;
+  if (!d) return;
+  const [min, max] = BP_COL_LIMITS[d.k];
+  d.w[d.k] = Math.round(Math.min(max, Math.max(min, d.start + e.clientX - d.x)));
+  d.moved = true;
+  d.table.classList.toggle('bp-fixedw', !!d.w.month);
+  d.table.setAttribute('style', bpColStyle(d.n, d.w));
+});
+document.addEventListener('pointerup', () => {
+  const d = bpColDrag;
+  if (!d) return;
+  bpColDrag = null;
+  d.h.classList.remove('active');
+  document.body.classList.remove('col-resizing');
+  if (!d.moved) return;
+  // Keep only the column that was dragged; the others stay automatic.
+  S.settings.bpColW = { ...bpColW(), [d.k]: d.w[d.k] };
+  Store.save();
+  render();
+});
+document.addEventListener('dblclick', (e) => {
+  const h = e.target.closest?.('[data-bpresize]');
+  if (!h) return;
+  const w = { ...bpColW() };
+  delete w[h.dataset.bpresize];
+  S.settings.bpColW = w;
+  Store.save();
+  render();
+});

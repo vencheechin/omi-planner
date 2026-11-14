@@ -2053,6 +2053,7 @@ async function dragEnd(drop) {
     return;
   }
   if (s.type === 'bpitem') {
+    if (typeof bpSelMove === 'function' && bpSelMove(s, drop)) return;
     const [g, r, m, n] = String(s.id).split('|');
     const t = s.target;
     if (!drop || !t || (t.r === r && t.m === m)) { render(); return; }

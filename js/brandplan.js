@@ -169,7 +169,8 @@ function bpNormRow(r) {
 function cellItems(c) {
   const ok = (s) => (BP_STATUS.some((x) => x.v === s) ? s : '');
   const pg = (n) => ([0, 10, 50, 80, 100].includes(Number(n)) ? Number(n) : 0);
-  if (Array.isArray(c?.items)) return c.items.filter((i) => i && (i.text || i.pic || i.status || i.progress)).map((i) => ({ text: String(i.text || ''), pic: String(i.pic || ''), status: ok(i.status), progress: pg(i.progress) }));
+  const link = (i) => ({ ...(typeof i.task === 'string' && i.task ? { task: i.task } : {}), ...(i.ln && typeof i.ln === 'object' ? { ln: { t: String(i.ln.t ?? ''), m: String(i.ln.m ?? ''), a: String(i.ln.a ?? ''), ...(Number.isFinite(i.ln.p) ? { p: i.ln.p } : {}), ...(typeof i.ln.b === 'string' ? { b: i.ln.b } : {}) } } : {}) });
+  if (Array.isArray(c?.items)) return c.items.filter((i) => i && (i.text || i.pic || i.status || i.progress)).map((i) => ({ text: String(i.text || ''), pic: String(i.pic || ''), status: ok(i.status), progress: pg(i.progress), ...link(i) }));
   if (!c || !(c.text || c.pic || c.status)) return [];
   const lines = String(c.text || '').split('\n').map((x) => x.trim()).filter(Boolean);
   return (lines.length ? lines : ['']).map((text, n) => ({ text, pic: n === 0 ? String(c.pic || '') : '', status: ok(c.status), progress: 0 }));
@@ -275,19 +276,25 @@ function renderBrandPlan() {
     const label = items.map((i) => `${i.text}${i.pic ? ` (${i.pic})` : ''}${i.status ? `, ${i.status}` : ''}`).join('; ') || 'empty';
     const who = r._parent ? `${r._parent.brand} · ${r.brand || 'item'}` : r.brand;
     const drag = (n) => (ro ? '' : `data-drag="bpitem" data-id="${esc(`${g.id}|${r.id}|${k}|${n}`)}"`);
+    // An entry with a Planner task opens it; its progress is the task's.
+    const tk = (i) => (i.task && typeof taskById === 'function' ? taskById(i.task) : null);
+    const open = (i) => (tk(i) ? `data-open-task="${esc(i.task)}" title="Open the task" role="button"` : '');
+    const prog = (i) => (tk(i) ? tk(i).progress : i.progress);
+    const linked = items.some(tk);
     const body = one
-      ? `<div class="bp-one" ${drag(0)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(one.progress)}</div>`
-      : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''}" ${drag(n)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(i.progress)}</span></li>`).join('')}</ul>` : '';
+      ? `<div class="bp-one ${tk(one) ? 'bp-linked' : ''}" ${drag(0)} ${open(one)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(prog(one))}</div>`
+      : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''} ${tk(i) ? 'bp-linked' : ''}" ${drag(n)} ${open(i)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(prog(i))}</span></li>`).join('')}</ul>` : '';
+    const editBtn = ed && linked ? `<button class="bp-edit" data-act="bpCell" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" aria-label="Edit ${esc(bpMonthLabel(k))}" title="Edit this month">${icon('pencil', 11)}</button>` : '';
     const tint = r.color || mcol[k] || '';
     const hasSugg = suggAt(r.id, k);
-    return `<td class="bp-cell ${hasSugg ? 'bp-sugg' : ''} ${k === thisMonth ? 'bp-now' : ''} ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ed ? 'data-act="bpCell"' : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}${hasSugg ? ' (edit suggested)' : ''}`)}">${body}${hasSugg ? `<span class="bp-sugg-tag" title="Edit suggested">${icon('pencil', 10)}</span>` : ''}</td>`;
+    return `<td class="bp-cell ${hasSugg ? 'bp-sugg' : ''} ${k === thisMonth ? 'bp-now' : ''} ${one?.status ? `bp-${one.status}` : ''} ${items.length > 1 ? 'multi' : ''} ${tint ? 'tinted' : ''}" ${tint ? `style="--tc:${tint}"` : ''} ${ed ? 'data-act="bpCell"' : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" tabindex="0" aria-label="${esc(`${who}, ${bpMonthLabel(k)}: ${label}${hasSugg ? ' (edit suggested)' : ''}`)}">${body}${editBtn}${hasSugg ? `<span class="bp-sugg-tag" title="Edit suggested">${icon('pencil', 10)}</span>` : ''}</td>`;
   };
   const rowHTML = (g, r, parent) => {
     const sub = !!parent;
     const view = sub ? { ...r, _parent: parent } : r;
     return `<tr class="bp-row ${sub ? 'bp-itemrow' : ''} ${r.items?.length ? 'has-items' : ''} ${r.color ? 'tinted' : ''}" ${r.color ? `style="--tc:${r.color}"` : ''} data-g="${esc(g.id)}" data-r="${esc(r.id)}">
           <th class="bp-brand">${ro ? '' : `<span class="bp-grip" data-drag="bprow" data-id="${esc(`${g.id}|${r.id}`)}" title="Drag to move" aria-hidden="true">⋮⋮</span>`}<input value="${esc(r.brand)}" placeholder="${sub ? 'Item' : 'Brand'}" data-change="bpRow" data-k="brand" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="${sub ? `Item under ${esc(parent.brand || 'brand')}` : 'Brand'}" ${ed ? '' : 'disabled'} ${suggAt(r.id, null, 'brand') ? 'class="bp-sugg-in" title="Edit suggested"' : ''}>${ro || sub ? '' : `<button class="bp-additem" data-act="bpAddItem" data-g="${esc(g.id)}" data-r="${esc(r.id)}" title="Add an item under ${esc(r.brand || 'this brand')}" aria-label="Add item">${icon('plus', 12)}</button>`}</th>
-          <td class="bp-pic"><input value="${esc(r.pic)}" placeholder="PIC" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ed ? '' : 'disabled'} ${suggAt(r.id, null, 'pic') ? 'class="bp-sugg-in" title="Edit suggested"' : ''}></td>
+          <td class="bp-pic"><input value="${esc(r.pic)}" data-change="bpRow" data-k="pic" data-g="${esc(g.id)}" data-r="${esc(r.id)}" aria-label="PIC" ${ed ? '' : 'disabled'} ${suggAt(r.id, null, 'pic') ? 'class="bp-sugg-in" title="Edit suggested"' : ''}></td>
           ${months.map((k) => cell(g, view, k)).join('')}
           <td class="bp-x">${more(`data-g="${esc(g.id)}" data-r="${esc(r.id)}"`, `Options for ${r.brand || (sub ? 'item' : 'brand')}`)}</td></tr>
         ${(r.items || []).map((it) => rowHTML(g, it, r)).join('')}`;
@@ -301,6 +308,7 @@ function renderBrandPlan() {
       ${stVisible().length > 1 ? `<select class="st-switch" data-change="stSwitch" aria-label="Which plan">${stVisible().map((x) => `<option value="${esc(x.id)}" ${x.id === p.id ? 'selected' : ''}>${esc(stName(x))}</option>`).join('')}</select>` : ''}
       ${pd ? (stAdmin() ? `<button class="btn ghost sm" data-act="pdAccess" title="Choose who can view, suggest or edit">${icon('user', 14)} Access</button><button class="icon-btn" data-act="pdRename" aria-label="Rename" title="Rename">${icon('pencil', 16)}</button><button class="icon-btn" data-act="pdNew" aria-label="New PD Plan" title="New PD Plan">${icon('plus', 17)}</button>` : '')
         : `<button class="icon-btn" data-act="stNew" aria-label="New S-Team Plan" title="New S-Team Plan">${icon('plus', 17)}</button>`}
+      ${ed ? `<button class="btn ghost sm bp-selbtn ${ui.bpSelMode ? 'on' : ''}" data-act="bpSelMode" title="Pick several entries to move, copy or delete (or Shift-click them)">${icon('check', 14)} Select</button>` : ''}
       <button class="btn ghost sm" data-act="bpExcel" title="Download the months on screen as an Excel file">${icon('download', 14)} Excel</button>
       <div class="seg">${[['half', 'Half Year'], ['year', 'Full Year'], ['custom', 'Custom']].map(([v, l]) => `<button class="${h.mode === v ? 'on' : ''}" data-act="bpMode" data-v="${v}">${l}</button>`).join('')}</div>
       ${h.mode === 'half' ? `<div class="seg">${[1, 2].map((n) => `<button class="${h.half === n ? 'on' : ''}" data-act="bpHalf" data-v="${n}">H${n}</button>`).join('')}</div>` : ''}
@@ -309,8 +317,8 @@ function renderBrandPlan() {
         : `<div class="row bp-year"><button class="icon-btn" data-act="bpYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><select class="bp-ysel" data-change="bpYearSel" aria-label="Year">${bpYears(h.year).map((y) => `<option value="${y}" ${y === h.year ? 'selected' : ''}>${h.mode === 'year' ? 'FY' : ''}${y}</option>`).join('')}</select><button class="icon-btn" data-act="bpYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>`}
       ${ro ? '' : `<button class="icon-btn" data-act="bpPeriod" aria-label="Half year months" title="Half year months">${icon('gear', 17)}</button>`}
     </header>
-    ${groups.length ? `<div class="bp-scroll"><table class="bp-table ${ro ? 'ro' : ''}" style="--bp-cols:${months.length}">
-      <thead><tr><th class="bp-brand">Brand</th><th class="bp-pic">PIC</th>${months.map((k) => `<th class="bp-month ${k === thisMonth ? 'bp-now' : ''} ${mcol[k] ? 'tinted' : ''}" ${mcol[k] ? `style="--tc:${mcol[k]}"` : ''} ${k === thisMonth ? 'aria-current="date"' : ''}>${ro ? esc(bpMonthLabel(k)) : `<button class="bp-mbtn" data-act="bpMonthColour" data-m="${k}" title="Colour for ${esc(bpMonthLabel(k))}">${esc(bpMonthLabel(k))}</button>`}${k === thisMonth ? '<span class="bp-now-tag">This month</span>' : ''}</th>`).join('')}<th class="bp-x"></th></tr></thead>
+    ${groups.length ? `<div class="bp-scroll"><table class="bp-table ${ro ? 'ro' : ''} ${bpColW().month ? 'bp-fixedw' : ''}" style="${bpColStyle(months.length)}">
+      <thead><tr><th class="bp-brand">Brand<span class="bp-colgrip" data-bpresize="brand" role="separator" aria-orientation="vertical" aria-label="Drag to resize the Brand column" title="Drag to resize · double-click to reset"></span></th><th class="bp-pic">PIC<span class="bp-colgrip" data-bpresize="pic" role="separator" aria-orientation="vertical" aria-label="Drag to resize the PIC column" title="Drag to resize · double-click to reset"></span></th>${months.map((k) => `<th class="bp-month ${k === thisMonth ? 'bp-now' : ''} ${mcol[k] ? 'tinted' : ''}" ${mcol[k] ? `style="--tc:${mcol[k]}"` : ''} ${k === thisMonth ? 'aria-current="date"' : ''}>${ro ? esc(bpMonthLabel(k)) : `<button class="bp-mbtn" data-act="bpMonthColour" data-m="${k}" title="Colour for ${esc(bpMonthLabel(k))}">${esc(bpMonthLabel(k))}</button>`}${k === thisMonth ? '<span class="bp-now-tag">This month</span>' : ''}<span class="bp-colgrip" data-bpresize="month" role="separator" aria-orientation="vertical" aria-label="Drag to resize the month columns" title="Drag to resize · double-click to reset"></span></th>`).join('')}<th class="bp-x"></th></tr></thead>
       <tbody>${groups.map((g) => `
         <tr class="bp-group ${g.color ? 'tinted' : ''}" ${g.color ? `style="--tc:${g.color}"` : ''} data-g="${esc(g.id)}"><th colspan="2" class="bp-brand"><input value="${esc(g.name)}" data-change="bpGroupName" data-g="${esc(g.id)}" aria-label="Group name" ${ro ? 'disabled' : ''}></th><td colspan="${months.length}"></td>
           <td class="bp-x">${more(`data-g="${esc(g.id)}"`, `Options for ${g.name}`)}</td></tr>
@@ -326,6 +334,7 @@ const bpBar = (p) => (p > 0 ? `<span class="bp-bar ${p === 100 ? 'done' : ''}"><
 /** One task line in the cell editor: task, PIC, progress and its own traffic light. */
 function bpItemRow(it, n) {
   return `<div class="bp-item" data-n="${n}">
+    <input type="hidden" name="link" value="${esc(it.task ? JSON.stringify({ task: it.task, ln: it.ln || {} }) : '')}">
     <input name="text" value="${esc(it.text)}" placeholder="Task" aria-label="Task" autocomplete="off">
     <input name="pic" value="${esc(it.pic)}" placeholder="PIC" aria-label="PIC" autocomplete="off">
     <select name="progress" aria-label="Progress">${[0, 10, 50, 80, 100].map((v) => `<option value="${v}" ${Number(it.progress || 0) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>
@@ -344,9 +353,25 @@ const bpReadItems = (form) => $$('.bp-item', form).map((row) => ({
   text: row.querySelector('[name=text]').value.trim(), pic: row.querySelector('[name=pic]').value.trim().slice(0, 60),
   status: row.querySelector('input[type=radio]:checked')?.value || '',
   progress: Number(row.querySelector('[name=progress]').value) || 0,
+  ...(() => { try { return JSON.parse(row.querySelector('[name=link]')?.value || '{}'); } catch { return {}; } })(),
 })).filter((i) => i.text || i.pic || i.status || i.progress);
 // ---------- Sharing: each plan is its own record (one field per group, plus order, period and who) ----------
 const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted, ...(p.module === 'pd' ? { module: 'pd', access: p.access || {} } : {}) });
+// Column widths are a viewing choice, kept on this device (drag a heading's right edge).
+const BP_COL_LIMITS = { brand: [90, 420], pic: [70, 320], month: [80, 420] };
+const bpColW = () => (typeof S !== 'undefined' && S.settings?.bpColW) || {};
+const bpColDefault = (k) => {
+  const phone = matchMedia('(max-width: 760px)').matches;
+  return k === 'brand' ? (phone ? 120 : 170) : k === 'pic' ? (phone ? 110 : 150) : 120;
+};
+/** The table's inline style: the column widths, and a fixed total once the months have a set width. */
+function bpColStyle(n, w = bpColW()) {
+  const v = [`--bp-cols:${n}`];
+  if (w.brand) v.push(`--bp-bw:${w.brand}px`);
+  if (w.pic) v.push(`--bp-pw:${w.pic}px`);
+  if (w.month) v.push(`--bp-mw:${w.month}px`, `width:${(w.brand || bpColDefault('brand')) + (w.pic || bpColDefault('pic')) + 40 + n * w.month}px`);
+  return v.join(';');
+}
 const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function stFields(p) {

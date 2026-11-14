@@ -1830,3 +1830,39 @@ body.dragging .side-bin { border-color: color-mix(in srgb, var(--danger) 60%, tr
 .nav-main .nav-item, .nav-sec > h3, .nav-sec > h3 a { -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .nav-main .nav-item { cursor: pointer; }
 body.col-resizing .nav-main .nav-item { cursor: grabbing; }
+
+/* S-Team / PD Plan: drag a heading's right edge to resize the column (kept on this device) */
+.bp-table .bp-brand { width: var(--bp-bw, 170px); }
+.bp-table .bp-pic { width: var(--bp-pw, 150px); }
+@media (max-width: 760px) { .bp-table .bp-brand { width: var(--bp-bw, 120px); } .bp-table .bp-pic { width: var(--bp-pw, 110px); } }
+.bp-scroll .bp-table.bp-fixedw { min-width: 0; }
+.bp-table.bp-fixedw th.bp-month { width: var(--bp-mw); }
+.bp-table thead th { position: relative; }
+.bp-table thead th.bp-brand { position: sticky; }
+.bp-colgrip { position: absolute; top: 0; bottom: 0; right: -5px; width: 10px; z-index: 3; cursor: col-resize; touch-action: none; }
+.bp-colgrip::after { content: ''; position: absolute; top: 22%; bottom: 22%; left: 4px; width: 2px; border-radius: 2px; background: var(--line-strong, var(--line)); opacity: 0; transition: opacity .15s ease, background-color .15s ease; }
+.bp-table thead th:hover .bp-colgrip::after { opacity: 1; }
+.bp-colgrip:hover::after, .bp-colgrip.active::after { background: var(--ochre, #b5894d); opacity: 1; }
+@media (hover: none) { .bp-colgrip { width: 22px; right: -11px; } .bp-colgrip::after { opacity: .7; left: 10px; } }
+
+/* S-Team / PD Plan: an entry with a Planner task opens it */
+.bp-linked[data-open-task] { cursor: pointer; border-radius: 8px; transition: background-color .15s ease, box-shadow .15s ease; }
+.bp-linked[data-open-task]:hover { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 30%, transparent); }
+.bp-linked[data-open-task]:hover .bp-ctext, .bp-list li.bp-linked[data-open-task]:hover > span { text-decoration: underline; text-underline-offset: 2px; }
+.bp-edit { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; border: 0; padding: 0; cursor: pointer;
+  background: var(--surface); color: var(--muted); box-shadow: 0 0 0 0.5px var(--line); opacity: 0; transition: opacity .15s ease; z-index: 2; }
+.bp-cell:hover .bp-edit, .bp-edit:focus-visible { opacity: 1; }
+.bp-edit:hover { color: var(--ink); }
+@media (hover: none) { .bp-edit { opacity: .85; } }
+
+/* S-Team / PD Plan: several entries picked at once */
+.bp-cell .bp-sel { box-shadow: 0 0 0 2px var(--ochre, #b5894d), 0 0 0 5px color-mix(in srgb, var(--ochre, #b5894d) 25%, transparent) !important; border-radius: 8px; }
+body.bp-selecting .bp-cell [data-drag="bpitem"] { cursor: pointer; }
+body.bp-pasting .bp-cell { cursor: copy; }
+body.bp-pasting .bp-cell:hover { outline: 2px dashed var(--ochre, #b5894d); outline-offset: -3px; }
+.bp-selbar { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-lg), 0 0 0 0.5px var(--line); animation: bp-selbar-in .2s ease; }
+@keyframes bp-selbar-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+.bp-selbtn.on { background: color-mix(in srgb, var(--ochre, #b5894d) 22%, transparent); }
+@media (hover: hover) and (pointer: fine) { .bp-selbtn { display: none; } }
+@media (max-width: 760px) { .bp-selbar .small { display: none; } }
