@@ -1825,3 +1825,8 @@ body.dragging .side-bin { border-color: color-mix(in srgb, var(--danger) 60%, tr
 .pd-sugg-list li { flex-wrap: wrap; }
 .pd-access .adm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .pd-access select { min-width: 150px; }
+
+/* Left menu items are dragged by our own code: no browser link-drag or iPhone long-press menu */
+.nav-main .nav-item, .nav-sec > h3, .nav-sec > h3 a { -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.nav-main .nav-item { cursor: pointer; }
+body.col-resizing .nav-main .nav-item { cursor: grabbing; }

@@ -84,6 +84,8 @@ function startNavDrag(y) {
   document.body.classList.add('col-resizing');
   navigator.vibrate?.(10);
 }
+// The browser's own link dragging would cancel ours halfway (and show a plain link ghost instead).
+document.addEventListener('dragstart', (e) => { if (e.target.closest?.('.nav-main [data-navkey], .nav-secs [data-seckey]')) e.preventDefault(); }, true);
 // While dragging on a phone, the menu shouldn't scroll under your finger.
 document.addEventListener('touchmove', (e) => { if (navDrag?.active) e.preventDefault(); }, { passive: false });
 document.addEventListener('pointermove', (e) => {
