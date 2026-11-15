@@ -1866,3 +1866,8 @@ body.bp-pasting .bp-cell:hover { outline: 2px dashed var(--ochre, #b5894d); outl
 .bp-selbtn.on { background: color-mix(in srgb, var(--ochre, #b5894d) 22%, transparent); }
 @media (hover: hover) and (pointer: fine) { .bp-selbtn { display: none; } }
 @media (max-width: 760px) { .bp-selbar .small { display: none; } }
+
+/* Search: functions (pages, settings, actions) */
+.fn-list .day-title { flex-direction: row; align-items: center; gap: 10px; }
+.fn-list .day-title > svg { flex: none; color: var(--muted); }
+.fn-list .day-title > span { display: flex; flex-direction: column; min-width: 0; }

@@ -65,6 +65,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/sttasks.js` | Every S-Team / PD Plan month entry gets its own Planner task (plan named after the S-Team Plan, bucket per brand, due month end, PIC assigned); progress syncs both ways; entries open their task |
 | `js/bpselect.js` | S-Team / PD Plan multi-select: Shift/Cmd-click (or Select on phones), drag together keeping spacing, copy/paste (Cmd/Ctrl+C/V or click a month), delete to bin |
+| `js/findfn.js` | Top search also finds functions: pages, actions (recycle bin, backup, Excel, theme) and every Settings section |
 | `js/bin.js` | Recycle bin: drop or delete tasks, time boxes and S-Team rows; restore them one at a time. |
 | `js/history.js` | Undo/Redo and "confirm before deleting". |
 | `js/resize.js` | Resizable columns, reorderable left menu, phone swipe between Calendar and Allocation. |
