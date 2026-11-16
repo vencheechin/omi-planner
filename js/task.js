@@ -200,7 +200,6 @@ function renderTask() {
         ${t.decisionReq ? '' : `<button class="add-chip" data-act="decisionSend" data-id="${esc(t.id)}">${icon('flag', 13)} Decision Request</button>`}
         ${t.approvalReq ? '' : `<button class="add-chip" data-act="approvalSend" data-id="${esc(t.id)}">${icon('approve', 13)} Approval Request</button>`}
       </div>
-      ${workflowHTML(t)}
       <div class="task-fields two">
         ${field(dueLocked(t) ? `Due date ${icon('lock', 11)}` : 'Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}" ${dueLocked(t) ? `disabled title="Set by ${esc(person(t.assignedBy)?.name || 'the assigner')}"` : ''}>`)}
       </div>
@@ -224,6 +223,7 @@ function renderTask() {
         </ul>
         <form class="inline-add" data-submit="addCheck"><span>${icon('plus', 14)}</span><input name="text" data-focus="check-add" autocomplete="off" aria-label="Add a checklist item"></form>
       </section>
+      ${workflowHTML(t)}
       ${chatHTML(t)}
     </div>`;
   const chat = $('[data-chat]', d);
