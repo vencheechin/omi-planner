@@ -568,7 +568,7 @@ const actions = {
   approveTask: (el) => { setProgress(taskById(el.dataset.id), 100); commit(); toast('Approved and completed.'); },
   sendBack: async (el) => {
     const t = taskById(el.dataset.id);
-    const res = await noteDlg('Send back', 'What still needs doing? (optional)', 'Send back');
+    const res = await noteDlg('Send back', 'Comment', 'Send back');
     if (!res) return;
     endReview(t, res.note);
     commit();
