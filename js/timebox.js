@@ -1140,9 +1140,9 @@ function renderPlanner() {
         <label class="mini"><input type="checkbox" data-change="tbFullDay" ${ui.tbFullDay ? 'checked' : ''}> Early and late hours</label>` : ''}
       </div>
       <div class="spacer"></div>
+      ${typeof restBtnHTML === 'function' ? restBtnHTML() : ''}
       <button class="btn ghost sm alarm-btn ${alarmPrefs().on ? 'on' : ''}" data-act="alarmMenu" aria-haspopup="true" title="Alert when a time box ends">${icon('bell', 14)} ${alarmPrefs().on ? esc(toneName(alarmPrefs().tone)) : 'Alert off'}</button>
     </header>
-    ${past ? `<div class="banner"><span>${past} unfinished time box${past === 1 ? '' : 'es'} from earlier days.</span></div>` : ''}
     ${bucketTimeHTML(mode, anchor, dates)}
     <div class="tb-legend">${workTypes().filter((w) => w.v !== 'review' || TB().blocks.some((b) => b.kind === 'review')).map((w) => `<span><i style="background:${w.color}"></i>${esc(w.short)}</span>`).join('')}</div>
     <div class="tb-pager" role="tablist" aria-label="Show">

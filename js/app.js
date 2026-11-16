@@ -386,7 +386,7 @@ function sizeControls() {
 // ---------- Settings ----------
 /** Settings, one tab at a time. Each section goes to a tab by its heading. */
 const SETTINGS_TABS = [
-  ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style']],
+  ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style', 'Pop-up messages']],
   ['timebox', 'Time Box', ['Time boxing']],
   ['ringtone', 'Sounds', ["Time's up alert", 'Task complete sound']],
   ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
@@ -427,6 +427,7 @@ function settingsHTML() {
   <section class="set-sec"><h3>Font</h3>
     <div class="seg">${[['', 'Garamond (OMI)'], ['system', 'System (Apple)']].map(([v, l]) => `<button class="${(S.settings.font || '') === v ? 'on' : ''}" data-act="setFont" data-v="${v}">${l}</button>`).join('')}</div></section>
   <section class="set-sec"><h3>Colour Style</h3>${styleSettingsHTML()}</section>
+  <section class="set-sec"><h3>Pop-up messages</h3><label class="mini"><input type="checkbox" data-change="setToasts" ${S.settings.showToasts ? 'checked' : ''}> Show confirmation messages (like “Most Important Task for Today.”)</label><p class="small muted">Messages with Undo, and warnings, always show.</p></section>
   <section class="set-sec"><h3>Import from Microsoft Planner</h3>
     
     <div class="row"><button class="btn ghost sm" data-act="importPlanner">${icon('upload', 14)} Choose Excel file…</button></div></section>
@@ -1608,6 +1609,7 @@ const submits = {
 
 // ---------- Field changes ----------
 const changes = {
+  setToasts: (el) => { S.settings.showToasts = el.checked; Store.save(); },
   planName: (el) => { const p = planById(el.dataset.id); if (el.value.trim()) p.name = el.value.trim(); commit(); },
   bucketName: (el) => {
     const b = currentPlan().buckets.find((x) => x.id === el.dataset.bucket);

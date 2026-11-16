@@ -36,6 +36,8 @@ function toastHost() {
   return host;
 }
 function toast(msg, opts = {}) {
+  // Plain confirmations are off unless switched on in Settings › General; Undo, actions and warnings always show.
+  if (!opts.action && !opts.undo && !opts.error && !opts.keep && !(typeof S !== 'undefined' && S?.settings?.showToasts)) return;
   const host = toastHost();
   (topDialog() || document.body).append(host);
   const el = document.createElement('div');

@@ -10,7 +10,7 @@ function defaultFitness() {
       { id: uid(), name: 'Running', times: 3, min: 30, at: 420 },
       { id: uid(), name: 'Weight Training', times: 2, min: 45, at: 1110 },
     ],
-    breaks: { on: true, every: 90, min: 5, perDay: 4, types: [...FIT_BREAK_TYPES.slice(0, 3)] },
+    breaks: { on: true, every: 25, min: 5, perDay: 4, types: [...FIT_BREAK_TYPES.slice(0, 3)] },
     log: [],
   };
 }
@@ -197,13 +197,54 @@ function fitNudge() {
   const now = nowMin();
   if (!isWorkDay(iso) || now < TB().dayStart + f.breaks.every || now > TB().dayEnd) return;
   const done = fitBreaksOn(iso);
-  if (done.length >= (f.breaks.weeks?.[weekStartOf(iso)] ?? f.breaks.perDay)) return;
-  const lastBreak = done.length ? Math.max(...done.map((l) => { const d = new Date(l.at); return d.getHours() * 60 + d.getMinutes(); })) : TB().dayStart;
-  const lastNudge = ui.fitNudgedAt || 0;
-  if (now - lastBreak < f.breaks.every || Date.now() - lastNudge < f.breaks.every * 60000) return;
-  ui.fitNudgedAt = Date.now();
+  // Work for `every` minutes, rest for `min`: the next reminder counts from the end of the last rest.
+  const lastBreak = done.length ? Math.max(...done.map((l) => { const d = new Date(l.at); return d.getHours() * 60 + d.getMinutes() + (l.min || 0); })) : TB().dayStart;
+  if (now - lastBreak < f.breaks.every || Date.now() < (ui.fitNextNudge || 0) || ui.fitNudgeOpen) return;
   const type = f.breaks.types[done.length % Math.max(1, f.breaks.types.length)] || 'Stretching';
-  toast(`Time to move: a ${f.breaks.min}-minute ${type} break.`, { action: { label: 'Done', run: () => fitLogBreak(type) } });
+  restPopup(type);
+}
+const REST_LINES = [
+  ['🧘', 'Your chair misses you less than your spine does.', 'Stand up and stretch'],
+  ['🐉', 'The dragon needs to wake up.', 'A few rounds of Qi Gong'],
+  ['🌿', 'Breathe in focus, breathe out spreadsheets.', 'Slow breathing and a stretch'],
+  ['🙆', 'Shoulders up by your ears again?', 'Roll them back and stretch'],
+  ['🌊', 'Flow like water, not like a frozen screen.', 'Gentle Qi Gong flow'],
+  ['☕', 'Great work deserves a great break.', 'Walk, stretch, refill water'],
+  ['🦒', 'Be the giraffe: reach for the sky.', 'Full-body stretch'],
+  ['🥋', 'Even masters pause between moves.', 'Qi Gong: lift the sky, push the mountain'],
+];
+/** The rest reminder: a fun nudge, then Done (counts the break), Snooze 5 min or Skip. */
+async function restPopup(type) {
+  const f = fit();
+  ui.fitNudgeOpen = true;
+  const [emo, line, idea] = REST_LINES[Math.floor(Math.random() * REST_LINES.length)];
+  if (typeof playTone === 'function' && alarmPrefs().on) playTone('zen-chimes', alarmPrefs().vol);
+  if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+    try { new Notification(`${emo} Time for a ${f.breaks.min}-minute rest`, { body: `${line} ${idea}.`, tag: 'rest' }); } catch { /* not supported */ }
+  }
+  const v = await choiceDlg(`${emo} Time for a ${minsLabel(f.breaks.min)} rest`, `<p class="rest-line">${esc(line)}</p><p>${esc(minsLabel(f.breaks.every))} of focus done. ${esc(idea)}, or try some <b>${esc(type)}</b>.</p>`,
+    [{ v: 'done', label: 'Done, I rested', primary: true }, { v: 'snooze', label: 'In 5 min' }, { v: 'skip', label: 'Skip' }]);
+  ui.fitNudgeOpen = false;
+  if (v === 'done') fitLogBreak(type);
+  else if (v === 'snooze') { ui.fitNextNudge = Date.now() + 5 * 60000; toast('I’ll remind you in 5 minutes.'); }
+  else ui.fitNextNudge = Date.now() + f.breaks.every * 60000;
+}
+
+// ---------- Rest button (plan header): work / rest lengths ----------
+const REST_WORK = [25, 60, 90];
+const REST_REST = [5, 15, 30, 60];
+function restBtnHTML() {
+  const b = fit().breaks;
+  return `<button class="btn ghost sm rest-btn ${b.on ? 'on' : ''}" data-act="restMenu" aria-haspopup="true" title="Rest reminders">🧘 ${b.on ? `${b.every} / ${b.min} min` : 'Rest off'}</button>`;
+}
+function restPickerHTML() {
+  const b = fit().breaks;
+  const seg = (k, list) => `<div class="seg">${[...new Set([...list, b[k]])].sort((x, y) => x - y).map((v) => `<button class="${b[k] === v ? 'on' : ''}" data-act="restSet" data-k="${k}" data-v="${v}">${minsLabel(v)}</button>`).join('')}</div>`;
+  return `<div class="picker rest-pick"><h4>Rest reminder</h4>
+    <label class="mini"><input type="checkbox" data-change="fitBreakOn" ${b.on ? 'checked' : ''}> Remind me to rest</label>
+    <small class="muted">Work for</small>${seg('every', REST_WORK)}
+    <small class="muted">Then rest for</small>${seg('min', REST_REST)}
+    <p class="small muted">During your working hours (${esc(fmtTime(TB().dayStart))} – ${esc(fmtTime(TB().dayEnd))}) while Planner is open. Same setting as Fitness › Short exercise between work.</p></div>`;
 }
 function fitLogBreak(type) {
   const f = fit();
@@ -260,6 +301,8 @@ Object.assign(actions, {
     toast(`${tg.name} logged: ${fitDone(tg).length} of ${tg.times} this week.`);
   },
   fitBreak: (el) => fitLogBreak(el.dataset.v),
+  restMenu: (el) => openPop(el, restPickerHTML),
+  restSet: (el) => { fit().breaks[el.dataset.k] = Number(el.dataset.v); commit(); refreshPop(); },
   fitLogDel: (el) => { const f = fit(); const keep = f.log; f.log = keep.filter((l) => l.id !== el.dataset.id); commit(); toast('Removed.', { undo: () => { f.log = keep; commit(); } }); },
   fitTypeAdd: async () => {
     const v = await promptDlg('Another kind of break', 'Name', '', 'Add');
@@ -272,7 +315,7 @@ Object.assign(actions, {
   fitTypeDel: (el) => { const b = fit().breaks; b.types = b.types.filter((x) => x !== el.dataset.v); commit(); },
 });
 Object.assign(changes, {
-  fitBreakOn: (el) => { fit().breaks.on = el.checked; commit(); },
+  fitBreakOn: (el) => { fit().breaks.on = el.checked; commit(); try { refreshPop(); } catch { /* no picker open */ } },
   fitBreakSet: (el) => { fit().breaks[el.dataset.k] = Number(el.value); commit(); },
 });
 setInterval(fitNudge, 60000);

@@ -2163,3 +2163,10 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 /* Requests section in the sidebar */
 .req-gap { height: 8px; }
 .nav-item.req-item svg { opacity: .8; }
+
+/* Rest reminder */
+.rest-btn { white-space: nowrap; }
+.rest-btn:not(.on) { opacity: .7; }
+.rest-pick { display: grid; gap: 6px; min-width: 250px; }
+.rest-pick .seg { display: flex; flex-wrap: wrap; }
+.rest-line { font-size: 1.08em; font-weight: 600; margin: 0 0 6px; }
