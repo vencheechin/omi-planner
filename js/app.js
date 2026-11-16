@@ -184,7 +184,6 @@ function taskMenuItems(t, anchor) {
       label: t.assignees.length ? `Delegated to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Delegate to someone', icon: 'user', sub: true,
       run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },
     },
-    ...(boardPlanOf(t)?.buckets.length > 1 || delegatedToMe(t) ? [{ label: 'Bucket', icon: 'list', sub: true, run: () => openPop(anchor, () => `<div class="menu" role="menu">${(delegatedToMe(t) ? [{ id: '', name: `Assigned by ${person(t.assignedBy)?.name || 'someone'}` }] : []).concat(boardPlanOf(t).buckets).map((b) => `<button role="menuitem" data-act="setBucket" data-id="${esc(t.id)}" data-b="${esc(b.id)}"><span>${esc(b.name)}</span>${b.id === (delegatedToMe(t) ? myBucketOf(t) || '' : t.bucketId) ? icon('check', 14) : ''}</button>`).join('')}</div>`) }] : []),
     { label: 'Label', icon: 'tag', sub: true, run: () => openLabels(anchor, { taskId: t.id, planId: t.planId }) },
     { label: 'Copy task', icon: 'copy', run: () => copyTaskDialog(t) },
     { label: 'Copy link to task', icon: 'link', run: () => copyTaskLink(t) },
