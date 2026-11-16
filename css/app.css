@@ -1961,3 +1961,14 @@ body.bp-pasting .bp-cell:hover { outline: 2px dashed var(--ochre, #b5894d); outl
 .pd-decq svg { align-self: center; flex: none; }
 .pd-tabs button { display: inline-flex; align-items: center; gap: 6px; }
 @media (max-width: 760px) { .pd-grid { grid-template-columns: 1fr 1fr; } .pd-grid .pd-f:last-child { grid-column: 1 / -1; } }
+
+/* Stage picker in the month entry editor, and Admin Portal › Stages */
+.bp-item .bp-stage { grid-column: 1 / -1; justify-self: start; min-width: 190px; font-weight: 600; }
+.bp-item + .bp-item { padding-top: 8px; border-top: 1px solid var(--line); }
+@media (max-width: 760px) { .bp-item .bp-stage { justify-self: stretch; } }
+.stg-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 8px; }
+.stg-list li { display: grid; grid-template-columns: auto 56px minmax(0, 1fr) auto auto auto; gap: 6px; align-items: center; }
+.stg-pill { padding: 5px 12px; border-radius: 999px; background: var(--heading, #1f3448); color: var(--surface); font-weight: 700; font-size: 13px; }
+.stg-n { text-align: center; }
+.stg-list .icon-btn svg { transform: rotate(90deg); }
+.stg-list li > .icon-btn:last-child svg { transform: none; }

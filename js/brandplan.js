@@ -98,6 +98,7 @@ function normalizeOrg(o) {
     depts: (Array.isArray(o.depts) ? o.depts : []).filter((d) => d && d.id).map((d) => ({ id: String(d.id), name: String(d.name || 'Department'), dic: d.dic || null, members: Array.isArray(d.members) ? d.members.filter((x) => typeof x === 'string') : [] })),
     admins: Array.isArray(o.admins) ? o.admins.filter((x) => typeof x === 'string') : [],
     reportsTo: o.reportsTo && typeof o.reportsTo === 'object' ? Object.fromEntries(Object.entries(o.reportsTo).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')) : {},
+    ...(Array.isArray(o.stages) && typeof normalizeStages === 'function' ? { stages: normalizeStages(o.stages) } : {}),
   };
 }
 /** One key per person on every device: their email when known. */
@@ -173,7 +174,7 @@ function cellItems(c) {
   const ok = (s) => (BP_STATUS.some((x) => x.v === s) ? s : '');
   const pg = (n) => ([0, 10, 50, 80, 100].includes(Number(n)) ? Number(n) : 0);
   const link = (i) => ({ ...(typeof i.task === 'string' && i.task ? { task: i.task } : {}), ...(i.ln && typeof i.ln === 'object' ? { ln: { t: String(i.ln.t ?? ''), m: String(i.ln.m ?? ''), a: String(i.ln.a ?? ''), ...(Number.isFinite(i.ln.p) ? { p: i.ln.p } : {}), ...(typeof i.ln.b === 'string' ? { b: i.ln.b } : {}) } } : {}) });
-  if (Array.isArray(c?.items)) return c.items.filter((i) => i && (i.text || i.pic || i.status || i.progress)).map((i) => ({ text: String(i.text || ''), pic: String(i.pic || ''), status: ok(i.status), progress: pg(i.progress), ...link(i) }));
+  if (Array.isArray(c?.items)) return c.items.filter((i) => i && (i.text || i.pic || i.status || i.progress || i.stage)).map((i) => ({ text: String(i.text || ''), pic: String(i.pic || ''), status: ok(i.status), progress: pg(i.progress), ...(typeof i.stage === 'string' && i.stage ? { stage: i.stage.slice(0, 40) } : {}), ...link(i) }));
   if (!c || !(c.text || c.pic || c.status)) return [];
   const lines = String(c.text || '').split('\n').map((x) => x.trim()).filter(Boolean);
   return (lines.length ? lines : ['']).map((text, n) => ({ text, pic: n === 0 ? String(c.pic || '') : '', status: ok(c.status), progress: 0 }));
@@ -276,7 +277,7 @@ function renderBrandPlan() {
   const cell = (g, r, k) => {
     const items = cellItems(r.cells[k]);
     const one = items.length === 1 ? items[0] : null;
-    const label = items.map((i) => `${i.text}${i.pic ? ` (${i.pic})` : ''}${i.status ? `, ${i.status}` : ''}`).join('; ') || 'empty';
+    const label = items.map((i) => `${bpItemText(i)}${i.pic ? ` (${i.pic})` : ''}${i.status ? `, ${i.status}` : ''}`).join('; ') || 'empty';
     const who = r._parent ? `${r._parent.brand} · ${r.brand || 'item'}` : r.brand;
     const drag = (n) => (ro ? '' : `data-drag="bpitem" data-id="${esc(`${g.id}|${r.id}|${k}|${n}`)}"`);
     // An entry with a Planner task opens it; its progress is the task's.
@@ -285,8 +286,8 @@ function renderBrandPlan() {
     const prog = (i) => (tk(i) ? tk(i).progress : i.progress);
     const linked = items.some(tk);
     const body = one
-      ? `<div class="bp-one ${tk(one) ? 'bp-linked' : ''}" ${drag(0)} ${open(one)}>${one.text ? `<span class="bp-ctext">${esc(one.text)}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(prog(one))}</div>`
-      : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''} ${tk(i) ? 'bp-linked' : ''}" ${drag(n)} ${open(i)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(i.text)}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(prog(i))}</span></li>`).join('')}</ul>` : '';
+      ? `<div class="bp-one ${tk(one) ? 'bp-linked' : ''}" ${drag(0)} ${open(one)}>${bpItemText(one) ? `<span class="bp-ctext">${esc(bpItemText(one))}</span>` : ''}${one.pic ? `<small class="bp-cpic">${esc(one.pic)}</small>` : ''}${bpBar(prog(one))}</div>`
+      : items.length ? `<ul class="bp-list">${items.map((i, n) => `<li class="${i.status ? `bp-li-${i.status}` : ''} ${tk(i) ? 'bp-linked' : ''}" ${drag(n)} ${open(i)}><i class="bp-dot ${i.status ? `bp-${i.status}` : 'bp-none'}"></i><span>${esc(bpItemText(i))}${i.pic ? ` <small>(${esc(i.pic)})</small>` : ''}${bpBar(prog(i))}</span></li>`).join('')}</ul>` : '';
     const editBtn = ed && linked ? `<button class="bp-edit" data-act="bpCell" data-g="${esc(g.id)}" data-r="${esc(r.id)}" data-m="${k}" aria-label="Edit ${esc(bpMonthLabel(k))}" title="Edit this month">${icon('pencil', 11)}</button>` : '';
     const tint = r.color || mcol[k] || '';
     const hasSugg = suggAt(r.id, k);
@@ -338,7 +339,8 @@ const bpBar = (p) => (p > 0 ? `<span class="bp-bar ${p === 100 ? 'done' : ''}"><
 function bpItemRow(it, n) {
   return `<div class="bp-item" data-n="${n}">
     <input type="hidden" name="link" value="${esc(it.task ? JSON.stringify({ task: it.task, ln: it.ln || {} }) : '')}">
-    <input name="text" value="${esc(it.text)}" placeholder="Task" aria-label="Task" autocomplete="off">
+    <select name="stage" class="bp-stage" aria-label="Stage"><option value="">Stage…</option>${bpStages().map((s) => `<option value="${esc(s.id)}" ${it.stage === s.id ? 'selected' : ''}>${esc(stageLabel(s))}</option>`).join('')}${it.stage && !stageById(it.stage) ? `<option value="${esc(it.stage)}" selected>(removed stage)</option>` : ''}</select>
+    <input name="text" value="${esc(it.text)}" placeholder="${it.stage ? 'Details' : 'Task'}" aria-label="Task" autocomplete="off">
     <input name="pic" value="${esc(it.pic)}" placeholder="PIC" aria-label="PIC" autocomplete="off">
     <select name="progress" aria-label="Progress">${[0, 10, 50, 80, 100].map((v) => `<option value="${v}" ${Number(it.progress || 0) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>
     <div class="bp-tl" role="radiogroup" aria-label="Traffic light">${[...BP_STATUS].reverse().map((s) => `<label title="${esc(`${s.label}: ${s.meaning}`)}"><input type="radio" name="st${n}" value="${s.v}" ${it.status === s.v ? 'checked' : ''}><i class="bp-dot bp-${s.v}"></i></label>`).join('')}</div>
@@ -354,10 +356,11 @@ function bpCellPicker(g, r, k) {
 /** Reads the editor's task rows. */
 const bpReadItems = (form) => $$('.bp-item', form).map((row) => ({
   text: row.querySelector('[name=text]').value.trim(), pic: row.querySelector('[name=pic]').value.trim().slice(0, 60),
+  ...(row.querySelector('[name=stage]')?.value ? { stage: row.querySelector('[name=stage]').value } : {}),
   status: row.querySelector('input[type=radio]:checked')?.value || '',
   progress: Number(row.querySelector('[name=progress]').value) || 0,
   ...(() => { try { return JSON.parse(row.querySelector('[name=link]')?.value || '{}'); } catch { return {}; } })(),
-})).filter((i) => i.text || i.pic || i.status || i.progress);
+})).filter((i) => i.text || i.pic || i.status || i.progress || i.stage);
 // ---------- Sharing: each plan is its own record (one field per group, plus order, period and who) ----------
 const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted, ...(p.module === 'pd' ? { module: 'pd', access: p.access || {} } : {}) });
 // Column widths are a viewing choice, kept on this device (drag a heading's right edge).
@@ -383,7 +386,7 @@ function stFields(p) {
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
-const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {} });
+const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {}, stages: org().stages || null });
 const orgWire = () => ({ ...orgRecord(), _v: clone(org()._v || {}) });
 function applyOrg(d) {
   if (!d || typeof d !== 'object') return false;
@@ -391,10 +394,10 @@ function applyOrg(d) {
   o._v = o._v || {};
   const sh = (S.sync.shadow.org = S.sync.shadow.org || {});
   let changed = false;
-  for (const f of ['depts', 'admins', 'reportsTo']) {
+  for (const f of ['depts', 'admins', 'reportsTo', 'stages']) {
     const rv = d._v?.[f];
     if (!rv || !newer(rv, o._v[f])) continue;
-    o[f] = normalizeOrg({ [f]: d[f] })[f];
+    o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : normalizeOrg({ [f]: d[f] })[f];
     o._v[f] = rv;
     sh[f] = fieldHash(orgRecord()[f]);
     changed = true;

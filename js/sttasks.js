@@ -47,8 +47,9 @@ function stSyncTasks(p) {
           const items = cellItems(c);
           let cellDirty = false;
           for (const it of items) {
-            const title = it.text || (isItem ? row.brand : '') || `${top.brand || 'Brand'} task`;
-            const fullTitle = `${isItem && it.text ? `${row.brand} · ` : ''}${title}`.slice(0, 200);
+            const words = bpItemText(it);
+            const title = words || (isItem ? row.brand : '') || `${top.brand || 'Brand'} task`;
+            const fullTitle = `${isItem && words ? `${row.brand} · ` : ''}${title}`.slice(0, 200);
             const who = stPersonByPic(it.pic || row.pic || (isItem ? top.pic : ''));
             if (!it.task) {
               plan = plan || stTaskPlan(p, true);

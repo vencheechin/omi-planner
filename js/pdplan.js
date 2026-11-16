@@ -25,7 +25,7 @@ function pdSuggest(p, s) {
 function pdSuggText(s) {
   if (s.kind === 'cell') {
     const items = Array.isArray(s.value) ? s.value : [];
-    return items.length ? items.map((i) => [i.text, i.pic && `(${i.pic})`, i.status && BP_STATUS.find((x) => x.v === i.status)?.label, i.progress && `${i.progress}%`].filter(Boolean).join(' ') || 'Empty').join('; ') : 'Clear this month';
+    return items.length ? items.map((i) => [bpItemText(i), i.pic && `(${i.pic})`, i.status && BP_STATUS.find((x) => x.v === i.status)?.label, i.progress && `${i.progress}%`].filter(Boolean).join(' ') || 'Empty').join('; ') : 'Clear this month';
   }
   return s.value ? `“${s.value}”` : 'Clear it';
 }
@@ -51,7 +51,7 @@ function pdSuggListHTML(p) {
 function pdSuggApply(p, s) {
   const r = p.groups.find((g) => g.id === s.g)?.rows.flatMap((x) => [x, ...(x.items || [])]).find((x) => x.id === s.r);
   if (!r) return false;
-  if (s.kind === 'cell') { const items = (s.value || []).filter((i) => i.text || i.pic || i.status || i.progress); if (items.length) r.cells[s.m] = { items }; else delete r.cells[s.m]; }
+  if (s.kind === 'cell') { const items = (s.value || []).filter((i) => i.text || i.pic || i.status || i.progress || i.stage); if (items.length) r.cells[s.m] = { items }; else delete r.cells[s.m]; }
   else r[s.field] = String(s.value || '');
   return true;
 }
@@ -131,7 +131,7 @@ const XL_STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 /** The plan as it's shown (the months on screen), one row per brand and item. */
 function stToXlsx(p, months) {
   const rows = [];
-  const cellOf = (items) => items.map((i) => [i.text, i.pic && `(${i.pic})`, i.status && BP_STATUS.find((x) => x.v === i.status)?.label, i.progress ? `${i.progress}%` : ''].filter(Boolean).join(' ')).join('\n');
+  const cellOf = (items) => items.map((i) => [bpItemText(i), i.pic && `(${i.pic})`, i.status && BP_STATUS.find((x) => x.v === i.status)?.label, i.progress ? `${i.progress}%` : ''].filter(Boolean).join(' ')).join('\n');
   // One light per cell: the most worrying one wins.
   const lightOf = (items) => (items.some((i) => i.status === 'red') ? 'red' : items.some((i) => i.status === 'yellow') ? 'yellow' : items.some((i) => i.status === 'green') ? 'green' : '');
   const line = (vals, style) => rows.push(vals.map((v) => (typeof v === 'object' && v ? v : { v, s: style })));
