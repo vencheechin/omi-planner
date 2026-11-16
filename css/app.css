@@ -2179,3 +2179,8 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .rest-art { font-size: 44px; line-height: 1.1; text-align: center; letter-spacing: 6px; margin: 2px 0 10px; }
 .rest-line { text-align: center; }
 .rest-idea { text-align: center; margin-top: 4px; }
+
+/* Delegated to someone else: their progress and traffic light, shown but not changeable. */
+.pg-pick.locked .pg-step, .tl-direct.locked .tl button { cursor: not-allowed; }
+.pg-pick.locked .pg-step:hover, .tl-direct.locked .tl button:hover { transform: none; }
+.tl-direct.locked .tl button:not(.on) { opacity: .25; }

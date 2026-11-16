@@ -116,6 +116,7 @@ function boardTasks(plan) {
 }
 function applyGroup(t, by, from, to) {
   if (from === to) return true;
+  if (['health', 'stage', 'status', 'progress'].includes(by) && delegatorOnly(t)) { lockedNote(t, by === 'health' ? 'traffic light' : 'progress'); return false; }
   switch (by) {
     case 'bucket': {
       const target = planById(t.planId).buckets.find((b) => b.id === to);

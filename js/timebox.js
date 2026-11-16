@@ -756,8 +756,9 @@ function tbRowHTML(t) {
 /** Progress as a bar you tap: 10%, 50%, 80%, 100% (tap the current step again to go back one). */
 function progressPickHTML(t) {
   const steps = [10, 50, 80, 100];
-  return `<div class="pg-pick" role="group" aria-label="Progress ${t.progress}%">
-      <div class="pg-steps">${steps.map((v) => `<button class="pg-step ${t.progress >= v ? 'on' : ''} ${v === 100 && t.progress === 100 ? 'done' : ''}" data-act="pgStep" data-id="${esc(t.id)}" data-v="${v}" aria-label="${v}%" title="${v}%"></button>`).join('')}</div>
+  const lock = delegatorOnly(t);
+  return `<div class="pg-pick ${lock ? 'locked' : ''}" role="group" aria-label="Progress ${t.progress}%" ${lock ? `title="${esc(doerNames(t))} updates the progress"` : ''}>
+      <div class="pg-steps">${steps.map((v) => `<button class="pg-step ${t.progress >= v ? 'on' : ''} ${v === 100 && t.progress === 100 ? 'done' : ''}" data-act="pgStep" data-id="${esc(t.id)}" data-v="${v}" aria-label="${v}%" title="${lock ? `${esc(doerNames(t))} updates the progress` : `${v}%`}" ${lock ? 'aria-disabled="true"' : ''}></button>`).join('')}</div>
       <b class="pg-val">${t.progress ? `${t.progress}%` : 'Not started'}</b>
       ${t.start && t.progress ? `<small class="muted">Started ${esc(fmtDate(t.start))}</small>` : ''}
     </div>`;
@@ -767,7 +768,7 @@ function progressPickHTML(t) {
 function healthRowHTML(t) {
   const h = healthOf(t.health);
   return `<div class="health-row"><div class="status-row">
-      <div class="health-toggle tl-direct" role="group" aria-label="Traffic Light">
+      <div class="health-toggle tl-direct ${delegatorOnly(t) ? 'locked' : ''}" role="group" aria-label="Traffic Light" ${delegatorOnly(t) ? `title="${esc(doerNames(t))} sets the traffic light"` : ''}>
         <span class="tl ${h ? 'set' : ''}">${['red', 'yellow', 'green'].map((v) => { const x = healthOf(v); const on = t.health === v; return `<button class="tl-${v} ${on ? 'on' : ''}" data-act="pickHealth" data-id="${esc(t.id)}" data-v="${on ? '' : v}" aria-pressed="${on}" title="${esc(on ? `${x.label}: ${x.meaning} (tap again to clear)` : `${x.label}: ${x.meaning}`)}" aria-label="${esc(`${x.label}, ${x.meaning}`)}"></button>`; }).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : ''}</div>
       ${progressPickHTML(t)}
       </div>

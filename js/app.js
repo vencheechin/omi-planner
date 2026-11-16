@@ -552,6 +552,8 @@ const actions = {
   toggleShowDone: (el) => { ui.showDone[el.dataset.key] = !ui.showDone[el.dataset.key]; render(); },
   toggleDone: (el) => {
     const t = taskById(el.dataset.id);
+    // Delegated to someone else: only they complete it (you approve it once they submit it for checking).
+    if (delegatorOnly(t) && !t.review) { lockedNote(t, 'progress'); return; }
     const wasInReview = !!t.review;
     completeNotice(setProgress(t, isDone(t) ? 0 : 100));
     commit();
@@ -970,6 +972,7 @@ const actions = {
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);
+    if (delegatorOnly(t)) { lockedNote(t, 'progress'); return; }
     const v = Number(el.dataset.v);
     const steps = [0, 10, 50, 80, 100];
     setField(t, 'progress', t.progress === v ? steps[steps.indexOf(v) - 1] : v);
@@ -982,7 +985,7 @@ const actions = {
       title: 'Request Change',
       html: `<form class="stack">
         <label class="field"><span>Task Name</span><input name="title" value="${esc(t.title)}"></label>
-        <label class="field"><span>Task Details</span><textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
+        <label class="field"><span>Task Requirement</span><textarea name="notes" rows="3">${esc(t.notes)}</textarea></label>
         <div class="task-fields two"><label class="field"><span>Priority</span><select name="priority">${PRIORITY.map((p) => `<option value="${p.v}" ${p.v === t.priority ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></label>
         <label class="field"><span>Due Date</span><input type="date" name="due" value="${t.due || ''}"></label></div>
         <label class="field"><span>Reason</span><input name="note" autocomplete="off"></label>
@@ -1358,7 +1361,7 @@ const actions = {
     input.click();
   },
   healthMenu: (el) => openPop(el, () => healthPickerHTML(taskById(el.dataset.id))),
-  pickHealth: (el) => { closePop(); setHealth(taskById(el.dataset.id), el.dataset.v, true); },
+  pickHealth: (el) => { closePop(); const t = taskById(el.dataset.id); if (delegatorOnly(t)) { lockedNote(t, 'traffic light'); return; } setHealth(t, el.dataset.v, true); },
   importBackup: () => {
     const input = document.createElement('input');
     input.type = 'file';

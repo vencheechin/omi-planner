@@ -207,7 +207,7 @@ function renderTask() {
       ${remindersHTML(t)}
       ${timeboxHTML(t)}
       <section class="task-sec">
-        <div class="sec-head"><h3>Task Details</h3></div>
+        <div class="sec-head"><h3>Task Requirement</h3></div>
         ${delegatedToMe(t) ? `<p class="task-details ro">${esc(t.notes) || '<span class="muted">—</span>'}</p>` : `<textarea class="task-details" rows="3" data-input="notes" aria-label="Task details">${esc(t.notes)}</textarea>`}
       </section>
       <section class="task-sec">
@@ -294,7 +294,7 @@ function logHTML(t) {
   return `<ul class="log">${rows || '<li class="log-day">Nothing yet</li>'}</ul>`;
 }
 // ---------- Change requests: the delegatee asks, the delegator approves ----------
-const CR_FIELDS = [['title', 'Task Name'], ['notes', 'Task Details'], ['priority', 'Priority'], ['due', 'Due Date']];
+const CR_FIELDS = [['title', 'Task Name'], ['notes', 'Task Requirement'], ['priority', 'Priority'], ['due', 'Due Date']];
 const crValue = (f, v) => (f === 'priority' ? PRIORITY.find((p) => p.v === Number(v))?.label || v : f === 'due' ? (v ? fmtDate(v) : 'None') : v || '—');
 function changeReqHTML(t) {
   const cr = t.changeReq;

@@ -50,6 +50,10 @@ const nameOf = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
 const reviewerOf = (t) => t.assignedBy || null;
 /** True when ticking this task should submit it for checking rather than complete it. */
 const needsReview = (t) => !!t.assignedBy && t.assignedBy !== S.meId;
+/** You delegated this and aren't doing it yourself: progress and traffic light are the delegatee's to set. */
+const delegatorOnly = (t) => !!t && !!t.assignedBy && isMeId(t.assignedBy) && t.assignees.length > 0 && !t.assignees.some((a) => isMeId(a));
+const doerNames = (t) => t.assignees.map((a) => person(a)?.name || 'They').join(', ');
+function lockedNote(t, what) { toast(`${doerNames(t)} updates the ${what}.`, { keep: true }); }
 const isReviewer = (t) => !!t.review && reviewerOf(t) === S.meId;
 const checkLabel = (t) => (isDone(t) ? 'Mark not complete' : isReviewer(t) ? 'Approve and complete' : needsReview(t) ? 'Submit for checking' : 'Mark complete');
 
