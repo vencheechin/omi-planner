@@ -232,14 +232,14 @@ async function restPopup(type) {
 
 // ---------- Rest button (plan header): work / rest lengths ----------
 const REST_WORK = [25, 60, 90];
-const REST_REST = [5, 15, 30, 60];
+const REST_REST = [5, 15, 30];
 function restBtnHTML() {
   const b = fit().breaks;
   return `<button class="btn ghost sm rest-btn ${b.on ? 'on' : ''}" data-act="restMenu" aria-haspopup="true" title="Rest reminders">🧘 ${b.on ? `${b.every} / ${b.min} min` : 'Rest off'}</button>`;
 }
 function restPickerHTML() {
   const b = fit().breaks;
-  const seg = (k, list) => `<div class="seg">${[...new Set([...list, b[k]])].sort((x, y) => x - y).map((v) => `<button class="${b[k] === v ? 'on' : ''}" data-act="restSet" data-k="${k}" data-v="${v}">${minsLabel(v)}</button>`).join('')}</div>`;
+  const seg = (k, list) => `<div class="seg">${[...new Set([...list, b[k]])].sort((x, y) => x - y).map((v) => `<button class="${b[k] === v ? 'on' : ''}" data-act="restSet" data-k="${k}" data-v="${v}">${v} mins</button>`).join('')}<button data-act="restCustom" data-k="${k}">Custom…</button></div>`;
   return `<div class="picker rest-pick"><h4>Rest reminder</h4>
     <label class="mini"><input type="checkbox" data-change="fitBreakOn" ${b.on ? 'checked' : ''}> Remind me to rest</label>
     <small class="muted">Work for</small>${seg('every', REST_WORK)}
@@ -303,6 +303,17 @@ Object.assign(actions, {
   fitBreak: (el) => fitLogBreak(el.dataset.v),
   restMenu: (el) => openPop(el, restPickerHTML),
   restSet: (el) => { fit().breaks[el.dataset.k] = Number(el.dataset.v); commit(); refreshPop(); },
+  restCustom: async (el) => {
+    const k = el.dataset.k;
+    closePop();
+    const v = await promptDlg(k === 'every' ? 'Work for how long?' : 'Rest for how long?', 'Minutes', String(fit().breaks[k]), 'Set');
+    if (v === null || v === undefined || v === '') return;
+    const n = Math.round(Number(String(v).replace(/[^\d.]/g, '')));
+    const [lo, hi] = k === 'every' ? [5, 240] : [1, 120];
+    if (!n || n < lo || n > hi) { toast(`Enter ${lo} to ${hi} minutes.`, { error: true }); return; }
+    fit().breaks[k] = n;
+    commit();
+  },
   fitLogDel: (el) => { const f = fit(); const keep = f.log; f.log = keep.filter((l) => l.id !== el.dataset.id); commit(); toast('Removed.', { undo: () => { f.log = keep; commit(); } }); },
   fitTypeAdd: async () => {
     const v = await promptDlg('Another kind of break', 'Name', '', 'Add');
