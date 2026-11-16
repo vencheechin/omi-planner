@@ -191,8 +191,7 @@ function renderTask() {
         <button class="check big ${isDone(t) ? 'on' : ''} ${t.review ? 'pending' : ''}" data-act="toggleDone" data-id="${esc(t.id)}" aria-label="${checkLabel(t)}" title="${checkLabel(t)}">${icon('check', 14)}</button>
         <input value="${esc(t.title)}" placeholder="Task name" ${delegatedToMe(t) ? 'readonly title="Only the person who delegated this can rename it"' : 'data-input="title" data-focus="task-title"'} aria-label="Task name">
       </div>
-      ${tbRowHTML(t)}
-      ${healthRowHTML(t)}
+      <div class="act-line">${tbRowHTML(t)}${healthRowHTML(t)}</div>
       <div class="assign-row">
         <div class="avatars">${t.assignees.map((a) => avatar(person(a), 28)).join('')}</div>
         <button class="add-chip" data-act="pickAssignees" data-id="${esc(t.id)}">${icon('user', 13)} ${t.assignees.length ? esc(t.assignees.map((a) => (a === S.meId ? 'Me' : person(a)?.name || 'Someone')).join(', ')) : 'Delegate'}</button>

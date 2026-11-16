@@ -2150,3 +2150,9 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 
 .own-sound .own-btns { gap: 6px; flex-wrap: wrap; margin: 4px 2px; }
 .own-sound .alarm-pick small { font-weight: 400; }
+
+/* Task panel: Time Box, traffic light and progress on one line (wraps on narrow screens). */
+.act-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.act-line .health-row { display: contents; }
+.act-line > :not(.tb-row):not(.health-row), .act-line .health-row > :not(.status-row) { flex-basis: 100%; order: 2; }
+.act-line .status-row { gap: 12px; }

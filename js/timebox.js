@@ -768,7 +768,7 @@ function healthRowHTML(t) {
   const h = healthOf(t.health);
   return `<div class="health-row"><div class="status-row">
       <div class="health-toggle tl-direct" role="group" aria-label="Traffic Light">
-        <span class="tl ${h ? 'set' : ''}">${['red', 'yellow', 'green'].map((v) => { const x = healthOf(v); const on = t.health === v; return `<button class="tl-${v} ${on ? 'on' : ''}" data-act="pickHealth" data-id="${esc(t.id)}" data-v="${on ? '' : v}" aria-pressed="${on}" title="${esc(on ? `${x.label}: ${x.meaning} (tap again to clear)` : `${x.label}: ${x.meaning}`)}" aria-label="${esc(`${x.label}, ${x.meaning}`)}"></button>`; }).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : '<small>Tap a light</small>'}</div>
+        <span class="tl ${h ? 'set' : ''}">${['red', 'yellow', 'green'].map((v) => { const x = healthOf(v); const on = t.health === v; return `<button class="tl-${v} ${on ? 'on' : ''}" data-act="pickHealth" data-id="${esc(t.id)}" data-v="${on ? '' : v}" aria-pressed="${on}" title="${esc(on ? `${x.label}: ${x.meaning} (tap again to clear)` : `${x.label}: ${x.meaning}`)}" aria-label="${esc(`${x.label}, ${x.meaning}`)}"></button>`; }).join('')}</span>${h ? `<b class="tl-text tl-${h.v}">${esc(h.meaning)}</b>` : ''}</div>
       ${progressPickHTML(t)}
       </div>
       ${h && h.v !== 'green' ? `<label class="field"><span>${h.v === 'red' ? 'Support Needed' : 'Recovery Plan'}</span><textarea rows="2" data-input="healthNote" data-focus="health-note">${esc(t.healthNote || '')}</textarea></label>` : ''}
