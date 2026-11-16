@@ -279,6 +279,9 @@ function renderApprovalHistory() {
 }
 /** "Delegate From": the people who gave you work, with how much is still open. */
 const sharedWithMe = (p) => !!p.owner && !isMeId(p.owner);
+/** Your own planner: the personal plan, or failing that your own plan that isn't an S-Team / PD copy or someone else's. */
+const isTeamPlanCopy = (p) => !!p.stLink || /^(PD Plan|PD Master Plan)$/.test(p.name) || /S-Team Plan$/.test(p.name);
+const ownPlanner = () => S.plans.find((p) => p.personal) || S.plans.find((p) => !sharedWithMe(p) && !isTeamPlanCopy(p) && /planner|tasks/i.test(p.name)) || S.plans.find((p) => !sharedWithMe(p) && !isTeamPlanCopy(p)) || null;
 function delegateFromNavHTML(r, planLink) {
   // Plans someone else shared with you, then anyone who delegated work outside those plans.
   const shared = S.plans.filter(sharedWithMe).sort((a, b) => planLabel(a).localeCompare(planLabel(b)));
@@ -290,7 +293,7 @@ function delegateFromNavHTML(r, planLink) {
 function renderSidebar() {
   renderTabbar();
   const r = ui.route;
-  const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view || (view === 'hub' && r.view === 'plan' && planById(r.id)?.personal) ? 'active' : ''}" href="#/${view}" data-navkey="${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
+  const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view || (view === 'hub' && r.view === 'plan' && r.id === ownPlanner()?.id) ? 'active' : ''}" href="#/${view}" data-navkey="${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
   const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id && !p.personal ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
   const pinned = S.plans.filter((p) => p.pinned && !sharedWithMe(p));
   const recent = S.plans.filter((p) => !p.pinned && !sharedWithMe(p)).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
@@ -454,7 +457,8 @@ function dueSoonHTML() {
     : '<p class="muted small">Nothing due this week.</p>'}</section>`;
 }
 function renderHub() {
-  const plans = [...S.plans].sort((a, b) => (b.pinned - a.pinned) || (b.lastOpened - a.lastOpened));
+  // Only your own planner here; shared plans and S-Team / PD copies are in the sidebar.
+  const plans = S.plans.filter((p) => p === ownPlanner()).sort((a, b) => (b.pinned - a.pinned) || (b.lastOpened - a.lastOpened));
   const card = (p) => {
     const ts = tasksOf(p.id);
     const open = ts.filter((t) => !isDone(t)).length;
