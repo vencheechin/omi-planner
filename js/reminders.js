@@ -43,6 +43,7 @@ function checkReminders() {
   if (typeof S === 'undefined' || !S) return;
   const now = Date.now();
   let changed = false;
+  let rang = false;
   for (const t of S.tasks) {
     if (!t.due || isDone(t) || t.box) continue;
     for (const r of remindersOf(t)) {
@@ -53,6 +54,7 @@ function checkReminders() {
       if (now - remTime(t, r) > 3 * 86400000 && r.when !== 'after') { changed = true; continue; }
       const who = t.assignees.filter((a) => a !== S.meId).map((a) => person(a)?.name).filter(Boolean).join(', ');
       const late = r.when === 'after' || todayISO() > t.due;
+      rang = true;
       notify({
         id: uid(), at: now, taskId: t.id, read: false, kind: late ? 'returned' : 'review',
         text: late ? `Overdue: “${t.title}” was due ${fmtDate(t.due)}${who ? ` (${who})` : ''} and isn't completed` : `Reminder: “${t.title}” is due ${t.due === todayISO() ? 'today' : fmtDate(t.due)}${who ? ` (${who})` : ''}`,
@@ -60,6 +62,7 @@ function checkReminders() {
       changed = true;
     }
   }
+  if (rang && typeof playReminderSound === 'function') playReminderSound();
   if (changed) { Store.save(); if (typeof updateBell === 'function') updateBell(); if (!topDialog?.()) render(); }
 }
 
