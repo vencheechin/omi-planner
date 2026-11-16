@@ -207,6 +207,8 @@ const delegatedFromTasks = () => S.tasks.filter((t) => delegatedToMe(t) && !isDo
 /** Checking, approvals and decisions: what's waiting for you, then what you're waiting on. */
 const checkingForMe = () => S.tasks.filter((t) => !isDone(t) && isReviewer(t));
 const checkingSent = () => S.tasks.filter((t) => !isDone(t) && t.review && isMeId(t.review.by) && !isReviewer(t));
+/** Your submissions that were approved or sent back, with the checker's comment, until you close them. */
+const checkedForMe = () => S.tasks.filter((t) => t.reviewResult && isMeId(t.reviewResult.for) && !isMeId(t.reviewResult.by) && t.reviewSeen !== t.reviewResult.at).sort((a, b) => b.reviewResult.at - a.reviewResult.at);
 function requestsNavHTML(r) {
   const n = (kind, dir) => openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind)).length;
   const row = (href, on, ic, label, count, mine) => `<a class="nav-item req-item ${on ? 'active' : ''}" href="${href}">${icon(ic, 17)}<span>${label}</span>${count ? `<em class="${mine ? 'to-check' : ''}">${count}</em>` : ''}</a>`;
@@ -216,7 +218,7 @@ function requestsNavHTML(r) {
     ${row('#/req/approval/from', reqOn('approval', 'from'), 'approve', 'Approval', n('approval', 'from'), true)}
     ${row('#/req/decision/from', reqOn('decision', 'from'), 'flag', 'Decision Required', n('decision', 'from'), true)}
     <div class="req-gap"></div>
-    ${row('#/check/sent', r.view === 'check' && r.dir === 'sent', 'clock', 'Pending Checking', checkingSent().length)}
+    ${row('#/check/sent', r.view === 'check' && r.dir === 'sent', 'clock', 'Pending Checking', checkingSent().length + checkedForMe().length, checkedForMe().length > 0)}
     ${row('#/req/approval/to', reqOn('approval', 'to'), 'approve', 'Pending Approval', n('approval', 'to'))}
     ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}`;
 }
@@ -234,6 +236,20 @@ function reqGroupedHTML(list, personOf, item) {
   }
   return groups.filter((g) => g.items.length).map((g) => `<div class="rq-group"><h3 class="rq-gh">${g.head} <span class="count">${g.items.length}</span></h3><div class="dr-cards">${g.items.map(item).join('')}</div></div>`).join('');
 }
+/** Approved or sent back: who checked it, their comment, and a Close button. */
+function checkedResultsHTML() {
+  const list = checkedForMe();
+  if (!list.length) return '';
+  return `<section class="dr-hub checked-hub"><h2>Checked <span class="count">${list.length}</span></h2><div class="dr-cards">${list.map((t) => {
+    const r = t.reviewResult;
+    const ok = r.status === 'approved';
+    return `<div class="dr-item checked-item ${ok ? 'ok' : 'back'}">
+      <div class="dr-who"><b class="${ok ? 'ok-text' : 'danger-text'}">${ok ? '✓ Approved' : '↩ Sent back'}</b> by <b>${esc(person(r.by)?.name || 'the checker')}</b> · ${esc(fmtDateTime(r.at))}</div>
+      ${r.note ? `<blockquote class="checked-note">${avatar(person(r.by), 20)}<span>${esc(r.note)}</span></blockquote>` : ''}
+      ${cardHTML(t, { showPlan: true })}
+      <button class="btn ghost sm checked-close" data-act="reviewSeen" data-id="${esc(t.id)}">${icon('check', 13)} Close</button></div>`;
+  }).join('')}</div></section>`;
+}
 /** Tasks waiting for your check, or ones you submitted that are waiting for someone else's. */
 function renderChecking() {
   const mine = ui.route.dir !== 'sent';
@@ -245,6 +261,7 @@ function renderChecking() {
   return `<div class="page">
     <header class="page-head"><h1>${mine ? 'Checking' : 'Pending Checking'}</h1></header>
     <div class="dr-tools"><div class="seg"><a class="${mine ? 'on' : ''}" href="#/check/me">For me to check</a><a class="${mine ? '' : 'on'}" href="#/check/sent">Waiting on others</a></div>${reqGroupBarHTML()}</div>
+    ${mine ? '' : checkedResultsHTML()}
     <section class="dr-hub">${list.length ? reqGroupedHTML(list, (t) => (mine ? person(t.review.by) : person(reviewerOf(t))), item) : `<p class="muted small">${mine ? 'Nothing waiting for your check.' : 'Nothing you submitted is waiting.'}</p>`}</section>
   </div>`;
 }

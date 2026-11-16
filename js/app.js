@@ -574,6 +574,7 @@ const actions = {
     if (!res) return;
     if (res.note) t.comments.push({ id: uid(), author: S.meId, text: res.note, at: Date.now() });
     setProgress(t, 100);
+    if (t.reviewResult && t.reviewResult.by === S.meId) t.reviewResult.note = res.note || '';
     commit();
     toast('Approved and completed.');
   },
@@ -971,6 +972,7 @@ const actions = {
     location.hash = '#/timebox';
   },
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
+  reviewSeen: (el) => { const t = taskById(el.dataset.id); if (t?.reviewResult) { t.reviewSeen = t.reviewResult.at; commit(); } },
   reqGroup: (el) => { S.settings.reqGroup = el.dataset.v; Store.save(); render(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);

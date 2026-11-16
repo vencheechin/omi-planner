@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval', 'bookRec'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval', 'bookRec', 'reviewResult'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder', 'labelColors'];
 const FILE_APP = 'planner-team';
@@ -91,6 +91,8 @@ function leaveChecking(t) {
 }
 function endReview(t, note) {
   if (!t.review) return;
+  // Sent back by the checker: the submitter sees it (with the comment) in Pending Checking until they close it.
+  if (reviewerOf(t) === S.meId) t.reviewResult = { status: 'returned', by: S.meId, for: t.review.by, at: Date.now(), note: note || '' };
   t.review = null;
   leaveChecking(t);
   addEvent(t, reviewerOf(t) === S.meId ? 'returned' : 'withdrawn', note ? { note } : {});
@@ -98,6 +100,7 @@ function endReview(t, note) {
 }
 /** Called by setProgress when a task is completed. */
 function onCompleted(t) {
+  if (t.review && reviewerOf(t) === S.meId) t.reviewResult = { status: 'approved', by: S.meId, for: t.review.by, at: Date.now(), note: '' };
   if (t.review) { t.review = null; leaveChecking(t); }
   addEvent(t, 'completed');
 }
