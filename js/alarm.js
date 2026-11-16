@@ -11,7 +11,7 @@ const ALARM_TONES = [
   { genre: 'Nature', tones: [['na-birds', 'Morning birds'], ['na-drops', 'Water drops']] },
 ];
 const alarmPrefs = () => ({ on: true, tone: 'zen-bowl', vol: 0.7, ...(TB().alarm || {}) });
-const toneName = (id) => { for (const g of ALARM_TONES) { const t = g.tones.find(([v]) => v === id); if (t) return `${g.genre} · ${t[1]}`; } return 'Zen · Singing bowl'; };
+const toneName = (id) => { if (id === 'own') return `Own · ${alarmPrefs().own?.name || 'sound'}`; for (const g of ALARM_TONES) { const t = g.tones.find(([v]) => v === id); if (t) return `${g.genre} · ${t[1]}`; } return 'Zen · Singing bowl'; };
 
 let audioCtx = null;
 /** Phones only allow sound after a tap, so the audio is unlocked on the first one. */

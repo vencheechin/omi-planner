@@ -59,7 +59,7 @@ const DONE_FX = {
     w.connect(f).connect(v).connect(o); w.start(at); w.stop(at + 2.45);
   },
 };
-const doneSndPrefs = () => { const p = { on: true, tone: 'ding', vol: 0.6, ...(S.settings.doneSound || {}) }; if (!DONE_FX[p.tone]) p.tone = 'ding'; return p; };
+const doneSndPrefs = () => { const p = { on: true, tone: 'ding', vol: 0.6, ...(S.settings.doneSound || {}) }; if (!DONE_FX[p.tone] && p.tone !== 'own') p.tone = 'ding'; return p; };
 function playDoneSound(id = doneSndPrefs().tone, vol = doneSndPrefs().vol) {
   const ctx = audio();
   if (!ctx) return;

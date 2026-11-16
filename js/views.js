@@ -477,7 +477,6 @@ function cardHTML(t, { showPlan } = {}) {
     ${t.box ? '' : `<button class="icon-btn card-tb ${isScheduled(t) ? 'booked' : t.tbQueued ? 'on' : ''}" data-act="cardTimebox" data-id="${esc(t.id)}" aria-label="${isScheduled(t) ? 'Go to its Time Box' : t.tbQueued ? 'In your Time Box list (tap to take it off)' : 'Assign to Time Box'}">${icon('clock', 18)}</button>`}
     <button class="icon-btn card-more" data-act="cardMenu" data-id="${esc(t.id)}" aria-label="More options for ${esc(t.title || 'Untitled task')}" title="More options">${icon('more', 16)}</button>
     ${cardPreview(t)}
-    ${progressBarHTML(t)}
     ${meta || t.assignees.length ? `<footer><div class="card-meta">${meta}</div><div class="name-chips">${t.assignees.slice(0, 3).map((a) => nameChip(person(a))).join('')}${t.assignees.length > 3 ? `<span class="name-chip more">+${t.assignees.length - 3}</span>` : ''}</div></footer>` : ''}
   </article>`;
 }

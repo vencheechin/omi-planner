@@ -2147,3 +2147,6 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .tl button.on { opacity: 1; box-shadow: 0 0 10px 1px currentColor, inset 0 -2px 3px rgba(0, 0, 0, .25), inset 0 2px 3px rgba(255, 255, 255, .45); }
 .tl button:focus-visible { outline: 2px solid var(--highlight); outline-offset: 2px; }
 .health-toggle.tl-direct:hover { border-color: var(--line); }
+
+.own-sound .own-btns { gap: 6px; flex-wrap: wrap; margin: 4px 2px; }
+.own-sound .alarm-pick small { font-weight: 400; }
