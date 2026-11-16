@@ -162,7 +162,10 @@ function applyGroup(t, by, from, to) {
 // ---------- Sidebar ----------
 /** A plan someone else shared with you shows their name, e.g. "Getting started (Ven)". */
 /** Someone else's plan shared with you reads "Ray's Task (Ven)" (plus the plan's name if they share more than one). */
+/** "Ven's Planner": your first name, for the Planner menu item. */
+const myPlannerLabel = () => { const f = String(person(S.meId)?.name || '').trim().split(/\s+/)[0]; return f && f.toLowerCase() !== 'me' ? `${f}'s Planner` : 'My Planner'; };
 const planLabel = (p) => {
+  if (p.name === 'PD Plan') return 'PD Master Plan'; // renamed; plans made before keep the old name
   if (!(p.owner && p.owner !== S.meId && person(p.owner))) return p.name;
   const theirs = S.plans.filter((x) => x.owner === p.owner).length;
   const me = (person(S.meId)?.name || 'My').trim();
@@ -271,7 +274,7 @@ function renderSidebar() {
       <div class="nav-main">${(() => {
         // The main links, in the order you dragged them into (new ones go at the end).
         const pdOn = stAdmin() || stPlans().some((x) => x.module === 'pd' && stCanSee(x));
-        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Plan', 'flag')]] : []), ['hub', link('hub', 'Planner', 'home', dueSoonCount())], ['yearly', link('yearly', 'Yearly Planner', 'cal')], ['meet', link('meet', 'Meeting Calendar', 'meet')],
+        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Master Plan', 'flag')]] : []), ['hub', link('hub', myPlannerLabel(), 'home', dueSoonCount())], ['yearly', link('yearly', 'Yearly Planner', 'cal')], ['meet', link('meet', 'Meeting Calendar', 'meet')],
           ['timebox', link('timebox', 'Time Box', 'clock', timeboxQueue().length)], ['report', link('report', 'Assignments', 'chart', toCheck)],
           ['fitness', link('fitness', 'Fitness', 'pulse')], ['growth', link('growth', 'Growth', 'book', typeof recsForMe === 'function' ? recsForMe().length : 0)],
           ...(stAdmin() ? [['admin', link('admin', 'Admin Portal', 'shield')]] : [])];

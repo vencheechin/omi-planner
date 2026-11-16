@@ -18,8 +18,8 @@ function fnCatalog() {
   const list = [
     // Pages
     { label: 'S-Team Plan', words: 'brand half year h1 h2 months traffic light pic', ic: 'table', go: '#/halfplan' },
-    ...(pdOn ? [{ label: 'PD Plan', words: 'product development suggest access', ic: 'flag', go: '#/pdplan' }] : []),
-    { label: 'Planner', words: 'home hub plans tasks due', ic: 'home', go: '#/hub' },
+    ...(pdOn ? [{ label: 'PD Master Plan', words: 'pd plan product development suggest access', ic: 'flag', go: '#/pdplan' }] : []),
+    { label: 'My Planner', words: 'planner home hub plans tasks due', ic: 'home', go: '#/hub' },
     { label: 'Yearly Planner', words: 'year calendar events itinerary travel holiday trip hotel transport', ic: 'cal', go: '#/yearly' },
     { label: 'Meeting Calendar', words: 'meetings calendar schedule invite attendees google outlook', ic: 'meet', go: '#/meet' },
     { label: 'Public and school holidays', words: 'holiday school term vic nsw act victoria', ic: 'flag', run: () => { location.hash = '#/meet'; } },

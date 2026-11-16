@@ -71,7 +71,7 @@ h1, h2, h3, .plan-title, .col-title b, .col-title-input, .brand span, .task-titl
 #shell { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 #topbar { height: 52px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
 #main { flex: 1; min-height: 0; overflow: auto; }
-.brand { display: flex; align-items: center; gap: 10px; font-size: calc(16px * var(--scale) * var(--type)); font-weight: 700; padding: 3px 6px; }
+.brand { display: flex; align-items: center; gap: 10px; font-size: calc(13px * var(--scale) * var(--type)); font-weight: 700; line-height: 1.2; padding: 3px 6px; }
 .new-plan { justify-content: center; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; color: var(--ink-2); min-height: 34px; }
 .nav-item span:not(.plan-tile):not(.avatar) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

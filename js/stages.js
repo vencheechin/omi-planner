@@ -24,7 +24,7 @@ function bpItemText(i) {
 function stagesAdminHTML() {
   const list = bpStages();
   return `<section class="dr-hub"><h2>Stages</h2>
-    <p class="small muted">The stages people pick for an entry in the S-Team Plan and PD Plan. Changing a number or name updates every entry that uses it. Shared with the whole team.</p>
+    <p class="small muted">The stages people pick for an entry in the S-Team Plan and PD Master Plan. Changing a number or name updates every entry that uses it. Shared with the whole team.</p>
     <ul class="stg-list">${list.map((s, i) => `<li>
       <span class="stg-pill">Stage</span>
       <input class="stg-n" value="${esc(s.n)}" inputmode="numeric" data-change="stageEdit" data-i="${i}" data-k="n" aria-label="Stage number">

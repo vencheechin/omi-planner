@@ -61,7 +61,7 @@ function stAudience(p) {
   Object.keys(p.access || {}).forEach((k) => { const x = personByKey(k); if (x) ids.add(x.id); });
   return [...ids].filter(Boolean);
 }
-const stName = (p) => (stModOf(p) === 'pd' ? (p.name || 'PD Plan') : p.kind === 'dept' ? (deptById(p.dept) ? `${deptById(p.dept).name} S-Team Plan` : (p.name || 'S-Team Plan')) : `${possessive(person(p.owner)?.name || 'Someone')} S-Team Plan`);
+const stName = (p) => (stModOf(p) === 'pd' ? (p.name && p.name !== 'PD Plan' ? p.name : 'PD Master Plan') : p.kind === 'dept' ? (deptById(p.dept) ? `${deptById(p.dept).name} S-Team Plan` : (p.name || 'S-Team Plan')) : `${possessive(person(p.owner)?.name || 'Someone')} S-Team Plan`);
 function stVisible() {
   return stPlans().filter((p) => stModOf(p) === stMod() && stCanSee(p)).sort((a, b) => (a.kind === b.kind ? stName(a).localeCompare(stName(b)) : a.kind === 'dept' ? -1 : 1));
 }
@@ -252,10 +252,10 @@ function renderBrandPlan() {
   const p = stCurrent();
   const pd = stMod() === 'pd';
   if (!p && pd) {
-    return `<div class="page bp-page"><header class="bp-head"><h1>PD Plan</h1></header>
-      <div class="empty"><h2>No PD Plan yet</h2>${stAdmin()
-        ? `<p class="muted">Start from a copy of your S-Team Plan, then choose who can view, suggest or edit.</p><div class="row" style="justify-content:center"><button class="btn primary" data-act="pdNew">${icon('plus', 14)} Create PD Plan</button></div>`
-        : '<p class="muted">An admin hasn\'t shared a PD Plan with you yet.</p>'}</div></div>`;
+    return `<div class="page bp-page"><header class="bp-head"><h1>PD Master Plan</h1></header>
+      <div class="empty"><h2>No PD Master Plan yet</h2>${stAdmin()
+        ? `<p class="muted">Start from a copy of your S-Team Plan, then choose who can view, suggest or edit.</p><div class="row" style="justify-content:center"><button class="btn primary" data-act="pdNew">${icon('plus', 14)} Create PD Master Plan</button></div>`
+        : '<p class="muted">An admin hasn\'t shared a PD Master Plan with you yet.</p>'}</div></div>`;
   }
   if (!p) {
     const mine = stPlans().some((x) => x.kind === 'personal' && x.owner === S.meId && !x.deleted);
@@ -314,7 +314,7 @@ function renderBrandPlan() {
         ${shownSuggs.length ? `<button class="btn sm pd-sugg-btn" data-act="pdSuggestions">${icon('pencil', 13)} ${ro ? 'My suggestions' : 'Suggested edits'} <em>${shownSuggs.length}</em></button>` : ''}</div>
       <div class="spacer"></div>
       ${stVisible().length > 1 ? `<select class="st-switch" data-change="stSwitch" aria-label="Which plan">${stVisible().map((x) => `<option value="${esc(x.id)}" ${x.id === p.id ? 'selected' : ''}>${esc(stName(x))}</option>`).join('')}</select>` : ''}
-      ${pd ? (stAdmin() ? `<button class="btn ghost sm" data-act="pdAccess" title="Choose who can view, suggest or edit">${icon('user', 14)} Access</button><button class="icon-btn" data-act="pdRename" aria-label="Rename" title="Rename">${icon('pencil', 16)}</button><button class="icon-btn" data-act="pdNew" aria-label="New PD Plan" title="New PD Plan">${icon('plus', 17)}</button>` : '')
+      ${pd ? (stAdmin() ? `<button class="btn ghost sm" data-act="pdAccess" title="Choose who can view, suggest or edit">${icon('user', 14)} Access</button><button class="icon-btn" data-act="pdRename" aria-label="Rename" title="Rename">${icon('pencil', 16)}</button><button class="icon-btn" data-act="pdNew" aria-label="New PD Master Plan" title="New PD Master Plan">${icon('plus', 17)}</button>` : '')
         : `<button class="icon-btn" data-act="stNew" aria-label="New S-Team Plan" title="New S-Team Plan">${icon('plus', 17)}</button>`}
       ${ed ? `<button class="btn ghost sm bp-selbtn ${ui.bpSelMode ? 'on' : ''}" data-act="bpSelMode" title="Pick several entries to move, copy or delete (or Shift-click them)">${icon('check', 14)} Select</button>` : ''}
       <button class="btn ghost sm" data-act="bpExcel" title="Download the months on screen as an Excel file">${icon('download', 14)} Excel</button>

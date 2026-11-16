@@ -169,19 +169,19 @@ Object.assign(actions, {
     if (!stAdmin()) return;
     const src = stPlans().filter((x) => (x.module || 'st') === 'st' && !x.deleted && stCanSee(x) && x.groups.length);
     const opts = src.map((x, i) => ({ v: x.id, label: `Copy ${stName(x)}`, primary: i === 0 })).concat({ v: 'blank', label: 'Start blank' }, { v: '', label: 'Cancel' });
-    const v = await choiceDlg('New PD Plan', src.length ? '<p>Start from a copy of an S-Team Plan (brands, items and months), or blank.</p>' : '', opts);
+    const v = await choiceDlg('New PD Master Plan', src.length ? '<p>Start from a copy of an S-Team Plan (brands, items and months), or blank.</p>' : '', opts);
     if (!v) return;
     const from = src.find((x) => x.id === v);
-    const p = normalizeStPlan({ id: uid(), module: 'pd', kind: 'dept', owner: S.meId, name: 'PD Plan', groups: from ? pdCloneGroups(from.groups) : [], ...(from?.cfg ? { cfg: clone(from.cfg) } : {}) });
+    const p = normalizeStPlan({ id: uid(), module: 'pd', kind: 'dept', owner: S.meId, name: 'PD Master Plan', groups: from ? pdCloneGroups(from.groups) : [], ...(from?.cfg ? { cfg: clone(from.cfg) } : {}) });
     stPlans().push(p);
     ui.stPlanId = p.id;
     commit();
-    toast(from ? `PD Plan created from ${stName(from)}.` : 'PD Plan created.');
+    toast(from ? `PD Master Plan created from ${stName(from)}.` : 'PD Master Plan created.');
   },
   pdRename: async () => {
     const p = stCurrent();
     if (!stAdmin() || !p) return;
-    const name = await promptDlg('Rename', 'Plan name', p.name || 'PD Plan', 'Save');
+    const name = await promptDlg('Rename', 'Plan name', stName(p), 'Save');
     if (!name) return;
     p.name = name.slice(0, 80);
     commit();
