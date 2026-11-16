@@ -6,7 +6,7 @@ const DONE_SOUNDS = [
   { genre: 'Zen', tones: [['tibetan', 'Tibetan singing bowl'], ['bowl', 'Soft bowl'], ['windchime', 'Wind chime'], ['zengarden', 'Zen garden']] },
   { genre: 'Nature', tones: [['wind', 'Wind'], ['wave', 'Wave']] },
   { genre: 'Classic', tones: [['ding', 'Ding'], ['chime', 'Double chime'], ['marimba', 'Marimba']] },
-  { genre: 'Young', tones: [['cool', 'Cool'], ['rock', 'Rock'], ['hardrock', 'Hard rock']] },
+  { genre: 'Young', tones: [['cool', 'Cool'], ['rock', 'Rock'], ['hardrock', 'Hard rock'], ['jet', 'Jet fighter pass']] },
   { genre: 'Fun', tones: [['coin', 'Coin'], ['tada', 'Ta-da']] },
 ];
 /** Filtered noise that swells in and fades out, with the filter sweeping: wind and waves. */
@@ -43,6 +43,17 @@ const DONE_FX = {
   cool: (c, o) => { [[659.3, 0], [784, 0.1], [987.8, 0.2], [1174.7, 0.3]].forEach(([f, t]) => { note(c, o, { f, t, d: 0.22, type: 'square', g: 0.07, a: 0.004 }); note(c, o, { f: f * 1.007, t, d: 0.22, type: 'sawtooth', g: 0.05, a: 0.004 }); }); kick(c, o, 0); noise(c, o, { t: 0.2, d: 0.06, g: 0.15, freq: 8000, q: 0.6, type: 'highpass' }); note(c, o, { f: 1318.5, t: 0.4, d: 0.5, type: 'triangle', g: 0.15 }); },
   rock: (c, o) => { const amp = drive(c, o, 40); [[110, 0], [146.8, 0.22]].forEach(([f, t]) => { note(c, amp, { f, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.3 }); note(c, amp, { f: f * 1.5, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.22 }); }); kick(c, o, 0); snare(c, o, 0.22); noise(c, o, { t: 0.22, d: 0.6, g: 0.18, freq: 7000, q: 0.5, type: 'highpass' }); },
   hardrock: (c, o) => { const amp = drive(c, o, 120); [[82.4, 0, 0.12], [82.4, 0.13, 0.12], [98, 0.26, 0.12], [73.4, 0.4, 0.9]].forEach(([f, t, d]) => { note(c, amp, { f, t, d, type: 'sawtooth', g: 0.35 }); note(c, amp, { f: f * 1.5, t, d, type: 'sawtooth', g: 0.28 }); note(c, amp, { f: f * 2, t, d, type: 'square', g: 0.12 }); }); [0, 0.13, 0.26, 0.4].forEach((t) => kick(c, o, t)); snare(c, o, 0.4); noise(c, o, { t: 0.4, d: 0.9, g: 0.25, freq: 6000, q: 0.4, type: 'highpass' }); },
+  // Jet fighter pass: engine roar that swells as it comes over, with the whine dropping in pitch as it passes (Doppler).
+  jet: (c, o) => {
+    swell(c, o, { d: 2.4, g: 0.55, from: 500, to: 2600, q: 0.7, peak: 0.42 });
+    swell(c, o, { d: 2.4, g: 0.35, from: 120, to: 400, type: 'lowpass', q: 0.8, peak: 0.45 });
+    const w = c.createOscillator(); const v = c.createGain(); const at = c.currentTime;
+    w.type = 'sawtooth';
+    w.frequency.setValueAtTime(2400, at); w.frequency.linearRampToValueAtTime(2200, at + 0.95); w.frequency.exponentialRampToValueAtTime(900, at + 1.35); w.frequency.linearRampToValueAtTime(800, at + 2.4);
+    v.gain.setValueAtTime(0.0001, at); v.gain.exponentialRampToValueAtTime(0.05, at + 1.0); v.gain.exponentialRampToValueAtTime(0.0001, at + 2.4);
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 3000;
+    w.connect(f).connect(v).connect(o); w.start(at); w.stop(at + 2.45);
+  },
 };
 const doneSndPrefs = () => { const p = { on: true, tone: 'ding', vol: 0.6, ...(S.settings.doneSound || {}) }; if (!DONE_FX[p.tone]) p.tone = 'ding'; return p; };
 function playDoneSound(id = doneSndPrefs().tone, vol = doneSndPrefs().vol) {
