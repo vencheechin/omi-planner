@@ -7,7 +7,7 @@ const DONE_SOUNDS = [
   { genre: 'Nature', tones: [['wind', 'Wind'], ['wave', 'Wave']] },
   { genre: 'Classic', tones: [['ding', 'Ding'], ['chime', 'Double chime'], ['marimba', 'Marimba']] },
   { genre: 'Young', tones: [['cool', 'Cool'], ['rock', 'Rock'], ['hardrock', 'Hard rock'], ['jet', 'Jet fighter pass']] },
-  { genre: 'Fun', tones: [['coin', 'Coin'], ['tada', 'Ta-da'], ['retro-up', '8-bit power-up'], ['retro-clear', '8-bit level clear'], ['retro-jump', '8-bit jump']] },
+  { genre: 'Fun', tones: [['coin', 'Coin'], ['tada', 'Ta-da'], ['retro-up', '8-bit power-up'], ['retro-clear', '8-bit level clear'], ['retro-jump', '8-bit jump'], ['retro-stage', '8-bit stage clear fanfare'], ['retro-item', '8-bit item pops out']] },
 ];
 /** Filtered noise that swells in and fades out, with the filter sweeping: wind and waves. */
 function swell(c, o, { t = 0, d = 1.5, g = 0.4, from = 400, to = 1200, q = 1, type = 'bandpass', peak = 0.4 }) {
@@ -47,6 +47,18 @@ const DONE_FX = {
   'retro-up': (c, o) => [392, 523.3, 659.3, 784, 1046.5, 1318.5, 1568].forEach((f, i) => { note(c, o, { f, t: i * 0.055, d: 0.07, type: 'square', g: 0.1, a: 0.002 }); note(c, o, { f: f * 1.5, t: i * 0.055 + 0.025, d: 0.04, type: 'square', g: 0.04, a: 0.002 }); }),
   'retro-clear': (c, o) => { [[523.3, 0, 0.1], [659.3, 0.12, 0.1], [784, 0.24, 0.1], [1046.5, 0.36, 0.1], [880, 0.5, 0.1], [1046.5, 0.62, 0.45]].forEach(([f, t, d]) => { note(c, o, { f, t, d, type: 'square', g: 0.1, a: 0.002 }); note(c, o, { f: f / 2, t, d, type: 'triangle', g: 0.14, a: 0.002 }); }); },
   'retro-jump': (c, o) => note(c, o, { f: 300, bend: 1100, d: 0.18, type: 'square', g: 0.12, a: 0.002 }),
+  // Original 8-bit stage-clear fanfare: a rising run, a held chord and a final flourish.
+  'retro-stage': (c, o) => {
+    [[392, 0, 0.09], [493.9, 0.1, 0.09], [587.3, 0.2, 0.09], [784, 0.3, 0.09], [987.8, 0.4, 0.09], [1174.7, 0.5, 0.35]].forEach(([f, t, d]) => note(c, o, { f, t, d, type: 'square', g: 0.09, a: 0.002 }));
+    [[587.3, 0.9], [740, 0.9], [880, 0.9]].forEach(([f, t]) => note(c, o, { f, t, d: 0.5, type: 'square', g: 0.06, a: 0.003 }));
+    [[146.8, 0.9, 0.5], [196, 1.45, 0.2], [220, 1.65, 0.2], [293.7, 1.85, 0.6]].forEach(([f, t, d]) => note(c, o, { f, t, d, type: 'triangle', g: 0.18, a: 0.003 }));
+    [[784, 1.45, 0.18], [880, 1.65, 0.18], [1174.7, 1.85, 0.6]].forEach(([f, t, d]) => note(c, o, { f, t, d, type: 'square', g: 0.09, a: 0.002 }));
+  },
+  // Original 8-bit "item pops out": a quick wobbling climb, like something sprouting from a block.
+  'retro-item': (c, o) => {
+    for (let i = 0; i < 12; i++) { const f = 300 * Math.pow(2, i / 7) * (i % 2 ? 1.12 : 1); note(c, o, { f, t: i * 0.045, d: 0.05, type: 'square', g: 0.09, a: 0.002 }); }
+    note(c, o, { f: 1046.5, t: 0.56, d: 0.25, type: 'triangle', g: 0.15, a: 0.003 });
+  },
   // Jet fighter pass: engine roar that swells as it comes over, with the whine dropping in pitch as it passes (Doppler).
   jet: (c, o) => {
     swell(c, o, { d: 2.4, g: 0.55, from: 500, to: 2600, q: 0.7, peak: 0.42 });
