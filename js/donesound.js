@@ -35,8 +35,21 @@ const DONE_FX = {
   windchime: (c, o) => [1760, 2093, 2349.3, 2637, 3136].sort(() => Math.random() - 0.5).slice(0, 4).forEach((f, i) => { const t = i * 0.16 + Math.random() * 0.08; note(c, o, { f, t, d: 1.8, g: 0.12, a: 0.002 }); note(c, o, { f: f * 2.76, t, d: 0.5, g: 0.03, a: 0.002 }); }),
   // Tibetan singing bowl: a low strike with its overtones, two near-equal tones beating slowly.
   tibetan: (c, o) => { note(c, o, { f: 196, d: 3.2, g: 0.3, a: 0.01 }); note(c, o, { f: 197.6, d: 3.2, g: 0.22, a: 0.02 }); note(c, o, { f: 196 * 2.71, d: 2.4, g: 0.1, a: 0.01 }); note(c, o, { f: 196 * 5.15, d: 1.4, g: 0.04, a: 0.01 }); noise(c, o, { d: 0.05, g: 0.08, freq: 1500, q: 2 }); },
-  // Zen garden: a bamboo knock, then water dripping into a stone basin.
-  zengarden: (c, o) => { note(c, o, { f: 560, bend: 480, d: 0.18, type: 'triangle', g: 0.4, a: 0.002 }); noise(c, o, { d: 0.05, g: 0.2, freq: 900, q: 4 }); [0.45, 0.8, 1.1].forEach((t) => { const f = 900 + Math.random() * 500; note(c, o, { f, bend: f * 1.8, t, d: 0.14, g: 0.2, a: 0.002 }); }); },
+  // Zen garden: a soft bamboo knock, a low bowl humming underneath, a breathy bamboo flute and slow water drops (~3.5 s).
+  zengarden: (c, o) => {
+    const soft = c.createBiquadFilter(); soft.type = 'lowpass'; soft.frequency.value = 2400; soft.connect(o);
+    note(c, soft, { f: 330, bend: 300, d: 0.3, type: 'triangle', g: 0.22, a: 0.003 });
+    noise(c, soft, { d: 0.05, g: 0.08, freq: 700, q: 3 });
+    note(c, soft, { f: 330, bend: 300, t: 0.22, d: 0.25, type: 'triangle', g: 0.07, a: 0.003 });
+    note(c, soft, { f: 174.6, t: 0.1, d: 3.4, g: 0.12, a: 0.6 });
+    note(c, soft, { f: 174.6 * 2.76, t: 0.1, d: 2.6, g: 0.025, a: 0.6 });
+    [[587.3, 0.7, 0.9], [523.3, 1.5, 0.6], [440, 2.05, 1.3]].forEach(([f, t, d]) => {
+      note(c, soft, { f, t, d, g: 0.07, a: 0.18 });
+      note(c, soft, { f: f * 1.004, t: t + 0.05, d: d * 0.8, g: 0.025, a: 0.25 });
+      swell(c, soft, { t, d, g: 0.025, from: f * 0.9, to: f * 1.1, q: 8, peak: 0.3 });
+    });
+    [1.2, 2.3, 3.0].forEach((t, k) => { const f = 1100 + k * 180; note(c, soft, { f, bend: f * 1.6, t, d: 0.09, g: 0.05, a: 0.002 }); note(c, soft, { f: f * 1.5, t: t + 0.12, d: 0.06, g: 0.015, a: 0.002 }); });
+  },
   wind: (c, o) => { swell(c, o, { d: 1.8, g: 0.45, from: 300, to: 1100, q: 2.5, peak: 0.45 }); swell(c, o, { t: 0.3, d: 1.4, g: 0.15, from: 700, to: 1800, q: 6, peak: 0.5 }); },
   wave: (c, o) => { swell(c, o, { d: 2.2, g: 0.5, from: 250, to: 1600, type: 'lowpass', q: 0.5, peak: 0.4 }); swell(c, o, { t: 0.7, d: 1.4, g: 0.12, from: 2500, to: 5000, type: 'highpass', q: 0.3, peak: 0.2 }); },
   // Young: a cool synth hook, a rock stab, and a heavier distorted hit (original, made here).
