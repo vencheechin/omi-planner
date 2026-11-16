@@ -42,7 +42,7 @@ function fnCatalog() {
     { label: 'Settings', words: 'preferences options', ic: 'gear', run: settings('general') },
   ];
   // Every section of Settings, by its tab.
-  const extra = { general: 'name size theme font colour style', timebox: 'working hours snap length', ringtone: 'alarm sound alert time up', people: 'team staff manager reporting', messages: 'chat language translate', sync: 'cloud dropbox folder import microsoft backup reset' };
+  const extra = { general: 'name size theme font colour style', timebox: 'working hours snap length', ringtone: 'alarm sound alert time up complete done tick ringtone', people: 'team staff manager reporting', messages: 'chat language translate', sync: 'cloud dropbox folder import microsoft backup reset' };
   for (const [k, tab, sections] of SETTINGS_TABS) {
     list.push({ label: `${tab} settings`, sub: 'Settings', words: `settings ${extra[k] || ''}`, ic: 'gear', run: settings(k) });
     for (const s of sections) list.push({ label: s, sub: `Settings · ${tab}`, words: `settings ${tab}`, ic: 'gear', run: settings(k, s) });

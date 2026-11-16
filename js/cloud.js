@@ -47,7 +47,7 @@ function stampAll() {
     let changed = false;
     for (const f of fields) {
       const h = fieldHash(obj[f]);
-      if (sh[f] !== h) { sh[f] = h; holder._v[f] = [now, S.meId]; changed = true; }
+      if (sh[f] !== h) { sh[f] = h; holder._v[f] = [Math.max(now, (Number(holder._v[f]?.[0]) || 0) + 1), S.meId]; changed = true; } // always newer than what it replaces, even if another device's clock is ahead
     }
     if (changed) sy.dirty[id] = 1;
   };

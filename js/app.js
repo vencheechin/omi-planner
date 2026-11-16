@@ -389,7 +389,7 @@ function sizeControls() {
 const SETTINGS_TABS = [
   ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style']],
   ['timebox', 'Time Box', ['Time boxing']],
-  ['ringtone', 'Ringtone', ["Time's up alert"]],
+  ['ringtone', 'Sounds', ["Time's up alert", 'Task complete sound']],
   ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
   ['messages', 'Messages', ['Messages and Language']],
   ['sync', 'Sync & Data', ['Cloud sync', 'Team sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
@@ -410,6 +410,7 @@ function settingsHTML() {
   return `<section class="set-sec"><h3>Cloud sync</h3>${cloudSettingsHTML()}</section>
   <section class="set-sec"><details ${Team.dir ? 'open' : ''}><summary><b>Team sync</b></summary>${teamSettingsHTML()}</details></section>
   <section class="set-sec"><h3>Time's up alert</h3>${alarmPickerHTML()}</section>
+  <section class="set-sec"><h3>Task complete sound</h3>${doneSoundHTML()}</section>
   <section class="set-sec"><h3>Time boxing</h3>${timeboxSettingsHTML()}</section>
   <section class="set-sec"><h3>People</h3>
     

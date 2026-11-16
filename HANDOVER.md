@@ -62,6 +62,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/fitness.js` | Fitness: weekly targets, movement breaks. |
 | `js/growth.js` | Growth: books, reading time, recommendations, book-cover scanning. |
 | `js/alarm.js` | Time's-up alerts and ringtones (generated with the Web Audio API, no audio files). |
+| `js/donesound.js` | Short sound when a task is ticked complete; picked in Settings › Sounds (`S.settings.doneSound`) |
 | `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/sttasks.js` | Every S-Team / PD Plan month entry gets its own Planner task (plan named after the S-Team Plan, bucket per brand, due month end, PIC assigned); progress syncs both ways; entries open their task |
 | `js/bpselect.js` | S-Team / PD Plan multi-select: Shift/Cmd-click (or Select on phones), drag together keeping spacing, copy/paste (Cmd/Ctrl+C/V or click a month), delete to bin |
