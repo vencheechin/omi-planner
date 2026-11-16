@@ -7,7 +7,7 @@ const DONE_SOUNDS = [
   { genre: 'Nature', tones: [['wind', 'Wind'], ['wave', 'Wave']] },
   { genre: 'Classic', tones: [['ding', 'Ding'], ['chime', 'Double chime'], ['marimba', 'Marimba']] },
   { genre: 'Young', tones: [['cool', 'Cool'], ['rock', 'Rock'], ['hardrock', 'Hard rock'], ['jet', 'Jet fighter pass']] },
-  { genre: 'Fun', tones: [['coin', 'Coin'], ['tada', 'Ta-da']] },
+  { genre: 'Fun', tones: [['coin', 'Coin'], ['tada', 'Ta-da'], ['retro-up', '8-bit power-up'], ['retro-clear', '8-bit level clear'], ['retro-jump', '8-bit jump']] },
 ];
 /** Filtered noise that swells in and fades out, with the filter sweeping: wind and waves. */
 function swell(c, o, { t = 0, d = 1.5, g = 0.4, from = 400, to = 1200, q = 1, type = 'bandpass', peak = 0.4 }) {
@@ -43,6 +43,10 @@ const DONE_FX = {
   cool: (c, o) => { [[659.3, 0], [784, 0.1], [987.8, 0.2], [1174.7, 0.3]].forEach(([f, t]) => { note(c, o, { f, t, d: 0.22, type: 'square', g: 0.07, a: 0.004 }); note(c, o, { f: f * 1.007, t, d: 0.22, type: 'sawtooth', g: 0.05, a: 0.004 }); }); kick(c, o, 0); noise(c, o, { t: 0.2, d: 0.06, g: 0.15, freq: 8000, q: 0.6, type: 'highpass' }); note(c, o, { f: 1318.5, t: 0.4, d: 0.5, type: 'triangle', g: 0.15 }); },
   rock: (c, o) => { const amp = drive(c, o, 40); [[110, 0], [146.8, 0.22]].forEach(([f, t]) => { note(c, amp, { f, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.3 }); note(c, amp, { f: f * 1.5, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.22 }); }); kick(c, o, 0); snare(c, o, 0.22); noise(c, o, { t: 0.22, d: 0.6, g: 0.18, freq: 7000, q: 0.5, type: 'highpass' }); },
   hardrock: (c, o) => { const amp = drive(c, o, 120); [[82.4, 0, 0.12], [82.4, 0.13, 0.12], [98, 0.26, 0.12], [73.4, 0.4, 0.9]].forEach(([f, t, d]) => { note(c, amp, { f, t, d, type: 'sawtooth', g: 0.35 }); note(c, amp, { f: f * 1.5, t, d, type: 'sawtooth', g: 0.28 }); note(c, amp, { f: f * 2, t, d, type: 'square', g: 0.12 }); }); [0, 0.13, 0.26, 0.4].forEach((t) => kick(c, o, t)); snare(c, o, 0.4); noise(c, o, { t: 0.4, d: 0.9, g: 0.25, freq: 6000, q: 0.4, type: 'highpass' }); },
+  // 8-bit: original chiptune-style blips in the spirit of retro console games (not any game's own sounds).
+  'retro-up': (c, o) => [392, 523.3, 659.3, 784, 1046.5, 1318.5, 1568].forEach((f, i) => { note(c, o, { f, t: i * 0.055, d: 0.07, type: 'square', g: 0.1, a: 0.002 }); note(c, o, { f: f * 1.5, t: i * 0.055 + 0.025, d: 0.04, type: 'square', g: 0.04, a: 0.002 }); }),
+  'retro-clear': (c, o) => { [[523.3, 0, 0.1], [659.3, 0.12, 0.1], [784, 0.24, 0.1], [1046.5, 0.36, 0.1], [880, 0.5, 0.1], [1046.5, 0.62, 0.45]].forEach(([f, t, d]) => { note(c, o, { f, t, d, type: 'square', g: 0.1, a: 0.002 }); note(c, o, { f: f / 2, t, d, type: 'triangle', g: 0.14, a: 0.002 }); }); },
+  'retro-jump': (c, o) => note(c, o, { f: 300, bend: 1100, d: 0.18, type: 'square', g: 0.12, a: 0.002 }),
   // Jet fighter pass: engine roar that swells as it comes over, with the whine dropping in pitch as it passes (Doppler).
   jet: (c, o) => {
     swell(c, o, { d: 2.4, g: 0.55, from: 500, to: 2600, q: 0.7, peak: 0.42 });
