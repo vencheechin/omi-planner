@@ -452,7 +452,7 @@ function cardPreview(t) {
   const images = allFiles(t).filter((a) => a.thumb);
   const mode = t.preview === 'auto' ? (images.length ? 'attachment' : t.checklist.length ? 'checklist' : t.notes ? 'notes' : 'none') : t.preview;
   if (mode === 'attachment' && images.length) return `<img class="card-img" src="${esc(images[0].thumb)}" alt="">`;
-  if (mode === 'checklist' && t.checklist.length) {
+  if (mode === 'checklist' && t.checklist.length && false) { // checklist items no longer shown on cards
     return `<ul class="card-check">${t.checklist.filter((c) => !c.done).slice(0, 4).map((c) => `<li><button class="check small" data-act="cardCheck" data-task="${esc(t.id)}" data-item="${esc(c.id)}" aria-label="Complete ${esc(c.text)}"></button><span>${esc(c.text)}</span></li>`).join('')}</ul>`;
   }
   if (mode === 'notes' && t.notes) return `<p class="card-notes">${esc(t.notes)}</p>`;
@@ -460,16 +460,14 @@ function cardPreview(t) {
 }
 function cardHTML(t, { showPlan } = {}) {
   const plan = planById(t.planId);
-  const doneItems = t.checklist.filter((c) => c.done).length;
   const meta = [
     S.inbox.some((n) => n.taskId === t.id && !n.read) ? `<span class="meta alert" title="New notifications on this task">${icon('bell', 13)}${S.inbox.filter((n) => n.taskId === t.id && !n.read).length}</span>` : '',
     t.decisionReq?.status === 'pending' && t.decision?.deadline ? `<span class="meta ${t.decision.deadline < todayISO() ? 'late' : ''}" title="Decision deadline">⚑ ${fmtDate(t.decision.deadline)}</span>` : '',
     t.approvalReq?.status === 'pending' ? `<span class="meta ${t.approval?.deadline && t.approval.deadline < todayISO() ? 'late' : ''}" title="Approval request">✓ Approval${t.approval?.deadline ? ` ${fmtDate(t.approval.deadline)}` : ''}</span>` : '',
     t.review ? `<span class="meta checking" title="Submitted for checking ${esc(fmtDateTime(t.review.at))}">Checking</span>` : '',
-    timeboxMeta(t), priorityIcon(t.priority),
+    priorityIcon(t.priority),
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
     t.repeat ? `<span class="meta" title="Repeats">${icon('repeat', 13)}</span>` : '',
-    t.checklist.length ? `<span class="meta" title="Checklist">${icon('list', 13)}${doneItems}/${t.checklist.length}</span>` : '',
     allFiles(t).length ? `<span class="meta" title="Files and links">${icon('clip', 13)}${allFiles(t).length}</span>` : '',
     t.comments.some((c) => !c.deleted) ? `<span class="meta" title="Messages">${icon('chat', 13)}${t.comments.filter((c) => !c.deleted).length}</span>` : '',
   ].join('');
@@ -479,7 +477,6 @@ function cardHTML(t, { showPlan } = {}) {
     ${t.box ? '' : `<button class="icon-btn card-tb ${isScheduled(t) ? 'booked' : t.tbQueued ? 'on' : ''}" data-act="cardTimebox" data-id="${esc(t.id)}" aria-label="${isScheduled(t) ? 'Go to its Time Box' : t.tbQueued ? 'In your Time Box list (tap to take it off)' : 'Assign to Time Box'}">${icon('clock', 18)}</button>`}
     <button class="icon-btn card-more" data-act="cardMenu" data-id="${esc(t.id)}" aria-label="More options for ${esc(t.title || 'Untitled task')}" title="More options">${icon('more', 16)}</button>
     ${cardPreview(t)}
-    ${showPlan && plan ? `<div class="card-plan">${planTile(plan, 14)}${esc(plan.name)}</div>` : ''}
     ${progressBarHTML(t)}
     ${meta || t.assignees.length ? `<footer><div class="card-meta">${meta}</div><div class="name-chips">${t.assignees.slice(0, 3).map((a) => nameChip(person(a))).join('')}${t.assignees.length > 3 ? `<span class="name-chip more">+${t.assignees.length - 3}</span>` : ''}</div></footer>` : ''}
   </article>`;
