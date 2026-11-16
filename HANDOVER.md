@@ -67,6 +67,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/bpselect.js` | S-Team / PD Plan multi-select: Shift/Cmd-click (or Select on phones), drag together keeping spacing, copy/paste (Cmd/Ctrl+C/V or click a month), delete to bin |
 | `js/findfn.js` | Top search also finds functions: pages, actions (recycle bin, backup, Excel, theme) and every Settings section |
 | `js/pipeline.js` | PD Plan pipeline: framework (departments, checkpoints, work per dept; import/export JSON), products moving through checkpoints with decisions, department work as Planner tasks for the person in charge, Analysis (pipeline, time per stage, revisions, kill/success/learning rate, new-product sales). Synced as `fw` and `pr:<id>` fields on the PD plan record |
+| `js/tasting.js` | PD Plan tasting log: each tasting is a version (photos shrunk to JPEG, comments, to-improve); counts versions before the 100% checkpoint; synced as `ts:<id>` fields |
 | `js/stages.js` | Stage list (Stage 1 Direction … 5 Review) picked on S-Team / PD Plan entries; admins edit numbers and names in Admin Portal › Stages; synced as `org.stages` |
 | `js/yearly.js` | Yearly Planner page (`#/yearly`): month blocks, a row per day with Event / Itinerary / Transport / Hotel, day colour, repeat to next days, optional Create task. Stored in `S.settings.yearly`, synced as the `yearly` prefs field |
 | `js/bin.js` | Recycle bin: drop or delete tasks, time boxes and S-Team rows; restore them one at a time. |

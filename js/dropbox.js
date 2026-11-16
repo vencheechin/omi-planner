@@ -82,6 +82,27 @@ const Dbx = {
     sessionStorage.removeItem('planner-dbx-code');
     return this.exchange(got.code, got.verifier, got.redirect);
   },
+  // ---------- Your own server (Planner Sync, sync-server/server.py) ----------
+  /** "192.168.1.20:8840" → "http://192.168.1.20:8840" */
+  normServer(u) {
+    u = String(u || '').trim().replace(/\/+$/, '');
+    if (u && !/^https?:\/\//i.test(u)) u = `http://${u}`;
+    return u;
+  },
+  /** True when this page itself is served by Planner Sync (then the address fills itself in). */
+  async servedByOwn() {
+    if (!location.protocol.startsWith('http')) return false;
+    try { const r = await fetch('/_planner_sync', { cache: 'no-store' }); return r.ok && (await r.json()).app === 'planner-sync'; } catch { return false; }
+  },
+  async ownSignIn(server, teamCode, email) {
+    let res;
+    try {
+      res = await fetch(`${server}/oauth2/token`, { method: 'POST', body: new URLSearchParams({ grant_type: 'team_code', team_code: teamCode, email }) });
+    } catch { throw new Error(`Can’t reach ${server}. Is the server running, and are you on the same network?`); }
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.refresh_token) throw new Error(j.error_description || `Sign-in failed (${res.status})`);
+    return { server, refresh: j.refresh_token, access: j.access_token, expires: Date.now() + (j.expires_in || 14400) * 1000, account: j.account_id || '' };
+  },
   async exchange(code, verifier, redirect) {
     const c = this.cfg();
     const body = new URLSearchParams({ code, grant_type: 'authorization_code', code_verifier: verifier, client_id: c.appKey });
@@ -96,13 +117,19 @@ const Dbx = {
 /** An authorised connection to one person's Dropbox. */
 class DbxClient {
   constructor(auth) { this.auth = auth; this.access = auth.access || ''; this.expires = auth.expires || 0; }
+  /** Your own Planner Sync server (auth.server) answers every call; otherwise Dropbox's servers do. */
+  bases() {
+    const s = this.auth.server;
+    return s ? { appKey: 'planner', api: s, content: s, notify: s, auth: s } : Dbx.cfg();
+  }
+  get own() { return !!this.auth.server; }
   async token() {
     if (this.access && Date.now() < this.expires - 60000) return this.access;
-    const c = Dbx.cfg();
+    const c = this.bases();
     const res = await fetch(`${c.api}/oauth2/token`, { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: this.auth.refresh, client_id: c.appKey }) });
     const j = await res.json().catch(() => ({}));
     if (!res.ok || !j.access_token) {
-      const e = new Error('Dropbox needs you to sign in again.');
+      const e = new Error(this.own ? 'Sign in to the team server again.' : 'Dropbox needs you to sign in again.');
       e.name = res.status === 400 || res.status === 401 ? 'NotAllowedError' : 'NetworkError';
       throw e;
     }
@@ -138,7 +165,7 @@ class DbxClient {
     }
     return res;
   }
-  async rpc(route, json) { return (await this.call(Dbx.cfg().api, route, { json })).json(); }
+  async rpc(route, json) { return (await this.call(this.bases().api, route, { json })).json(); }
   async list(path) {
     let r;
     try { r = await this.rpc('files/list_folder', { path, recursive: false, include_deleted: false }); } catch (err) { if (err.name === 'NotFoundError') return []; throw err; }
@@ -149,9 +176,9 @@ class DbxClient {
   async meta(path) {
     try { return await this.rpc('files/get_metadata', { path }); } catch (err) { if (err.name === 'NotFoundError' || err.status === 409) return null; throw err; }
   }
-  async download(path) { return (await this.call(Dbx.cfg().content, 'files/download', { arg: { path } })).blob(); }
+  async download(path) { return (await this.call(this.bases().content, 'files/download', { arg: { path } })).blob(); }
   async upload(path, blob, { keepalive = false } = {}) {
-    return (await this.call(Dbx.cfg().content, 'files/upload', { arg: { path, mode: 'overwrite', autorename: false, mute: true }, body: blob, keepalive })).json();
+    return (await this.call(this.bases().content, 'files/upload', { arg: { path, mode: 'overwrite', autorename: false, mute: true }, body: blob, keepalive })).json();
   }
   async createFolder(path) {
     try { return await this.rpc('files/create_folder_v2', { path, autorename: false }); } catch (err) { if (/conflict/.test(err.summary || '')) return null; throw err; }
@@ -160,7 +187,7 @@ class DbxClient {
   async latestCursor(path) { return (await this.rpc('files/list_folder/get_latest_cursor', { path, recursive: true, include_deleted: true })).cursor; }
   /** Waits (up to `timeout` seconds) until something in the folder changes. No token needed. */
   async waitForChange(cursor, timeout = 90) {
-    const res = await fetch(`${Dbx.cfg().notify}/2/files/list_folder/longpoll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cursor, timeout }) });
+    const res = await fetch(`${this.bases().notify}/2/files/list_folder/longpoll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cursor, timeout }) });
     if (!res.ok) { const e = new Error(`Dropbox change watch ${res.status}`); e.status = res.status; throw e; }
     return res.json();
   }

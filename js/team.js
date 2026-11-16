@@ -389,6 +389,7 @@ const Team = {
 
   async init() {
     if (!Store.db) return;
+    Dbx.servedByOwn().then((yes) => { this.ownHere = yes; }).catch(() => {});
     try { this.dir = await Store.tx('kv', 'readonly', (s) => s.get('teamDir')); } catch { this.dir = null; }
     // Coming back from Dropbox sign-in: finish it before anything else.
     let auth = null;
@@ -431,8 +432,24 @@ const Team = {
     try { auth = await Dbx.signIn(); } catch (err) { toast(err.message, { error: true }); return; }
     if (auth) await this.useDropbox(auth, null);
   },
+  /** Signs in to your own Planner Sync server with its address and the team code. */
+  async connectOwn(server, teamCode, { rec = null } = {}) {
+    const me = person(S.meId);
+    if (!me.email) { toast('Add your email in Settings first, so teammates can assign tasks to you.', { error: true }); return; }
+    server = Dbx.normServer(server);
+    if (!server) { toast('Enter the server address.', { error: true }); return; }
+    let auth;
+    try { auth = await Dbx.ownSignIn(server, teamCode, me.email); } catch (err) { toast(err.message, { error: true }); return; }
+    // One shared team folder on your own server, so nobody has to pick one.
+    if (!rec) {
+      const client = new DbxClient(auth);
+      try { await client.createFolder('/Team'); } catch (err) { toast(err.message, { error: true }); return; }
+      rec = { path: '/Team', name: 'Team' };
+    }
+    await this.useDropbox(auth, rec, true);
+  },
   /** After sign-in: keep the folder already chosen (signing in again), or ask which one to use. */
-  async useDropbox(auth, rec) {
+  async useDropbox(auth, rec, fresh = false) {
     const client = new DbxClient(auth);
     let path = rec?.path, name = rec?.name;
     if (!path) {
@@ -442,17 +459,18 @@ const Team = {
     }
     let email = '';
     try { email = (await client.account())?.email || ''; } catch { /* shown without it */ }
-    const keep = { virtual: 'dropbox', path, name, email, auth: { refresh: auth.refresh, account: auth.account } };
+    const keep = { virtual: 'dropbox', path, name, email, auth: { refresh: auth.refresh, account: auth.account, server: auth.server || '' } };
     await Store.tx('kv', 'readwrite', (s) => s.put(keep, 'teamDir'));
     this.dir = new DropboxDir(client, path, name);
     this.dropboxEmail = email;
-    S.sync.folderName = `Dropbox: ${name}`;
+    S.sync.folderName = auth.server ? `Team server: ${auth.server.replace(/^https?:\/\//, '')}` : `Dropbox: ${name}`;
     if (!S.sync.connectedAt) S.sync.connectedAt = Date.now();
     S.tasks.forEach((t) => { if (t.assignees.some((a) => a !== S.meId) || (t.assignedBy && t.assignedBy !== S.meId)) t.shared = true; });
     commit();
     this.start();
     refreshSettings?.();
-    toast(rec ? 'Dropbox reconnected.' : `Connected to Dropbox folder “${name}”. Teammates who choose the same shared folder will see shared tasks.`);
+    if (auth.server) toast(fresh && !rec?.again ? 'Connected to your team server. Teammates who connect with the same address and code will see shared tasks.' : 'Team server reconnected.');
+    else toast(rec ? 'Dropbox reconnected.' : `Connected to Dropbox folder “${name}”. Teammates who choose the same shared folder will see shared tasks.`);
   },
   /** Connects to the test folder inside this browser (two people on one device). */
   async connectDevice({ quiet = false } = {}) {
@@ -469,6 +487,11 @@ const Team = {
   },
   async reconnect() {
     if (!this.dir) return;
+    if (this.dir.virtual === 'dropbox' && this.dir.client.own) {
+      const code = await promptDlg('Sign in to the team server', 'Team code', '', 'Sign in');
+      if (code) await this.connectOwn(this.dir.client.auth.server, code, { rec: { path: this.dir.path, name: this.dir.name, again: true } });
+      return;
+    }
     if (this.dir.virtual === 'dropbox') {
       let auth;
       try { auth = await Dbx.signIn(); } catch (err) { toast(err.message, { error: true }); return; }
@@ -588,7 +611,7 @@ const Team = {
   },
   statusText() {
     if (this.state === 'off') return null;
-    if (this.state === 'permission') return { text: this.dir?.virtual === 'dropbox' ? 'Dropbox: click to sign in again' : 'Team folder: click to reconnect', cls: 'error', act: 'teamReconnect' };
+    if (this.state === 'permission') return { text: this.dir?.client?.own ? 'Team server: click to sign in again' : this.dir?.virtual === 'dropbox' ? 'Dropbox: click to sign in again' : 'Team folder: click to reconnect', cls: 'error', act: 'teamReconnect' };
     if (this.state === 'offline') return { text: 'Offline · saved, will sync when online', cls: 'offline', act: 'openSettings' };
     if (this.state === 'error') return { text: 'Team sync problem · retrying', cls: 'error', act: 'openSettings' };
     const ago = S.sync.lastSync ? Math.round((Date.now() - S.sync.lastSync) / 60000) : null;
@@ -608,21 +631,30 @@ function teamSettingsHTML() {
     </div>`;
   const notif = 'Notification' in window && Notification.permission === 'default' ? `<button class="btn ghost sm" data-act="enableNotifications">Turn on desktop notifications</button>` : '';
   if (Team.dir) {
-    const where = dbx ? `Dropbox folder: <b>${esc(Team.dir.path)}</b>${Team.dropboxEmail ? ` <span class="muted">(${esc(Team.dropboxEmail)})</span>` : ''}` : `Folder: <b>${esc(S.sync.folderName || Team.dir.name)}</b>`;
+    const own = dbx && Team.dir.client.own;
+    const where = own ? `Team server: <b>${esc(Team.dir.client.auth.server)}</b>` : dbx ? `Dropbox folder: <b>${esc(Team.dir.path)}</b>${Team.dropboxEmail ? ` <span class="muted">(${esc(Team.dropboxEmail)})</span>` : ''}` : `Folder: <b>${esc(S.sync.folderName || Team.dir.name)}</b>`;
     return `${who}
       <p class="small">${where} · ${members} teammate file${members === 1 ? '' : 's'} found${dbx ? ' · changes arrive within seconds' : ''}<br><span class="muted">Last synced: ${S.sync.lastSync ? esc(fmtDateTime(S.sync.lastSync)) : 'not yet'}${Team.error ? ` · ${esc(Team.error)}` : ''}</span></p>
-      <div class="row">${Team.state === 'permission' ? `<button class="btn primary sm" data-act="teamReconnect">${dbx ? 'Sign in to Dropbox again' : 'Reconnect'}</button>` : `<button class="btn primary sm" data-act="teamSyncNow">Sync now</button>`}
+      <div class="row">${Team.state === 'permission' ? `<button class="btn primary sm" data-act="teamReconnect">${own ? 'Sign in again' : dbx ? 'Sign in to Dropbox again' : 'Reconnect'}</button>` : `<button class="btn primary sm" data-act="teamSyncNow">Sync now</button>`}
       <button class="btn ghost sm" data-act="teamDisconnect">Disconnect</button></div>${notif}`;
   }
   const key = Dbx.cfg().appKey;
+  const here = Team.ownHere ? location.origin : '';
   return `${who}
-    <p class="small"><b>Dropbox (recommended).</b> Planner talks to Dropbox directly, on computers and phones, so nothing depends on a synced folder on this device. Everyone signs in to their own Dropbox and picks the same shared folder.</p>
-    ${key ? `<div class="row"><button class="btn primary sm" data-act="dropboxConnect">Connect Dropbox…</button><button class="btn ghost xs" data-act="dropboxKey">Change app key</button></div>`
-      : `<form class="row" data-submit="dropboxKey"><input name="key" required placeholder="Dropbox app key" autocomplete="off" aria-label="Dropbox app key" style="flex:1"><button class="btn primary sm">Save</button></form><p class="muted small">One person creates the app key once; the steps are in <b>cloud/DROPBOX.md</b>.</p>`}
+    <p class="small"><b>Your team server (recommended).</b> Your own Dropbox-style sync: one computer runs Planner Sync (see <b>sync-server/README.md</b>) and everyone connects with its address and the team code. Changes arrive within seconds, and you see when someone else has the same task open.</p>
+    <form class="stack" data-submit="ownConnect">
+      <div class="task-fields two">
+        <label class="field"><span>Server address</span><input name="server" required value="${esc(here || S.settings.ownServer || '')}" placeholder="192.168.1.20:8840" autocomplete="off" inputmode="url"></label>
+        <label class="field"><span>Team code</span><input name="code" required placeholder="ABCD-1234-EF56" autocomplete="off" autocapitalize="characters"></label>
+      </div>
+      <div class="row"><button class="btn primary sm">Connect</button></div>
+    </form>
     <details class="small"><summary>Other ways</summary><div class="row">
+      ${key ? `<button class="btn ghost sm" data-act="dropboxConnect">Dropbox…</button><button class="btn ghost xs" data-act="dropboxKey">Change Dropbox app key</button>` : ''}
       ${Team.supported ? `<button class="btn ghost sm" data-act="teamConnect">Folder on this computer…</button>` : ''}
       <button class="btn ghost sm" data-act="teamDevice">Test folder on this device</button></div>
-      ${Team.supported ? '<p class="muted small">A folder on this computer works with any service that syncs it. OneDrive folders often hold back files that aren’t downloaded yet, so use Dropbox above if sync stalls.</p>' : ''}</details>
+      ${key ? '' : `<form class="row" data-submit="dropboxKey"><input name="key" required placeholder="Dropbox app key (cloud/DROPBOX.md)" autocomplete="off" aria-label="Dropbox app key" style="flex:1"><button class="btn ghost sm">Save</button></form>`}
+      ${Team.supported ? '<p class="muted small">A folder on this computer works with any service that syncs it. OneDrive folders often hold back files that aren’t downloaded yet, so use the team server if sync stalls.</p>' : ''}</details>
     ${notif}`;
 }
 

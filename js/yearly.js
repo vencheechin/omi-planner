@@ -122,3 +122,110 @@ Object.assign(changes, {
   yrCell: (el) => { yrSet(el.dataset.iso, el.dataset.k, el.value.trim().slice(0, 300)); Store.save(); },
 });
 // Keep the fields of the row you were typing in when the page redraws (only the changed cell is saved; no redraw needed).
+
+// ---------- Ranges: select, copy and paste blocks of cells (like a spreadsheet) ----------
+// Drag across cells, or click one and Shift-click another, to select a block. Cmd/Ctrl+C copies it
+// (it pastes into Excel too); Delete clears it. Pasting several cells (from here or from Excel)
+// fills the days and columns from the cell you paste into.
+let yrRange = null; // { a: {iso, c}, b: {iso, c} }
+let yrPick = null;
+const yrCol = (k) => YR_COLS.findIndex(([x]) => x === k);
+const yrCellOf = (el) => { const i = el?.closest?.('td')?.querySelector('input[data-change="yrCell"]'); return i ? { iso: i.dataset.iso, c: yrCol(i.dataset.k), el: i } : null; };
+function yrRangeCells() {
+  if (!yrRange) return null;
+  const [d1, d2] = [yrRange.a.iso, yrRange.b.iso].sort();
+  const [c1, c2] = [yrRange.a.c, yrRange.b.c].sort((x, y) => x - y);
+  const days = [];
+  for (let d = d1, i = 0; d <= d2 && i < 400; d = yrNext(d, 1), i += 1) days.push(d);
+  return { days, cols: YR_COLS.slice(c1, c2 + 1).map(([k]) => k) };
+}
+function yrPaint() {
+  $$('.yr-sel').forEach((n) => n.classList.remove('yr-sel'));
+  const r = yrRangeCells();
+  if (!r || (r.days.length === 1 && r.cols.length === 1)) return;
+  r.days.forEach((d) => r.cols.forEach((k) => $(`input[data-iso="${d}"][data-k="${k}"]`)?.closest('td')?.classList.add('yr-sel')));
+}
+const yrMulti = () => { const r = yrRangeCells(); return !!r && r.days.length * r.cols.length > 1; };
+document.addEventListener('pointerdown', (e) => {
+  if (ui.route?.view !== 'yearly' || e.button !== 0) return;
+  const cell = yrCellOf(e.target);
+  if (!cell) { if (!e.target.closest?.('.yr-menu')) { yrRange = null; yrPaint(); } return; }
+  if (e.shiftKey && yrRange) { e.preventDefault(); yrRange.b = cell; yrPaint(); return; }
+  yrRange = { a: cell, b: cell };
+  yrPick = { x: e.clientX, y: e.clientY, on: false };
+  yrPaint();
+});
+document.addEventListener('pointermove', (e) => {
+  if (!yrPick || !(e.buttons & 1)) return;
+  if (!yrPick.on && Math.hypot(e.clientX - yrPick.x, e.clientY - yrPick.y) < 8) return;
+  const cell = yrCellOf(document.elementFromPoint(e.clientX, e.clientY));
+  if (!cell) return;
+  if (!yrPick.on && cell.iso === yrRange.a.iso && cell.c === yrRange.a.c) return;
+  yrPick.on = true;
+  e.preventDefault();
+  window.getSelection()?.removeAllRanges();
+  document.activeElement?.blur?.();
+  yrRange.b = cell;
+  yrPaint();
+});
+document.addEventListener('pointerup', () => { yrPick = null; });
+const yrTSV = (rows) => rows.map((r) => r.map((v) => (/[\t\n"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join('\t')).join('\n');
+function yrParseTSV(text) {
+  const rows = [[]];
+  let cur = '';
+  let q = false;
+  const t = text.replace(/\r\n?/g, '\n').replace(/\n$/, '');
+  for (let i = 0; i < t.length; i += 1) {
+    const ch = t[i];
+    if (q) { if (ch === '"' && t[i + 1] === '"') { cur += '"'; i += 1; } else if (ch === '"') q = false; else cur += ch; }
+    else if (ch === '"' && cur === '') q = true;
+    else if (ch === '\t') { rows.at(-1).push(cur); cur = ''; }
+    else if (ch === '\n') { rows.at(-1).push(cur); rows.push([]); cur = ''; }
+    else cur += ch;
+  }
+  rows.at(-1).push(cur);
+  return rows;
+}
+document.addEventListener('copy', (e) => {
+  if (ui.route?.view !== 'yearly' || !yrMulti()) return;
+  const r = yrRangeCells();
+  e.preventDefault();
+  e.clipboardData.setData('text/plain', yrTSV(r.days.map((d) => r.cols.map((k) => yrDay(d)[k] || ''))));
+  toast(`Copied ${r.days.length} × ${r.cols.length} cells.`);
+});
+document.addEventListener('paste', (e) => {
+  if (ui.route?.view !== 'yearly') return;
+  const at = (yrMulti() && yrRangeCells()) ? { iso: yrRangeCells().days[0], c: yrCol(yrRangeCells().cols[0]) } : yrCellOf(document.activeElement);
+  if (!at) return;
+  const text = e.clipboardData?.getData('text/plain') || '';
+  if (!/[\t\n]/.test(text.replace(/\n$/, ''))) return; // one value: the box takes it as usual
+  e.preventDefault();
+  const rows = yrParseTSV(text);
+  let n = 0;
+  rows.forEach((row, ri) => {
+    const iso = yrNext(at.iso, ri);
+    row.forEach((v, ci) => { const col = YR_COLS[at.c + ci]; if (col) { yrSet(iso, col[0], v.trim().slice(0, 300)); n += 1; } });
+  });
+  const last = yrNext(at.iso, rows.length - 1);
+  yrRange = { a: { iso: at.iso, c: at.c }, b: { iso: last, c: Math.min(YR_COLS.length - 1, at.c + Math.max(...rows.map((r) => r.length)) - 1) } };
+  commit();
+  yrPaint();
+  toast(`Pasted ${rows.length} day${rows.length === 1 ? '' : 's'}.`);
+});
+document.addEventListener('keydown', (e) => {
+  if (ui.route?.view !== 'yearly' || !yrMulti()) return;
+  if (e.key === 'Escape') { yrRange = null; yrPaint(); return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !(document.activeElement?.matches?.('input') && document.activeElement.value && document.activeElement.selectionStart !== document.activeElement.selectionEnd)) {
+    e.preventDefault();
+    const r = yrRangeCells();
+    r.days.forEach((d) => r.cols.forEach((k) => yrSet(d, k, '')));
+    commit();
+    yrPaint();
+    toast('Cleared.');
+  }
+});
+if (typeof render === 'function') {
+  const origRenderYr = render;
+  // eslint-disable-next-line no-global-assign
+  render = function renderKeepRange() { const out = origRenderYr.apply(this, arguments); if (ui.route?.view === 'yearly') yrPaint(); return out; };
+}

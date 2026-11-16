@@ -2011,3 +2011,33 @@ body.bp-pasting .bp-cell:hover { outline: 2px dashed var(--ochre, #b5894d); outl
 .yr-tbl col.c-tr, .yr-tbl col.c-ho { width: 70px; } .yr-tbl col.c-act { width: 46px; }
 .yr-tbl { width: 510px; }
 @media (max-width: 760px) { .yr-tbl { width: calc(100vw - 40px); } .yr-tbl col.c-ev { width: 28%; } .yr-tbl col.c-it { width: auto; } .yr-tbl col.c-tr, .yr-tbl col.c-ho { width: 15%; } }
+
+/* PD Plan: tasting log */
+.pd-tl-head { display: flex; align-items: center; gap: 8px; }
+.pd-tl-head .btn { margin-left: auto; }
+.pd-vcount { font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.pd-vtag { font-style: normal; font-weight: 700; color: var(--ink); background: color-mix(in srgb, var(--ochre, #b5894d) 30%, transparent); padding: 0 6px; border-radius: 8px; }
+.pd-vers { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+.pd-vers > li { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 5%, transparent); display: grid; gap: 8px; }
+.pd-vers header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pd-vers header small { color: var(--muted); }
+.pd-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.pd-ph { padding: 0; border: 0; border-radius: 8px; overflow: hidden; cursor: zoom-in; aspect-ratio: 1; background: var(--surface); display: block; position: relative; }
+.pd-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pd-keep .pd-ph { cursor: default; }
+.pd-keep .pd-ph span { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 6px; display: flex; gap: 4px; align-items: center; }
+.pd-vtxt small { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+.pd-vtxt p { margin: 2px 0 0; }
+.pd-imp { padding-left: 10px; border-left: 3px solid var(--ochre, #b5894d); }
+.pd-tform { display: grid; gap: 10px; }
+.pd-big-photo { width: 100%; height: auto; border-radius: 10px; display: block; }
+
+/* PD Plan: dragging a product card between checkpoints */
+.pd-card[data-pddrag] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.pd-ghost { position: fixed; z-index: 90; pointer-events: none; transform: rotate(2deg) scale(1.03); box-shadow: 0 14px 30px rgba(0,0,0,.28), 0 0 0 1.5px var(--ochre, #b5894d) !important; }
+.pd-lifted { opacity: .35; }
+body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
+.pd-col.pd-over { background: color-mix(in srgb, var(--ochre, #b5894d) 18%, transparent); box-shadow: inset 0 0 0 2px var(--ochre, #b5894d); }
+.yr-tbl td.yr-sel { background: color-mix(in srgb, var(--ochre, #b5894d) 26%, transparent) !important; box-shadow: inset 0 0 0 1px var(--ochre, #b5894d); }
+.yr-scroll { -webkit-user-select: none; user-select: none; }
+.yr-scroll input { -webkit-user-select: text; user-select: text; }

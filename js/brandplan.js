@@ -81,6 +81,7 @@ function normalizeStPlan(p) {
     // PD pipeline: framework and products (see pipeline.js).
     ...(p.fw && typeof pdNormFw === 'function' && pdNormFw(p.fw) ? { fw: pdNormFw(p.fw) } : {}),
     ...(Array.isArray(p.products) && typeof pdNormProduct === 'function' ? { products: p.products.map(pdNormProduct).filter(Boolean) } : {}),
+    ...(Array.isArray(p.tastings) && typeof pdNormTaste === 'function' ? { tastings: p.tastings.map(pdNormTaste).filter(Boolean) } : {}),
     ...normalizeBrandPlan(p),
   };
 }
@@ -378,11 +379,11 @@ function bpColStyle(n, w = bpColW()) {
   if (w.month) v.push(`--bp-mw:${w.month}px`, `width:${(w.brand || bpColDefault('brand')) + (w.pic || bpColDefault('pic')) + 40 + n * w.month}px`);
   return v.join(';');
 }
-const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])), ...(p.module === 'pd' ? { fw: p.fw || null, ...Object.fromEntries((p.products || []).map((x) => [`pr:${x.id}`, x])) } : {}) });
+const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])), ...(p.module === 'pd' ? { fw: p.fw || null, ...Object.fromEntries((p.products || []).map((x) => [`pr:${x.id}`, x])), ...Object.fromEntries((p.tastings || []).map((v) => [`ts:${v.id}`, v])) } : {}) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function stFields(p) {
-  const f = new Set([...p.groups.map((g) => `g:${g.id}`), ...(p.module === 'pd' ? ['fw', ...(p.products || []).map((x) => `pr:${x.id}`)] : [])]);
-  [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:') || k.startsWith('pr:') || k === 'fw') f.add(k); });
+  const f = new Set([...p.groups.map((g) => `g:${g.id}`), ...(p.module === 'pd' ? ['fw', ...(p.products || []).map((x) => `pr:${x.id}`), ...(p.tastings || []).map((v) => `ts:${v.id}`)] : [])]);
+  [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:') || k.startsWith('pr:') || k.startsWith('ts:') || k === 'fw') f.add(k); });
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
@@ -415,7 +416,14 @@ function applyStPlan(id, d) {
   let changed = false;
   let order = null;
   for (const [f, rv] of Object.entries(v)) {
-    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && f !== 'fw' && !f.startsWith('g:') && !f.startsWith('pr:')) || !newer(rv, b._v[f])) continue;
+    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && f !== 'fw' && !f.startsWith('g:') && !f.startsWith('pr:') && !f.startsWith('ts:')) || !newer(rv, b._v[f])) continue;
+    if (f.startsWith('ts:')) {
+      const vid = f.slice(3);
+      const v1 = typeof pdNormTaste === 'function' ? pdNormTaste(d[f]) : null;
+      b.tastings = (Array.isArray(b.tastings) ? b.tastings : []).filter((y) => y.id !== vid);
+      if (v1) b.tastings.push(v1);
+      b._v[f] = rv; changed = true; continue;
+    }
     if (f === 'fw') { b.fw = (typeof pdNormFw === 'function' && pdNormFw(d.fw)) || null; b._v[f] = rv; changed = true; continue; }
     if (f.startsWith('pr:')) {
       const pid = f.slice(3);
@@ -443,7 +451,7 @@ function applyStPlan(id, d) {
     changed = true;
   }
   if (order) b.groups.sort((x, y) => ((order.indexOf(x.id) + 1) || 1e9) - ((order.indexOf(y.id) + 1) || 1e9));
-  if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:') || f.startsWith('pr:')) sh[f] = fieldHash(rec[f]); }); }
+  if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:') || f.startsWith('pr:') || f.startsWith('ts:')) sh[f] = fieldHash(rec[f]); }); }
   return changed;
 }
 // ---------- Approval: DIC submits, CEO approves; changes after approval need the CEO's OK ----------

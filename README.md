@@ -1,7 +1,7 @@
 # OMI Planner
 
 A task planner with boards, grids, a calendar and charts, styled to the OMI Branding Style Guide.
-It works fully offline. With a shared Dropbox folder (or cloud sync), colleagues can assign each
+It works fully offline. With your own team sync server (or cloud sync), colleagues can assign each
 other tasks, check each other's work, and see when someone else has the same task open.
 
 ## Open it
@@ -23,18 +23,19 @@ assigned tasks with your team. It works offline and catches up when you reconnec
 Supabase project: follow `cloud/README.md` once, then everyone signs in with their work email and a
 6-digit code.
 
-## Team sync with Dropbox (computers and phones)
+## Team sync with your own server (computers and phones)
 
-Settings > **Team sync with Dropbox** shares assigned tasks through a Dropbox folder your team
-shares. Planner talks to Dropbox directly (it doesn't need the folder synced on your computer), so
-it works on phones and changes arrive within seconds. Set it up once with `cloud/DROPBOX.md`, then:
+Settings > **Team sync** shares assigned tasks through **Planner Sync**, your own Dropbox-style
+server (`sync-server/`). One computer runs it; changes reach everyone within seconds, and no
+Dropbox or OneDrive account is needed. Full steps are in `sync-server/README.md`:
 
-1. Share a Dropbox folder with your colleagues, with permission to edit. Each colleague adds it to
-   their own Dropbox.
-2. In Planner, open Settings > Team sync with Dropbox. Enter your name and work email, press
-   **Connect Dropbox…**, sign in, and pick that folder.
-3. Each colleague does the same in their own Planner, choosing the same folder.
-4. Add colleagues under Settings > People with their work email, or when assigning a task.
+1. On the computer that will hold the team's files, double-click **Start Sync Server.command**. It
+   shows the address for colleagues and the team code.
+2. Each person opens that address, enters their name and work email under Settings > Team sync,
+   then the team code, and presses **Connect**.
+3. Add colleagues under Settings > People with their work email, or when assigning a task.
+
+Dropbox (`cloud/DROPBOX.md`) and a folder on this computer are still available under **Other ways**.
 
 How it works:
 
@@ -48,13 +49,13 @@ How it works:
 - **Who else is viewing:** when you and a colleague have the same shared task open, both of you get
   a notice, and a bar at the top of the task shows who else is in it.
 - Offline, keep working as normal. Planner saves every change on your device and sends it to
-  Dropbox when you're back online. Changes to different parts of a task merge; if two people change
+  the team server when you're back online. Changes to different parts of a task merge; if two people change
   the same thing, the later change wins.
 - Only tasks assigned between people are shared. Your other tasks stay on your device. Anyone
   with access to the shared folder can open its files, so share it only with your team.
 
 Under **Other ways**, a folder on this computer still works with any service that keeps it synced,
-but OneDrive's on-demand files often stall it, so Dropbox is the recommended choice.
+but OneDrive's on-demand files often stall it, so the team server is the recommended choice.
 
 ## Trying two people on one device
 
@@ -136,7 +137,8 @@ in `sw.js` and change `VERSION`.
 - `js/views.js`: sidebar, board, grid, schedule, charts
 - `js/task.js`: task panel, pickers, dialogs
 - `js/team.js`: checking workflow, person plans, notifications, report, team sync, who-else-is-viewing
-- `js/dropbox.js`: Dropbox sign-in and the Dropbox team folder; `cloud/DROPBOX.md` is the setup guide
+- `js/dropbox.js`: talks to Planner Sync (your own server) or Dropbox, using the same calls
+- `sync-server/server.py`: Planner Sync, the team sync server (Python, nothing to install); `sync-server/README.md` is the guide
 - `js/cloud.js`: cloud sync (sign-in, offline queue, field-by-field merge); `js/config.js` holds the project address
 - `cloud/setup.sql`, `cloud/README.md`: the database setup and the step-by-step guide
 - `js/timebox.js`: Time Box page (day, week, month), boxes, weekday rhythm, OMIO, traffic light, decisions

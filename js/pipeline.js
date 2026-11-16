@@ -44,7 +44,7 @@ function pdNormProduct(x) {
     cp: pdStr(x.cp, 40), status: PD_STATUS[x.status] ? x.status : 'active', created: Number(x.created) || Date.now(), enteredAt: Number(x.enteredAt) || Number(x.created) || Date.now(),
     rsp: pdNum(x.rsp), launchDate: /^\d{4}-\d{2}-\d{2}$/.test(x.launchDate || '') ? x.launchDate : '', targetWeekly: pdNum(x.targetWeekly), actualWeekly: pdNum(x.actualWeekly), cannibal: pdNum(x.cannibal),
     reviewDone: !!x.reviewDone, reviewNote: pdStr(x.reviewNote, 2000),
-    history: (Array.isArray(x.history) ? x.history : []).filter((h) => h && h.d).slice(-200).map((h) => ({ cp: pdStr(h.cp, 40), at: Number(h.at) || 0, by: pdStr(h.by, 80), d: pdStr(h.d, 20), note: pdStr(h.note, 600) })),
+    history: (Array.isArray(x.history) ? x.history : []).filter((h) => h && h.d).slice(-200).map((h) => ({ cp: pdStr(h.cp, 40), at: Number(h.at) || 0, by: pdStr(h.by, 80), d: pdStr(h.d, 20), note: pdStr(h.note, 600), ...(h.to ? { to: pdStr(h.to, 40) } : {}) })),
     work: Object.fromEntries(Object.entries(x.work && typeof x.work === 'object' ? x.work : {}).filter(([, w]) => w && typeof w === 'object').map(([k, w]) => [pdStr(k, 90), { ...(w.task ? { task: pdStr(w.task, 40) } : {}), done: !!w.done }])),
   };
 }
@@ -135,10 +135,10 @@ function pdStats(p) {
   const concept = [];
   for (const x of list) {
     let from = x.created;
-    const steps = x.history.filter((h) => h.d === 'advance');
+    const steps = x.history.filter((h) => h.d === 'advance' || h.d === 'move');
     steps.forEach((h) => { spent[h.cp]?.push(h.at - from); from = h.at; });
     if (x.status === 'active') spent[x.cp]?.push(Date.now() - x.enteredAt);
-    const hit = steps.find((h) => idx(h.cp) === launchI - 1);
+    const hit = steps.find((h) => idx(h.cp) < launchI && idx(h.d === 'move' ? h.to : fw.cps[idx(h.cp) + 1]?.id) >= launchI);
     if (hit) concept.push(hit.at - x.created);
   }
   const avg = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : null);
@@ -178,7 +178,7 @@ function pdCardHTML(p, x) {
   const done = work.filter((w) => w.done).length;
   const revs = x.history.filter((h) => h.d === 'revise' && h.cp === x.cp).length;
   const days = pdDays(Date.now() - x.enteredAt);
-  return `<button class="pd-card ${x.status !== 'active' ? `pd-${x.status}` : ''}" data-act="pdOpen" data-id="${esc(x.id)}">
+  return `<button class="pd-card ${x.status !== 'active' ? `pd-${x.status}` : ''}" data-act="pdOpen" data-id="${esc(x.id)}" ${x.status === 'active' && stCanEdit(p) ? 'data-pddrag="1"' : ''}>
     <b>${esc(x.name)}</b>
     ${x.category ? `<small class="pd-cat">${esc(x.category)}</small>` : ''}
     ${x.status === 'active' ? `<span class="pd-depts">${work.map((w) => `<i class="pd-dep ${w.done ? 'done' : ''}" title="${esc(`${w.dept.name}: ${w.done ? 'done' : 'to do'}`)}">${w.done ? icon('check', 10) : ''}${esc(w.dept.name)}</i>`).join('')}</span>` : `<span class="pd-tag">${esc(PD_STATUS[x.status])}${cp ? ` at ${esc(cp.label)}` : ''}</span>`}
@@ -200,7 +200,7 @@ function pdPipelineHTML(p) {
       <div class="pd-stages">${stages.map((s) => `<div style="grid-column: span ${s.n}">${esc(s.name)}</div>`).join('')}</div>
       ${fw.cps.map((c) => {
         const here = active.filter((x) => x.cp === c.id);
-        return `<section class="pd-col"><header><b>${esc(c.label)}</b><em>${here.length}</em>${c.lead ? `<small>${esc(c.lead)}</small>` : ''}</header>
+        return `<section class="pd-col" data-cp="${esc(c.id)}"><header><b>${esc(c.label)}</b><em>${here.length}</em>${c.lead ? `<small>${esc(c.lead)}</small>` : ''}</header>
           <div class="pd-cards">${here.map((x) => pdCardHTML(p, x)).join('') || '<p class="pd-none">–</p>'}</div></section>`;
       }).join('')}
     </div></div>
@@ -219,7 +219,7 @@ function pdProductHTML(p, x) {
     ? [['reopen', 'Reopen', '']]
     : pdIsLast(p, x) ? [['keep', 'Keep', 'primary'], ['optimise', 'Optimise', ''], ['delist', 'Delist', 'danger']]
       : [['advance', `Advance to ${esc(fw.cps[pdCpIndex(p, x.cp) + 1]?.label || 'next')}`, 'primary'], ['revise', 'Revise', ''], ['stop', 'Stop', 'danger']];
-  const D = { start: 'Started', advance: 'Advanced', revise: 'Revise', stop: 'Stopped', keep: 'Kept', optimise: 'Optimise', delist: 'Delisted', reopen: 'Reopened' };
+  const D = { move: 'Moved', start: 'Started', advance: 'Advanced', revise: 'Revise', stop: 'Stopped', keep: 'Kept', optimise: 'Optimise', delist: 'Delisted', reopen: 'Reopened' };
   return `<div class="pd-prod">
     <div class="pd-where">${x.status === 'active'
       ? `<span class="pd-step">${fw.cps.map((c, i) => `<i class="${i < pdCpIndex(p, x.cp) ? 'past' : c.id === x.cp ? 'now' : ''}" title="${esc(c.label)}"></i>`).join('')}</span><b>${esc(pdCpTitle(cp))}</b><small>${pdDays(Date.now() - x.enteredAt)} days here</small>`
@@ -246,7 +246,7 @@ function pdProductHTML(p, x) {
     <label class="pd-check"><input type="checkbox" data-change="pdField" data-id="${esc(x.id)}" data-k="reviewDone" ${x.reviewDone ? 'checked' : ''} ${ed ? '' : 'disabled'}> Review done: what we learned is written down</label>
     <textarea class="pd-ta" rows="3" placeholder="What worked, what didn't, what we'll do differently" data-change="pdField" data-id="${esc(x.id)}" data-k="reviewNote" ${ed ? '' : 'disabled'}>${esc(x.reviewNote)}</textarea>
     <h3>History</h3>
-    <ol class="pd-hist">${[...x.history].reverse().map((h) => `<li><b>${esc(D[h.d] || h.d)}</b> · ${esc(pdCp(p, h.cp)?.label || '')}<small>${esc(fmtDateTime(h.at))} · ${esc(h.by)}</small>${h.note ? `<p>${esc(h.note)}</p>` : ''}</li>`).join('')}</ol>
+    <ol class="pd-hist">${[...x.history].reverse().map((h) => `<li><b>${esc(D[h.d] || h.d)}</b> · ${esc(pdCp(p, h.cp)?.label || '')}${h.to ? ` → ${esc(pdCp(p, h.to)?.label || '')}` : ''}<small>${esc(fmtDateTime(h.at))} · ${esc(h.by)}</small>${h.note ? `<p>${esc(h.note)}</p>` : ''}</li>`).join('')}</ol>
     ${ed ? `<div class="row"><span class="spacer"></span><button class="btn ghost sm danger" data-act="pdDelete" data-id="${esc(x.id)}">${icon('trash', 13)} Delete product</button></div>` : ''}
   </div>`;
 }
@@ -383,6 +383,7 @@ Object.assign(actions, {
     const x = pdFind(el.dataset.id);
     if (!x || !await confirmDlg(`Delete ${x.name}?`, 'Its history goes too, and it leaves the analysis. Its Planner tasks stay. To keep the record, Stop it instead.', 'Delete')) return;
     p.products = pdProducts(p).filter((y) => y !== x);
+    if (Array.isArray(p.tastings)) p.tastings = p.tastings.filter((v) => v.pid !== x.id);
     pdDirty(p);
     $$('dialog.pd-prod-dlg').forEach((d) => d.close());
     commit();
@@ -459,3 +460,80 @@ Object.assign(changes, {
   pdFwCp: (el) => pdFwEdit((fw) => { const c = fw.cps[Number(el.dataset.i)]; if (c) c[el.dataset.k] = el.value; }),
   pdFwWork: (el) => pdFwEdit((fw) => { const c = fw.cps[Number(el.dataset.i)]; if (c) { if (el.value.trim()) c.work[el.dataset.d] = el.value; else delete c.work[el.dataset.d]; } }),
 });
+
+// ---------- Drag a product card into any checkpoint (asks first) ----------
+let pdDrag = null;
+document.addEventListener('pointerdown', (e) => {
+  const card = e.target.closest?.('.pd-card[data-pddrag]');
+  if (!card || e.button !== 0 || ui.route?.view !== 'pdplan') return;
+  pdDrag = { card, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse' };
+  if (pdDrag.touch) pdDrag.hold = setTimeout(() => { if (pdDrag && !pdDrag.on) pdDragStart(pdDrag.x, pdDrag.y); }, 300);
+});
+function pdDragStart(x, y) {
+  const d = pdDrag;
+  d.on = true;
+  const r = d.card.getBoundingClientRect();
+  d.dx = x - r.left; d.dy = y - r.top;
+  d.ghost = d.card.cloneNode(true);
+  d.ghost.classList.add('pd-ghost');
+  Object.assign(d.ghost.style, { width: `${r.width}px`, left: `${r.left}px`, top: `${r.top}px` });
+  document.body.append(d.ghost);
+  d.card.classList.add('pd-lifted');
+  document.body.classList.add('pd-dragging');
+  navigator.vibrate?.(10);
+}
+document.addEventListener('pointermove', (e) => {
+  const d = pdDrag;
+  if (!d) return;
+  if (!d.on) {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+    if (d.touch) { clearTimeout(d.hold); pdDrag = null; return; } // a swipe scrolls the board
+    pdDragStart(d.x, d.y);
+  }
+  e.preventDefault();
+  d.ghost.style.left = `${e.clientX - d.dx}px`;
+  d.ghost.style.top = `${e.clientY - d.dy}px`;
+  $$('.pd-col.pd-over').forEach((n) => n.classList.remove('pd-over'));
+  d.ghost.style.display = 'none';
+  const col = document.elementFromPoint(e.clientX, e.clientY)?.closest('.pd-col');
+  d.ghost.style.display = '';
+  d.col = col || null;
+  if (col) col.classList.add('pd-over');
+  // Near the edges, scroll the board.
+  const wrap = $('.pd-board-wrap');
+  if (wrap) { const r = wrap.getBoundingClientRect(); if (e.clientX > r.right - 40) wrap.scrollLeft += 14; else if (e.clientX < r.left + 40) wrap.scrollLeft -= 14; }
+}, { passive: false });
+document.addEventListener('touchmove', (e) => { if (pdDrag?.on) e.preventDefault(); }, { passive: false });
+async function pdDragEnd() {
+  const d = pdDrag;
+  pdDrag = null;
+  if (!d) return;
+  clearTimeout(d.hold);
+  if (!d.on) return;
+  d.ghost.remove();
+  d.card.classList.remove('pd-lifted');
+  document.body.classList.remove('pd-dragging');
+  $$('.pd-col.pd-over').forEach((n) => n.classList.remove('pd-over'));
+  // The click that follows a drag shouldn't open the product.
+  const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+  window.addEventListener('click', stop, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50);
+  const p = stCurrent();
+  const x = pdFind(d.card.dataset.id);
+  const to = d.col?.dataset.cp;
+  if (!p || !x || !to || to === x.cp || !stCanEdit(p)) return;
+  const from = pdCp(p, x.cp);
+  const dest = pdCp(p, to);
+  const back = pdCpIndex(p, to) < pdCpIndex(p, x.cp);
+  const open = pdWorkAt(p, x, x.cp).filter((w) => !w.done).length;
+  if (!await confirmDlg(`Move ${x.name} to ${dest.label}?`, `From ${from?.label || ''}${back ? ' back' : ''} to ${dest.label}.${open && !back ? ` ${open} department task${open === 1 ? ' is' : 's are'} still open here.` : ''} ${dest.label}'s work goes to each department as tasks.`, 'Move')) return;
+  const now = Date.now();
+  x.history.push({ cp: x.cp, to, at: now, by: pdMe(), d: 'move', note: '' });
+  x.cp = to;
+  x.enteredAt = now;
+  pdDirty(p);
+  commit();
+  toast(`${x.name} moved to ${dest.label}.`);
+}
+document.addEventListener('pointerup', pdDragEnd);
+document.addEventListener('pointercancel', () => { if (pdDrag?.on) pdDragEnd(); else if (pdDrag) { clearTimeout(pdDrag.hold); pdDrag = null; } });

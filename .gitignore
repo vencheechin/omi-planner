@@ -6,3 +6,7 @@ OMI Branding Style Guide*.md
 Start Planner.command
 
 .DS_Store
+
+# Planner Sync server data (team files, sign-ins, team code)
+sync-server/data/
+Start Sync Server.command
