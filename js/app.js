@@ -2183,11 +2183,12 @@ async function dragEnd(drop) {
     commit();
     refreshLabels();
   } else if (s.type === 'check') {
+    // Your own order only (kept with your copy of the task); everyone else keeps theirs.
     const t = openTaskObj();
-    const moved = t.checklist.find((c) => c.id === s.id);
-    t.checklist = t.checklist.filter((c) => c !== moved);
-    const i = s.target.beforeId ? t.checklist.findIndex((c) => c.id === s.target.beforeId) : t.checklist.length;
-    t.checklist.splice(i, 0, moved);
+    const ids = ckSorted(t).map((c) => c.id).filter((id) => id !== s.id);
+    const i = s.target.beforeId ? ids.indexOf(s.target.beforeId) : ids.length;
+    ids.splice(i < 0 ? ids.length : i, 0, s.id);
+    t.ckOrder = ids;
     commit();
   }
 }
