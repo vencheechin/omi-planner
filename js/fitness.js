@@ -203,27 +203,73 @@ function fitNudge() {
   const type = f.breaks.types[done.length % Math.max(1, f.breaks.types.length)] || 'Stretching';
   restPopup(type);
 }
+// Each reminder: a little emoji picture, a line to make you smile, and something to do.
 const REST_LINES = [
-  ['🧘', 'Your chair misses you less than your spine does.', 'Stand up and stretch'],
-  ['🐉', 'The dragon needs to wake up.', 'A few rounds of Qi Gong'],
-  ['🌿', 'Breathe in focus, breathe out spreadsheets.', 'Slow breathing and a stretch'],
-  ['🙆', 'Shoulders up by your ears again?', 'Roll them back and stretch'],
-  ['🌊', 'Flow like water, not like a frozen screen.', 'Gentle Qi Gong flow'],
-  ['☕', 'Great work deserves a great break.', 'Walk, stretch, refill water'],
-  ['🦒', 'Be the giraffe: reach for the sky.', 'Full-body stretch'],
-  ['🥋', 'Even masters pause between moves.', 'Qi Gong: lift the sky, push the mountain'],
+  ['🧘‍♀️🌿✨', 'Your chair called. It needs a break from you too.', 'Stand up and stretch tall'],
+  ['🐉☁️🏔️', 'The dragon in you is yawning.', 'Qi Gong: lift the sky, push the mountain'],
+  ['🦒⬆️☀️', 'Be a giraffe for a minute: reach for the sky.', 'Full-body stretch, arms up high'],
+  ['🐢🍵🌸', 'Slow is smooth, smooth is fast.', 'Sip some tea and breathe slowly'],
+  ['🙆‍♂️💆‍♀️😌', 'Are your shoulders wearing your ears as earrings again?', 'Roll your shoulders back ten times'],
+  ['🐼🎋😴', 'Even pandas take breaks, and they only eat bamboo.', 'Walk around and loosen up'],
+  ['🌊🏄‍♂️🐚', 'Ride the wave, don’t become the screen.', 'Gentle Qi Gong flow, like waves'],
+  ['🐱🧶🙃', 'Cats stretch 40 times a day. Copy the cat.', 'Cat-cow stretch for your back'],
+  ['🚀🪐🌙', 'Mission control says: astronaut needs to float for 5 minutes.', 'Stand, sway and float your arms'],
+  ['🌳🍃🐦', 'Trees don’t rush, and they still grow tall.', 'Stand like a tree and breathe'],
+  ['🥋🙏✨', 'Even masters pause between moves.', 'A few slow Qi Gong movements'],
+  ['☕💧🚶', 'Your water bottle misses you.', 'Refill your water and walk'],
+  ['🦩🦵⚖️', 'Flamingo time: one leg, big smile.', 'Balance on each leg for 30 seconds'],
+  ['🐻🍯😊', 'Big bear stretch, then a little honey of a break.', 'Big bear stretch, arms wide'],
+  ['🎈😮‍💨🌈', 'Breathe in calm, breathe out spreadsheets.', 'Five slow, deep breaths'],
+  ['🐧🚶‍♂️❄️', 'Waddle like a penguin. Nobody is watching. Probably.', 'A short walk around'],
+  ['🌞🙌🌻', 'Sunflowers turn to the sun. Turn away from the screen.', 'Look out the window, stretch your neck'],
+  ['🦥💤🌴', 'Sloth mode activated, but only for 5 minutes.', 'Slow stretch from head to toe'],
+  ['🎶💃🕺', 'One song, one dance, zero judges.', 'Dance to one song'],
+  ['🐒🌴🍌', 'Shake it out like a happy monkey.', 'Shake your hands, arms and legs'],
+  ['🍃🌀🧘', 'Let your thoughts float by like leaves.', 'Breathing and gentle Qi Gong'],
+  ['🦉👀💤', 'Wise owls rest their eyes.', 'Close your eyes, then look far away'],
+  ['🏔️🧗‍♀️⛅', 'You climbed 25 minutes of mountain. Enjoy the view.', 'Stretch and enjoy the moment'],
+  ['🐝🌼🍯', 'Busy bee, the flowers will wait.', 'Step away and stretch'],
+  ['🎯✅😎', 'Focus round complete. Achievement unlocked: stretch.', 'Arms up, side bends'],
+  ['🦋🌷🌤️', 'Out of the cocoon, butterfly.', 'Open your chest and stretch your arms back'],
+  ['🐕🦴❤️', 'Good human. You’ve earned a walkies.', 'Go for a short walk'],
+  ['🌙⭐🤲', 'Hands up like you’re holding the moon.', 'Qi Gong: hold the moon above your head'],
+  ['🧃🍊😁', 'Snack o’clock? A healthy one, of course.', 'Fruit, water and a stretch'],
+  ['🐙🤸🌊', 'Be an octopus: wiggle everything.', 'Wiggle your fingers, wrists and toes'],
+  ['🕊️☮️🌿', 'Peace in, stress out.', 'Slow breathing, shoulders down'],
+  ['🦁👑🌅', 'Even the king of the jungle naps a lot.', 'Lion stretch: big yawn, arms out'],
+  ['🎨🖌️🌈', 'Your brain is a painter. Let the paint dry.', 'Step away from the screen'],
+  ['🐸🪷💚', 'Hop to it! Well, hop away from it.', 'A few small jumps or a walk'],
+  ['⏳😌🍵', 'Time flies. Make it land softly.', 'Sit back, breathe, sip tea'],
+  ['🌬️🍂🧘‍♂️', 'Wind blows, bamboo bends, nothing breaks.', 'Gentle side bends'],
+  ['🏆🎉🙌', 'Gold medal in focus. Victory lap, please.', 'Walk a lap around the office'],
+  ['🐳💦🌊', 'Whales come up for air. So should you.', 'Big breath in, slow breath out'],
+  ['🌱🪴😊', 'Plants need water and light. So do you.', 'Water, daylight and a stretch'],
+  ['🥟🍵😄', 'Your dumpling of a brain needs steaming down.', 'Close your eyes and relax your face'],
 ];
+// Shuffled once and dealt one at a time, so you see every message before any comes back.
+function nextRestLine() {
+  let bag = [];
+  try { bag = JSON.parse(localStorage.getItem('planner-rest-bag') || '[]'); } catch { /* blocked: start fresh */ }
+  bag = bag.filter((i) => Number.isInteger(i) && i < REST_LINES.length);
+  if (!bag.length) {
+    bag = REST_LINES.map((_, i) => i);
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+  }
+  const i = bag.shift();
+  try { localStorage.setItem('planner-rest-bag', JSON.stringify(bag)); } catch { /* fine: just less variety */ }
+  return REST_LINES[i];
+}
 /** The rest reminder: a fun nudge, then Done (counts the break), Snooze 5 min or Skip. */
 async function restPopup(type) {
   const f = fit();
   ui.fitNudgeOpen = true;
-  const [emo, line, idea] = REST_LINES[Math.floor(Math.random() * REST_LINES.length)];
+  const [art, line, idea] = nextRestLine();
   if (typeof playTone === 'function' && alarmPrefs().on) playTone('zen-chimes', alarmPrefs().vol);
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-    try { new Notification(`${emo} Time for a ${f.breaks.min}-minute rest`, { body: `${line} ${idea}.`, tag: 'rest' }); } catch { /* not supported */ }
+    try { new Notification(`${art} Time for a ${f.breaks.min}-minute rest`, { body: `${line} ${idea}.`, tag: 'rest' }); } catch { /* not supported */ }
   }
-  const v = await choiceDlg(`${emo} Time for a ${minsLabel(f.breaks.min)} rest`, `<p class="rest-line">${esc(line)}</p><p>${esc(minsLabel(f.breaks.every))} of focus done. ${esc(idea)}, or try some <b>${esc(type)}</b>.</p>`,
-    [{ v: 'done', label: 'Done, I rested', primary: true }, { v: 'snooze', label: 'In 5 min' }, { v: 'skip', label: 'Skip' }]);
+  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-art" aria-hidden="true">${art}</div><p class="rest-line">${esc(line)}</p><p class="rest-idea">${esc(idea)}. <span class="muted">${esc(f.breaks.every)} minutes of focus done.</span></p>`,
+    [{ v: 'done', label: 'Rest now', primary: true }, { v: 'snooze', label: 'In 5 min' }, { v: 'skip', label: 'Skip' }]);
   ui.fitNudgeOpen = false;
   if (v === 'done') fitLogBreak(type);
   else if (v === 'snooze') { ui.fitNextNudge = Date.now() + 5 * 60000; toast('I’ll remind you in 5 minutes.'); }
