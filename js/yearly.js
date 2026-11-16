@@ -41,7 +41,7 @@ function yrMonthHTML({ y, m }) {
       <td class="yr-act">${day.task && taskById(day.task) ? `<button class="yr-tlink" data-open-task="${esc(day.task)}" title="Open its task" aria-label="Open its task">${icon('check', 12)}</button>` : ''}<button class="icon-btn yr-more" data-act="yrMenu" data-iso="${iso}" aria-label="Options for ${d} ${YR_MON[m - 1]}">${icon('more', 14)}</button></td></tr>`);
   }
   const cur = today.slice(0, 7) === yrIso(y, m, 1).slice(0, 7);
-  return `<section class="yr-month ${cur ? 'yr-cur' : ''}"><table class="yr-tbl">
+  return `<section class="yr-month ${cur ? 'yr-cur' : ''}" data-ym="${yrIso(y, m, 1).slice(0, 7)}"><table class="yr-tbl">
     <colgroup><col class="c-dn"><col class="c-wd">${YR_COLS.map(([k]) => `<col class="c-${k}">`).join('')}<col class="c-act"></colgroup>
     <thead><tr class="yr-mh"><th colspan="${YR_COLS.length + 3}">${YR_MON[m - 1]} ${String(y).slice(2)}${cur ? '<span class="yr-curtag">This month</span>' : ''}</th></tr>
       <tr><th class="yr-dn"></th><th class="yr-wd"></th>${YR_COLS.map(([k, l]) => `<th class="yr-${k}">${l}</th>`).join('')}<th class="yr-act"></th></tr></thead>
@@ -56,6 +56,8 @@ function renderYearly() {
       <div class="spacer"></div>
       <div class="seg">${[['h1', 'Jan – Jun'], ['h2', 'Jul – Dec'], ['year', 'Full Year']].map(([k, l]) => `<button class="${v.span === k ? 'on' : ''}" data-act="yrSpan" data-v="${k}">${l}</button>`).join('')}</div>
       <div class="row bp-year"><button class="icon-btn" data-act="yrYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><b>${v.year}</b><button class="icon-btn" data-act="yrYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>
+      <button class="btn ghost sm" data-act="yrThisMonth" title="Go to this month">${icon('cal', 14)} This month</button>
+      <label class="yr-jump" title="Go to a month"><span class="sr-only">Go to month</span><input type="month" value="${esc(ui.yr.focus || `${v.year}-${String(yrMonths()[0].m).padStart(2, '0')}`)}" data-change="yrGo" aria-label="Go to month and year"></label>
     </header>
     <p class="small muted yr-count">${count} day${count === 1 ? '' : 's'} with an event in ${v.year}</p>
     <div class="yr-scroll" data-scroll="yearly"><div class="yr-months">${months.map(yrMonthHTML).join('')}</div></div>
@@ -77,6 +79,7 @@ const yrNext = (iso, n) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.
 
 Object.assign(actions, {
   yrSpan: (el) => { ui.yr.span = el.dataset.v; render(); },
+  yrThisMonth: () => yrGoTo(todayISO().slice(0, 7)),
   yrYear: (el) => { ui.yr.year += Number(el.dataset.d); render(); },
   yrMenu: (el) => openPop(el, () => yrMenuHTML(el.dataset.iso)),
   yrColour: (el) => { yrSet(el.dataset.iso, 'c', el.dataset.v); closePop(); commit(); },
@@ -119,6 +122,7 @@ Object.assign(actions, {
   },
 });
 Object.assign(changes, {
+  yrGo: (el) => { if (/^\d{4}-\d{2}$/.test(el.value)) yrGoTo(el.value); },
   yrCell: (el) => { yrSet(el.dataset.iso, el.dataset.k, el.value.trim().slice(0, 300)); Store.save(); },
 });
 // Keep the fields of the row you were typing in when the page redraws (only the changed cell is saved; no redraw needed).
@@ -228,4 +232,25 @@ if (typeof render === 'function') {
   const origRenderYr = render;
   // eslint-disable-next-line no-global-assign
   render = function renderKeepRange() { const out = origRenderYr.apply(this, arguments); if (ui.route?.view === 'yearly') yrPaint(); return out; };
+}
+
+// ---------- Jump to a month ----------
+/** Shows the year and half that hold this month, then scrolls it to the left edge. */
+function yrGoTo(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  ui.yr = ui.yr || { year: y, span: 'h1' };
+  ui.yr.year = y;
+  if (ui.yr.span !== 'year') ui.yr.span = m <= 6 ? 'h1' : 'h2';
+  ui.yr.focus = ym;
+  render();
+  setTimeout(() => {
+    const box = $('.yr-scroll');
+    const sec = $(`.yr-month[data-ym="${ym}"]`);
+    if (!box || !sec) return;
+    box.scrollLeft += sec.getBoundingClientRect().left - box.getBoundingClientRect().left;
+    sec.classList.add('yr-flash');
+    setTimeout(() => sec.classList.remove('yr-flash'), 1200);
+    // Today's row in view too, when going to this month.
+    if (ym === todayISO().slice(0, 7)) $(`tr[data-iso="${todayISO()}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, 30);
 }
