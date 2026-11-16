@@ -271,7 +271,7 @@ function renderSidebar() {
       <div class="nav-main">${(() => {
         // The main links, in the order you dragged them into (new ones go at the end).
         const pdOn = stAdmin() || stPlans().some((x) => x.module === 'pd' && stCanSee(x));
-        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Plan', 'flag')]] : []), ['hub', link('hub', 'Planner', 'home', dueSoonCount())],
+        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Plan', 'flag')]] : []), ['hub', link('hub', 'Planner', 'home', dueSoonCount())], ['yearly', link('yearly', 'Yearly Planner', 'cal')],
           ['timebox', link('timebox', 'Time Box', 'clock', timeboxQueue().length)], ['report', link('report', 'Assignments', 'chart', toCheck)],
           ['fitness', link('fitness', 'Fitness', 'pulse')], ['growth', link('growth', 'Growth', 'book', typeof recsForMe === 'function' ? recsForMe().length : 0)],
           ...(stAdmin() ? [['admin', link('admin', 'Admin Portal', 'shield')]] : [])];
@@ -760,5 +760,6 @@ function renderMain() {
   if (r.view === 'growth') return renderGrowth();
   if (r.view === 'timebox') return renderPlanner();
   if (r.view === 'halfplan' || r.view === 'pdplan') return renderBrandPlan();
+  if (r.view === 'yearly') return renderYearly();
   return renderHub();
 }

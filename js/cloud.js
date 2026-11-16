@@ -17,7 +17,7 @@
 const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired', 'myOrder', 'myBucketId', 'fromBucketId', 'fromOrder', 'tbRank', 'tbSessions', 'tbQueuedAt', 'fitAct', 'dailyPlan', 'fitDay', 'growBook'];
 const PLAN_LOCAL_FIELDS = ['pinned', 'personal', 'fromPos', 'fromColor'];
 const PERSON_FIELDS = ['name', 'email', 'color'];
-const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat', 'fromBoards', 'fitness', 'growth'];
+const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat', 'fromBoards', 'fitness', 'growth', 'yearly'];
 const ALL_TASK_FIELDS = [...TASK_FIELDS, ...TASK_LOCAL_FIELDS];
 const ALL_PLAN_FIELDS = [...PLAN_FIELDS, ...PLAN_LOCAL_FIELDS];
 const KIND_ORDER = { person: 0, prefs: 1, plan: 2, planLocal: 3, task: 4, taskLocal: 5 };
@@ -31,7 +31,7 @@ const pickFields = (obj, fields) => {
   return out;
 };
 /** The preferences that follow you between devices, as one record. */
-const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat, fromBoards: S.settings.fromBoards || {}, fitness: S.settings.fitness || null, growth: S.settings.growth || null });
+const prefsRecord = () => ({ id: 'prefs', timebox: S.settings.timebox, personPlans: S.personPlans, days: S.days, chat: S.settings.chat, fromBoards: S.settings.fromBoards || {}, fitness: S.settings.fitness || null, growth: S.settings.growth || null, yearly: S.settings.yearly || null });
 
 /**
  * Notes field changes (with time and author) and marks changed records for upload. Runs after
@@ -516,6 +516,7 @@ function applyCloudRow(row, notices, adoptMine = false) {
         else if (f === 'personPlans') S.personPlans = Array.isArray(d.personPlans) ? clone(d.personPlans) : S.personPlans;
         else if (f === 'days') S.days = d.days && typeof d.days === 'object' ? clone(d.days) : S.days;
         else if (f === 'chat') S.settings.chat = normalizeChatPrefs(clone(d.chat));
+        else if (f === 'yearly') S.settings.yearly = d.yearly && typeof d.yearly === 'object' ? clone(d.yearly) : S.settings.yearly;
         else if (f === 'growth') S.settings.growth = d.growth && typeof d.growth === 'object' ? clone(d.growth) : S.settings.growth;
         else if (f === 'fitness') S.settings.fitness = d.fitness && typeof d.fitness === 'object' ? clone(d.fitness) : S.settings.fitness;
         else if (f === 'fromBoards') S.settings.fromBoards = d.fromBoards && typeof d.fromBoards === 'object' ? clone(d.fromBoards) : S.settings.fromBoards;

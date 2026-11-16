@@ -20,6 +20,7 @@ function fnCatalog() {
     { label: 'S-Team Plan', words: 'brand half year h1 h2 months traffic light pic', ic: 'table', go: '#/halfplan' },
     ...(pdOn ? [{ label: 'PD Plan', words: 'product development suggest access', ic: 'flag', go: '#/pdplan' }] : []),
     { label: 'Planner', words: 'home hub plans tasks due', ic: 'home', go: '#/hub' },
+    { label: 'Yearly Planner', words: 'year calendar events itinerary travel holiday trip hotel transport', ic: 'cal', go: '#/yearly' },
     { label: 'Time Box', words: 'timebox schedule calendar day week block allocation', ic: 'clock', go: '#/timebox' },
     { label: 'Assignments', words: 'report delegated check review', ic: 'chart', go: '#/report' },
     { label: 'Fitness', words: 'exercise health workout', ic: 'pulse', go: '#/fitness' },
