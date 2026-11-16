@@ -78,6 +78,9 @@ function normalizeStPlan(p) {
     ...(p.module === 'pd' ? { module: 'pd' } : {}),
     ...(p.access && typeof p.access === 'object' ? { access: Object.fromEntries(Object.entries(p.access).filter(([k, v]) => typeof k === 'string' && ['view', 'suggest', 'edit'].includes(v))) } : {}),
     ...(Array.isArray(p.sugg) ? { sugg: normalizeSugg(p.sugg) } : {}),
+    // PD pipeline: framework and products (see pipeline.js).
+    ...(p.fw && typeof pdNormFw === 'function' && pdNormFw(p.fw) ? { fw: pdNormFw(p.fw) } : {}),
+    ...(Array.isArray(p.products) && typeof pdNormProduct === 'function' ? { products: p.products.map(pdNormProduct).filter(Boolean) } : {}),
     ...normalizeBrandPlan(p),
   };
 }
@@ -372,11 +375,11 @@ function bpColStyle(n, w = bpColW()) {
   if (w.month) v.push(`--bp-mw:${w.month}px`, `width:${(w.brand || bpColDefault('brand')) + (w.pic || bpColDefault('pic')) + 40 + n * w.month}px`);
   return v.join(';');
 }
-const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])) });
+const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])), ...(p.module === 'pd' ? { fw: p.fw || null, ...Object.fromEntries((p.products || []).map((x) => [`pr:${x.id}`, x])) } : {}) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function stFields(p) {
-  const f = new Set(p.groups.map((g) => `g:${g.id}`));
-  [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:')) f.add(k); });
+  const f = new Set([...p.groups.map((g) => `g:${g.id}`), ...(p.module === 'pd' ? ['fw', ...(p.products || []).map((x) => `pr:${x.id}`)] : [])]);
+  [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:') || k.startsWith('pr:') || k === 'fw') f.add(k); });
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
@@ -409,7 +412,15 @@ function applyStPlan(id, d) {
   let changed = false;
   let order = null;
   for (const [f, rv] of Object.entries(v)) {
-    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && !f.startsWith('g:')) || !newer(rv, b._v[f])) continue;
+    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && f !== 'fw' && !f.startsWith('g:') && !f.startsWith('pr:')) || !newer(rv, b._v[f])) continue;
+    if (f === 'fw') { b.fw = (typeof pdNormFw === 'function' && pdNormFw(d.fw)) || null; b._v[f] = rv; changed = true; continue; }
+    if (f.startsWith('pr:')) {
+      const pid = f.slice(3);
+      const x = typeof pdNormProduct === 'function' ? pdNormProduct(d[f]) : null;
+      b.products = (Array.isArray(b.products) ? b.products : []).filter((y) => y.id !== pid);
+      if (x) b.products.push(x);
+      b._v[f] = rv; changed = true; continue;
+    }
     if (f === 'sugg') { b.sugg = normalizeSugg(d.sugg); b._v[f] = rv; changed = true; continue; }
     if (f === 'approval') { const before = b.approval?.status; b.approval = d.approval && typeof d.approval === 'object' ? d.approval : null; stApprovalNotice(b, before); }
     else
@@ -429,7 +440,7 @@ function applyStPlan(id, d) {
     changed = true;
   }
   if (order) b.groups.sort((x, y) => ((order.indexOf(x.id) + 1) || 1e9) - ((order.indexOf(y.id) + 1) || 1e9));
-  if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:')) sh[f] = fieldHash(rec[f]); }); }
+  if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:') || f.startsWith('pr:')) sh[f] = fieldHash(rec[f]); }); }
   return changed;
 }
 // ---------- Approval: DIC submits, CEO approves; changes after approval need the CEO's OK ----------
