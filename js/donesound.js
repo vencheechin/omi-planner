@@ -6,6 +6,7 @@ const DONE_SOUNDS = [
   { genre: 'Zen', tones: [['tibetan', 'Tibetan singing bowl'], ['bowl', 'Soft bowl'], ['windchime', 'Wind chime'], ['zengarden', 'Zen garden']] },
   { genre: 'Nature', tones: [['wind', 'Wind'], ['wave', 'Wave']] },
   { genre: 'Classic', tones: [['ding', 'Ding'], ['chime', 'Double chime'], ['marimba', 'Marimba']] },
+  { genre: 'Young', tones: [['cool', 'Cool'], ['rock', 'Rock'], ['hardrock', 'Hard rock']] },
   { genre: 'Fun', tones: [['coin', 'Coin'], ['tada', 'Ta-da']] },
 ];
 /** Filtered noise that swells in and fades out, with the filter sweeping: wind and waves. */
@@ -38,6 +39,10 @@ const DONE_FX = {
   zengarden: (c, o) => { note(c, o, { f: 560, bend: 480, d: 0.18, type: 'triangle', g: 0.4, a: 0.002 }); noise(c, o, { d: 0.05, g: 0.2, freq: 900, q: 4 }); [0.45, 0.8, 1.1].forEach((t) => { const f = 900 + Math.random() * 500; note(c, o, { f, bend: f * 1.8, t, d: 0.14, g: 0.2, a: 0.002 }); }); },
   wind: (c, o) => { swell(c, o, { d: 1.8, g: 0.45, from: 300, to: 1100, q: 2.5, peak: 0.45 }); swell(c, o, { t: 0.3, d: 1.4, g: 0.15, from: 700, to: 1800, q: 6, peak: 0.5 }); },
   wave: (c, o) => { swell(c, o, { d: 2.2, g: 0.5, from: 250, to: 1600, type: 'lowpass', q: 0.5, peak: 0.4 }); swell(c, o, { t: 0.7, d: 1.4, g: 0.12, from: 2500, to: 5000, type: 'highpass', q: 0.3, peak: 0.2 }); },
+  // Young: a cool synth hook, a rock stab, and a heavier distorted hit (original, made here).
+  cool: (c, o) => { [[659.3, 0], [784, 0.1], [987.8, 0.2], [1174.7, 0.3]].forEach(([f, t]) => { note(c, o, { f, t, d: 0.22, type: 'square', g: 0.07, a: 0.004 }); note(c, o, { f: f * 1.007, t, d: 0.22, type: 'sawtooth', g: 0.05, a: 0.004 }); }); kick(c, o, 0); noise(c, o, { t: 0.2, d: 0.06, g: 0.15, freq: 8000, q: 0.6, type: 'highpass' }); note(c, o, { f: 1318.5, t: 0.4, d: 0.5, type: 'triangle', g: 0.15 }); },
+  rock: (c, o) => { const amp = drive(c, o, 40); [[110, 0], [146.8, 0.22]].forEach(([f, t]) => { note(c, amp, { f, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.3 }); note(c, amp, { f: f * 1.5, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.22 }); }); kick(c, o, 0); snare(c, o, 0.22); noise(c, o, { t: 0.22, d: 0.6, g: 0.18, freq: 7000, q: 0.5, type: 'highpass' }); },
+  hardrock: (c, o) => { const amp = drive(c, o, 120); [[82.4, 0, 0.12], [82.4, 0.13, 0.12], [98, 0.26, 0.12], [73.4, 0.4, 0.9]].forEach(([f, t, d]) => { note(c, amp, { f, t, d, type: 'sawtooth', g: 0.35 }); note(c, amp, { f: f * 1.5, t, d, type: 'sawtooth', g: 0.28 }); note(c, amp, { f: f * 2, t, d, type: 'square', g: 0.12 }); }); [0, 0.13, 0.26, 0.4].forEach((t) => kick(c, o, t)); snare(c, o, 0.4); noise(c, o, { t: 0.4, d: 0.9, g: 0.25, freq: 6000, q: 0.4, type: 'highpass' }); },
 };
 const doneSndPrefs = () => { const p = { on: true, tone: 'ding', vol: 0.6, ...(S.settings.doneSound || {}) }; if (!DONE_FX[p.tone]) p.tone = 'ding'; return p; };
 function playDoneSound(id = doneSndPrefs().tone, vol = doneSndPrefs().vol) {

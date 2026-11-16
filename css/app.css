@@ -2131,3 +2131,10 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
   .mc-chip { font-size: 10px; }
   .mc-hol { font-size: 9.5px; padding: 1px 3px; }
 }
+
+/* Rest and recovery (Fitness) */
+.rest-hub .stat-row { margin-bottom: 10px; }
+.rest-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rest-tbl th, .rest-tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.rest-tbl thead th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+@media (max-width: 600px) { .rest-tbl { font-size: 12px; } .rest-tbl th, .rest-tbl td { padding: 5px 4px; } }

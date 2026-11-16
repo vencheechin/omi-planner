@@ -131,7 +131,7 @@ function renderFitness() {
     </section>
 
     <section class="dr-hub"><h2>Recent</h2>
-      ${recent.length ? `<ul class="fit-log">${recent.map((l) => `<li><span>${esc(dayLabel(l.date))}</span><b>${esc(l.act === 'break' ? `${l.type || 'Movement'} break` : fitTarget(l.act)?.name || 'Exercise')}</b><span class="muted">${esc(fmtDur(l.min))}</span><button class="chip-x" data-act="fitLogDel" data-id="${esc(l.id)}" aria-label="Remove">${icon('close', 10)}</button></li>`).join('')}</ul>` : '<p class="muted small">Nothing logged yet. Workouts you tick off in the Time Box count too.</p>'}
+      ${recent.length ? `<ul class="fit-log">${recent.map((l) => `<li><span>${esc(dayLabel(l.date))}</span><b>${esc(l.act === 'rest' ? `Rest · ${l.name || 'Workout'}` : l.act === 'break' ? `${l.type || 'Movement'} break` : fitTarget(l.act)?.name || 'Exercise')}</b><span class="muted">${esc(fmtDur(l.min))}</span><button class="chip-x" data-act="fitLogDel" data-id="${esc(l.id)}" aria-label="Remove">${icon('close', 10)}</button></li>`).join('')}</ul>` : '<p class="muted small">Nothing logged yet. Workouts you tick off in the Time Box count too.</p>'}
     </section>
   </div>`;
 }
