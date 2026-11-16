@@ -970,6 +970,7 @@ const actions = {
     location.hash = '#/timebox';
   },
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
+  reqGroup: (el) => { S.settings.reqGroup = el.dataset.v; Store.save(); render(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);
     if (delegatorOnly(t)) { lockedNote(t, 'progress'); return; }

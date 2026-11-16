@@ -2184,3 +2184,9 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .pg-pick.locked .pg-step, .tl-direct.locked .tl button { cursor: not-allowed; }
 .pg-pick.locked .pg-step:hover, .tl-direct.locked .tl button:hover { transform: none; }
 .tl-direct.locked .tl button:not(.on) { opacity: .25; }
+
+/* Requests grouped by person or due date */
+.rq-groupby { align-items: center; }
+.rq-gl { font-size: 12px; color: var(--muted); padding: 0 8px; }
+.rq-group + .rq-group { margin-top: 16px; }
+.rq-gh { display: flex; align-items: center; gap: 8px; font-size: calc(14px * var(--scale) * var(--type)); margin: 0 0 8px; }

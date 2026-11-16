@@ -220,6 +220,20 @@ function requestsNavHTML(r) {
     ${row('#/req/approval/to', reqOn('approval', 'to'), 'approve', 'Pending Approval', n('approval', 'to'))}
     ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}`;
 }
+/** Checking / approval / decision lists: grouped by the person (default) or by the task's due date. */
+const reqGroupBy = () => (S.settings.reqGroup === 'due' ? 'due' : 'person');
+const reqGroupBarHTML = () => `<div class="seg rq-groupby" role="group" aria-label="Group by"><span class="rq-gl">Group by</span>${[['person', 'Person'], ['due', 'Due date']].map(([v, l]) => `<button class="${reqGroupBy() === v ? 'on' : ''}" data-act="reqGroup" data-v="${v}">${l}</button>`).join('')}</div>`;
+function reqGroupedHTML(list, personOf, item) {
+  let groups;
+  if (reqGroupBy() === 'due') {
+    groups = DUE_GROUPS.map((g) => ({ head: `<span class="${g.key === 'late' ? 'danger-text' : ''}">${esc(g.label)}</span>`, items: list.filter((t) => dueGroupOf(t.due) === g.key).sort((a, b) => String(a.due).localeCompare(String(b.due))) }));
+  } else {
+    const keys = [...new Set(list.map((t) => personOf(t)?.id || '?'))];
+    groups = keys.map((k) => { const p = list.map(personOf).find((x) => (x?.id || '?') === k); return { name: p?.name || 'Someone', head: `${p ? avatar(p, 22) : ''}<span>${esc(p?.name || 'Someone')}</span>`, items: list.filter((t) => (personOf(t)?.id || '?') === k) }; })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+  return groups.filter((g) => g.items.length).map((g) => `<div class="rq-group"><h3 class="rq-gh">${g.head} <span class="count">${g.items.length}</span></h3><div class="dr-cards">${g.items.map(item).join('')}</div></div>`).join('');
+}
 /** Tasks waiting for your check, or ones you submitted that are waiting for someone else's. */
 function renderChecking() {
   const mine = ui.route.dir !== 'sent';
@@ -230,8 +244,8 @@ function renderChecking() {
   };
   return `<div class="page">
     <header class="page-head"><h1>${mine ? 'Checking' : 'Pending Checking'}</h1></header>
-    <div class="dr-tools"><div class="seg"><a class="${mine ? 'on' : ''}" href="#/check/me">For me to check</a><a class="${mine ? '' : 'on'}" href="#/check/sent">Waiting on others</a></div></div>
-    <section class="dr-hub">${list.length ? `<div class="dr-cards">${list.map(item).join('')}</div>` : `<p class="muted small">${mine ? 'Nothing waiting for your check.' : 'Nothing you submitted is waiting.'}</p>`}</section>
+    <div class="dr-tools"><div class="seg"><a class="${mine ? 'on' : ''}" href="#/check/me">For me to check</a><a class="${mine ? '' : 'on'}" href="#/check/sent">Waiting on others</a></div>${reqGroupBarHTML()}</div>
+    <section class="dr-hub">${list.length ? reqGroupedHTML(list, (t) => (mine ? person(t.review.by) : person(reviewerOf(t))), item) : `<p class="muted small">${mine ? 'Nothing waiting for your check.' : 'Nothing you submitted is waiting.'}</p>`}</section>
   </div>`;
 }
 function reqNavHTML(r, kind, dir) {
@@ -397,13 +411,14 @@ function renderRequests() {
     return `<div class="dr-item"><div class="dr-who">${reqForMe(t, kind) ? `From <b>${esc(other)}</b>` : `To <b>${esc(other)}</b>`} · asked ${esc(fmtDate(new Date(r.at).toISOString().slice(0, 10)))}${dl ? ` · <span class="${dl < todayISO() ? 'danger-text' : ''}">${K.by} ${esc(fmtDate(dl))}</span>` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`;
   };
   const sec = (title, list, empty) => `<section class="dr-hub"><h2>${title} <span class="count">${list.length}</span></h2>
-    ${list.length ? `<div class="dr-cards">${list.map(item).join('')}</div>` : `<p class="muted small">${empty}</p>`}</section>`;
+    ${list.length ? reqGroupedHTML(list, (t) => personByKey(reqOther(t, kind)), item) : `<p class="muted small">${empty}</p>`}</section>`;
   const href = (k, d) => `#/req/${k}/${d}${key ? `/${encodeURIComponent(key)}` : ''}`;
   return `<div class="page">
     <header class="page-head"><h1>${K.mark} ${dir === 'from' ? (kind === 'decision' ? 'Decision Required' : 'Approval') : dir === 'to' ? (kind === 'decision' ? 'Pending Decision' : 'Pending Approval') : K.label}${who ? `: ${esc(who.name)}` : ''}</h1></header>
     <div class="dr-tools">
       <div class="seg">${Object.entries(REQ_KINDS).map(([k, x]) => `<a class="${k === kind ? 'on' : ''}" href="${href(k, dir || 'all')}">${x.label.replace(' Request', '')}</a>`).join('')}</div>
       <div class="seg">${[['all', 'All'], ['from', 'From'], ['to', 'To']].map(([d, l]) => `<a class="${(dir || 'all') === d ? 'on' : ''}" href="${href(kind, d)}">${l}</a>`).join('')}</div>
+      ${reqGroupBarHTML()}
       <label class="mini">Sort by <select data-change="decSort">${DEC_SORTS.map(([v, l]) => `<option value="${v}" ${v === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
     ${dir !== 'to' ? sec(`${K.label} From`, fromList, who ? `Nothing from ${esc(who.name)} waiting for you.` : 'Nothing waiting for you.') : ''}
@@ -505,7 +520,6 @@ function cardHTML(t, { showPlan } = {}) {
     t.due ? `<span class="meta ${isLate(t) ? 'late' : ''}" ${isLate(t) ? 'title="Late"' : ''}>${icon('cal', 13)}${fmtDate(t.due)}</span>` : '',
     t.repeat ? `<span class="meta" title="Repeats">${icon('repeat', 13)}</span>` : '',
     allFiles(t).length ? `<span class="meta" title="Files and links">${icon('clip', 13)}${allFiles(t).length}</span>` : '',
-    t.comments.some((c) => !c.deleted) ? `<span class="meta" title="Messages">${icon('chat', 13)}${t.comments.filter((c) => !c.deleted).length}</span>` : '',
   ].join('');
   return `<article class="card ${isDone(t) ? 'done' : ''}" data-open-task="${esc(t.id)}" data-drag="task" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title || 'Untitled task')}">
     ${t.labels.length ? `<div class="card-labels">${orderedLabels(plan, t.labels).map((l) => labelChip(plan, l)).join('')}</div>` : ''}
