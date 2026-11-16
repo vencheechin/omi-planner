@@ -114,15 +114,20 @@ function ownSoundHTML(kind) {
     <p class="small muted">A file: MP3, M4A or WAV up to ${OWN_MAX_MB} MB, kept on this device. A link: a direct link to a sound file, or a Dropbox or Google Drive share link (set to “anyone with the link”). YouTube and Spotify links can’t be played. ${kind === 'alarm' ? 'Plays up to 30 seconds.' : 'Plays the first 6 seconds.'}</p>
   </div>`;
 }
+// The "Your own sound" picker is hidden for now (Spotify / Instagram music can't be used anyway).
+// A sound someone already chose keeps playing; picking any listed sound replaces it.
+const OWN_PICKER = false;
 const ownOrigAlarmHTML = alarmPickerHTML;
 alarmPickerHTML = function () {
   const html = ownOrigAlarmHTML();
+  if (!OWN_PICKER) return html;
   const at = html.lastIndexOf('<p class="small muted">');
   return at < 0 ? html : html.slice(0, at) + ownSoundHTML('alarm') + html.slice(at);
 };
 const ownOrigDoneHTML = doneSoundHTML;
 doneSoundHTML = function () {
   const html = ownOrigDoneHTML();
+  if (!OWN_PICKER) return html;
   const at = html.lastIndexOf('</div>');
   return html.slice(0, at) + ownSoundHTML('done') + html.slice(at);
 };

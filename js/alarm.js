@@ -177,7 +177,6 @@ function alarmPickerHTML() {
     ${ALARM_TONES.map((g) => `<div class="alarm-genre"><b>${esc(g.genre)}</b>${g.tones.map(([v, label]) => `<div class="alarm-tone ${pr.tone === v ? 'on' : ''}">
       <button class="alarm-play icon-btn" data-act="alarmPreview" data-v="${v}" aria-label="Play ${esc(label)}" title="Play">▶</button>
       <button class="alarm-pick" data-act="alarmPick" data-v="${v}" aria-pressed="${pr.tone === v}"><span>${esc(label)}</span>${pr.tone === v ? icon('check', 14) : ''}</button></div>`).join('')}</div>`).join('')}
-    <p class="small muted">Sounds while Planner is open. On a phone, keep the ringer on.</p>
   </div>`;
 }
 const setAlarm = (patch) => { TB().alarm = { ...alarmPrefs(), ...patch }; commit(); };
