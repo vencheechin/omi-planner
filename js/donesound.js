@@ -137,7 +137,7 @@ const doneOrigApprove = actions.approveTask;
 const doneChime = (id) => { const t = taskById(id); if (t && (isDone(t) || t.review) && doneSndPrefs().on) playDoneSound(); };
 Object.assign(actions, {
   toggleDone: (el) => { const r = doneOrigToggle(el); doneChime(el.dataset.id); return r; },
-  approveTask: (el) => { const r = doneOrigApprove(el); doneChime(el.dataset.id); return r; },
+  approveTask: (el) => Promise.resolve(doneOrigApprove(el)).then((r) => { doneChime(el.dataset.id); return r; }),
   doneSndPreview: (el) => playDoneSound(el.dataset.v),
   doneSndPick: (el) => { setDoneSnd({ tone: el.dataset.v }); playDoneSound(el.dataset.v); refreshSettings(); },
 });

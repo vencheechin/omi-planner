@@ -565,7 +565,15 @@ const actions = {
     commit();
     toast(`Submitted to ${person(reviewerOf(t))?.name || 'the assigner'} for checking.`);
   },
-  approveTask: (el) => { setProgress(taskById(el.dataset.id), 100); commit(); toast('Approved and completed.'); },
+  approveTask: async (el) => {
+    const t = taskById(el.dataset.id);
+    const res = await noteDlg('Approve and complete', 'Comment (optional)', 'Approve');
+    if (!res) return;
+    if (res.note) t.comments.push({ id: uid(), author: S.meId, text: res.note, at: Date.now() });
+    setProgress(t, 100);
+    commit();
+    toast('Approved and completed.');
+  },
   sendBack: async (el) => {
     const t = taskById(el.dataset.id);
     const res = await noteDlg('Send back', 'Comment', 'Send back');
