@@ -2197,3 +2197,5 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .checked-item.ok { box-shadow: inset 3px 0 0 #4f7f3c; } .checked-item.back { box-shadow: inset 3px 0 0 var(--danger); }
 .checked-note { margin: 2px 0 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface); display: flex; gap: 8px; align-items: flex-start; font-size: calc(13.5px * var(--scale) * var(--type)); }
 .checked-close { justify-self: end; }
+
+.req-sub { margin-top: 10px; }

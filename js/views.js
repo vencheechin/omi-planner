@@ -217,7 +217,7 @@ function requestsNavHTML(r) {
     ${row('#/check/me', r.view === 'check' && r.dir === 'me', 'check', 'Checking', checkingForMe().length, true)}
     ${row('#/req/approval/from', reqOn('approval', 'from'), 'approve', 'Approval', n('approval', 'from'), true)}
     ${row('#/req/decision/from', reqOn('decision', 'from'), 'flag', 'Decision Required', n('decision', 'from'), true)}
-    <div class="req-gap"></div>
+    <h3 class="req-sub">Pending from Others</h3>
     ${row('#/check/sent', r.view === 'check' && r.dir === 'sent', 'clock', 'Pending Checking', checkingSent().length + checkedForMe().length, checkedForMe().length > 0)}
     ${row('#/req/approval/to', reqOn('approval', 'to'), 'approve', 'Pending Approval', n('approval', 'to'))}
     ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}`;
