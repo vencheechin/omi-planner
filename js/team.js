@@ -816,7 +816,7 @@ function activityHTML(t) {
 // ---------- Person plan page ----------
 function renderPersonPlan(pp) {
   const fkey = `person:${pp.id}`;
-  const tab = ui.planTab[fkey] || 'board';
+  const tab = 'board';
   const by = ui.groupBy[fkey] || 'stage';
   const who = person(pp.personId);
   const tasks = applyFilter(personPlanTasks(pp), filterOf(fkey));

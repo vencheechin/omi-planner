@@ -693,7 +693,7 @@ function chartsHTML(tasks, plan) {
 function toolbar({ fkey, by, options, tab, tabs }) {
   const n = filterCount(filterOf(fkey));
   return `<div class="toolbar">
-    <div class="tabs" role="tablist">${tabs.map(([k, label]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="setTab" data-tab="${k}">${label}</button>`).join('')}</div>
+    <div class="tabs" role="tablist" ${tabs.length < 2 ? 'hidden' : ''}>${tabs.map(([k, label]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="setTab" data-tab="${k}">${label}</button>`).join('')}</div>
     <div class="spacer"></div>
     ${tab === 'board' ? `<button class="btn ghost sm" data-act="groupMenu" data-options="${options.join(',')}">${icon('group', 14)} Group by ${esc(GROUPINGS[by])}</button>` : ''}
     <button class="btn ghost sm ${n ? 'active' : ''}" data-act="filterMenu">${icon('filter', 14)} Filter${n ? ` (${n})` : ''}</button>
@@ -701,11 +701,12 @@ function toolbar({ fkey, by, options, tab, tabs }) {
     <button class="btn ghost sm text-size-btn" data-act="sizeMenu" aria-label="Text size" title="Text size"><span aria-hidden="true">A<small>A</small></span></button>
   </div>`;
 }
-const TABS = [['grid', 'Grid'], ['board', 'Board'], ['schedule', 'Schedule'], ['charts', 'Charts']];
+// Grid, Schedule and Charts were removed: plans show as a board.
+const TABS = [['board', 'Board']];
 
 function renderPlan(plan) {
   const fkey = plan.id;
-  const tab = ui.planTab[plan.id] || 'board';
+  const tab = 'board';
   const by = ui.groupBy[plan.id] || 'bucket';
   const tasks = applyFilter(boardTasks(plan), filterOf(fkey));
   const ctx = { key: plan.id, planId: plan.id };
