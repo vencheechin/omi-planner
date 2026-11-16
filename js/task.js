@@ -201,7 +201,6 @@ function renderTask() {
       </div>
       ${workflowHTML(t)}
       <div class="task-fields two">
-        ${field(delegatedToMe(t) ? `Priority ${icon('lock', 11)}` : 'Priority', `<select data-change="taskField" data-field="priority" ${delegatedToMe(t) ? 'disabled' : ''}>${options(PRIORITY, t.priority)}</select>`)}
         ${field(dueLocked(t) ? `Due date ${icon('lock', 11)}` : 'Due date', `<input type="date" value="${t.due || ''}" data-change="taskField" data-field="due" class="${isLate(t) ? 'late-input' : ''}" ${dueLocked(t) ? `disabled title="Set by ${esc(person(t.assignedBy)?.name || 'the assigner')}"` : ''}>`)}
       </div>
       ${changeReqHTML(t)}
