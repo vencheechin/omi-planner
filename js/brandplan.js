@@ -16,7 +16,7 @@ const BP_STATUS = [
 const stPlans = () => (S.stPlans = Array.isArray(S.stPlans) ? S.stPlans : []);
 /** Which table is on screen: the S-Team Plan or the PD Plan (both are kept as S-Team plan records). */
 const stMod = () => (ui.route?.view === 'pdplan' ? 'pd' : 'st');
-const stModOf = (p) => (p?.module === 'pd' ? 'pd' : 'st');
+const stModOf = (p) => (p?.module === 'pd' ? 'pd' : p?.module === 'cal' ? 'cal' : 'st');
 /** Your access to a PD Plan, as set by an admin: 'view', 'suggest', 'edit' or ''. */
 const stAccessOf = (p) => (p?.access || {})[pkey(S.meId)] || '';
 /** Suggest-only people can propose changes; someone who can edit accepts them. */
@@ -35,6 +35,7 @@ function stAdmin() {
 }
 function stCanSee(p) {
   if (!p || p.deleted) return false;
+  if (p.module === 'cal') return true;
   if (stModOf(p) === 'pd') return stAdmin() || p.owner === S.meId || !!stAccessOf(p);
   if (stAdmin() || p.owner === S.meId || (p.viewers || []).includes(S.meId)) return true;
   const d = p.kind === 'dept' && deptById(p.dept);
@@ -44,6 +45,7 @@ function stCanSee(p) {
 const stLocked = (p) => ['submitted', 'approved', 'change-requested'].includes(p?.approval?.status);
 function stCanEdit(p) {
   if (!p) return false;
+  if (p.module === 'cal') return true;
   if (stAdmin()) return true;
   if (stModOf(p) === 'pd') return p.owner === S.meId || stAccessOf(p) === 'edit';
   if (stLocked(p)) return false;
@@ -75,7 +77,8 @@ function normalizeStPlan(p) {
     id: String(p.id), kind: p.kind === 'personal' ? 'personal' : 'dept', dept: p.dept || null, owner: p.owner || null, name: String(p.name || ''),
     viewers: Array.isArray(p.viewers) ? p.viewers.filter((x) => typeof x === 'string') : [], deleted: !!p.deleted,
     approval: p.approval && typeof p.approval === 'object' ? p.approval : null,
-    ...(p.module === 'pd' ? { module: 'pd' } : {}),
+    ...(p.module === 'pd' || p.module === 'cal' ? { module: p.module } : {}),
+    ...(Array.isArray(p.meetings) && typeof mcNorm === 'function' ? { meetings: p.meetings.map(mcNorm).filter(Boolean) } : {}),
     ...(p.access && typeof p.access === 'object' ? { access: Object.fromEntries(Object.entries(p.access).filter(([k, v]) => typeof k === 'string' && ['view', 'suggest', 'edit'].includes(v))) } : {}),
     ...(Array.isArray(p.sugg) ? { sugg: normalizeSugg(p.sugg) } : {}),
     // PD pipeline: framework and products (see pipeline.js).
@@ -363,7 +366,7 @@ const bpReadItems = (form) => $$('.bp-item', form).map((row) => ({
   ...(() => { try { return JSON.parse(row.querySelector('[name=link]')?.value || '{}'); } catch { return {}; } })(),
 })).filter((i) => i.text || i.pic || i.status || i.progress || i.stage);
 // ---------- Sharing: each plan is its own record (one field per group, plus order, period and who) ----------
-const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted, ...(p.module === 'pd' ? { module: 'pd', access: p.access || {} } : {}) });
+const stMeta = (p) => ({ name: p.name || '', kind: p.kind, dept: p.dept || null, owner: p.owner || null, viewers: p.viewers || [], deleted: !!p.deleted, ...(p.module === 'pd' ? { module: 'pd', access: p.access || {} } : {}), ...(p.module === 'cal' ? { module: 'cal' } : {}) });
 // Column widths are a viewing choice, kept on this device (drag a heading's right edge).
 const BP_COL_LIMITS = { brand: [90, 420], pic: [70, 320], month: [80, 420] };
 const bpColW = () => (typeof S !== 'undefined' && S.settings?.bpColW) || {};
@@ -379,11 +382,11 @@ function bpColStyle(n, w = bpColW()) {
   if (w.month) v.push(`--bp-mw:${w.month}px`, `width:${(w.brand || bpColDefault('brand')) + (w.pic || bpColDefault('pic')) + 40 + n * w.month}px`);
   return v.join(';');
 }
-const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])), ...(p.module === 'pd' ? { fw: p.fw || null, ...Object.fromEntries((p.products || []).map((x) => [`pr:${x.id}`, x])), ...Object.fromEntries((p.tastings || []).map((v) => [`ts:${v.id}`, v])) } : {}) });
+const stRecord = (p) => ({ meta: stMeta(p), approval: p.approval || null, sugg: p.sugg || [], order: p.groups.map((g) => g.id), cfg: p.cfg || null, ...Object.fromEntries(p.groups.map((g) => [`g:${g.id}`, g])), ...(p.module === 'pd' ? { fw: p.fw || null, ...Object.fromEntries((p.products || []).map((x) => [`pr:${x.id}`, x])), ...Object.fromEntries((p.tastings || []).map((v) => [`ts:${v.id}`, v])) } : {}), ...(p.module === 'cal' ? Object.fromEntries((p.meetings || []).map((m) => [`mt:${m.id}`, m])) : {}) });
 /** The fields to stamp: every group now, plus ones that were deleted (so the deletion syncs). */
 function stFields(p) {
-  const f = new Set([...p.groups.map((g) => `g:${g.id}`), ...(p.module === 'pd' ? ['fw', ...(p.products || []).map((x) => `pr:${x.id}`), ...(p.tastings || []).map((v) => `ts:${v.id}`)] : [])]);
-  [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:') || k.startsWith('pr:') || k.startsWith('ts:') || k === 'fw') f.add(k); });
+  const f = new Set([...p.groups.map((g) => `g:${g.id}`), ...(p.module === 'pd' ? ['fw', ...(p.products || []).map((x) => `pr:${x.id}`), ...(p.tastings || []).map((v) => `ts:${v.id}`)] : []), ...(p.module === 'cal' ? (p.meetings || []).map((m) => `mt:${m.id}`) : [])]);
+  [...Object.keys(S.sync?.shadow?.[`st:${p.id}`] || {}), ...Object.keys(p._v || {})].forEach((k) => { if (k.startsWith('g:') || k.startsWith('pr:') || k.startsWith('ts:') || k.startsWith('mt:') || k === 'fw') f.add(k); });
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
@@ -409,14 +412,21 @@ function applyOrg(d) {
 function applyStPlan(id, d) {
   if (!d || typeof d !== 'object' || !id) return false;
   let b = stPlans().find((x) => x.id === id);
-  if (!b) { b = normalizeStPlan({ id, kind: id === 'legacy' ? 'dept' : 'personal', groups: [] }); stPlans().push(b); }
+  if (!b) { b = normalizeStPlan({ id, kind: id === 'legacy' || id === 'meetings' ? 'dept' : 'personal', ...(id === 'meetings' ? { module: 'cal', name: 'Meeting Calendar' } : {}), groups: [] }); stPlans().push(b); }
   b._v = b._v || {};
   const sh = (S.sync.shadow[`st:${id}`] = S.sync.shadow[`st:${id}`] || {});
   const v = d._v || {};
   let changed = false;
   let order = null;
   for (const [f, rv] of Object.entries(v)) {
-    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && f !== 'fw' && !f.startsWith('g:') && !f.startsWith('pr:') && !f.startsWith('ts:')) || !newer(rv, b._v[f])) continue;
+    if ((f !== 'order' && f !== 'cfg' && f !== 'meta' && f !== 'approval' && f !== 'sugg' && f !== 'fw' && !f.startsWith('g:') && !f.startsWith('pr:') && !f.startsWith('ts:') && !f.startsWith('mt:')) || !newer(rv, b._v[f])) continue;
+    if (f.startsWith('mt:')) {
+      const mid = f.slice(3);
+      const m1 = typeof mcNorm === 'function' ? mcNorm(d[f]) : null;
+      b.meetings = (Array.isArray(b.meetings) ? b.meetings : []).filter((y) => y.id !== mid);
+      if (m1) b.meetings.push(m1);
+      b._v[f] = rv; changed = true; continue;
+    }
     if (f.startsWith('ts:')) {
       const vid = f.slice(3);
       const v1 = typeof pdNormTaste === 'function' ? pdNormTaste(d[f]) : null;
@@ -435,7 +445,7 @@ function applyStPlan(id, d) {
     if (f === 'sugg') { b.sugg = normalizeSugg(d.sugg); b._v[f] = rv; changed = true; continue; }
     if (f === 'approval') { const before = b.approval?.status; b.approval = d.approval && typeof d.approval === 'object' ? d.approval : null; stApprovalNotice(b, before); }
     else
-    if (f === 'meta') { if (d.meta && typeof d.meta === 'object') { const m = normalizeStPlan({ id, ...d.meta, groups: [] }); Object.assign(b, { name: m.name, kind: m.kind, dept: m.dept, owner: m.owner, viewers: m.viewers, deleted: m.deleted }); if (m.module === 'pd') { b.module = 'pd'; b.access = m.access || {}; } } }
+    if (f === 'meta') { if (d.meta && typeof d.meta === 'object') { const m = normalizeStPlan({ id, ...d.meta, groups: [] }); Object.assign(b, { name: m.name, kind: m.kind, dept: m.dept, owner: m.owner, viewers: m.viewers, deleted: m.deleted }); if (m.module === 'pd') { b.module = 'pd'; b.access = m.access || {}; } if (m.module === 'cal') b.module = 'cal'; } }
     else if (f === 'order') order = Array.isArray(d.order) ? d.order : null;
     else if (f === 'cfg') b.cfg = d.cfg && typeof d.cfg === 'object' ? bpNormCfg(d.cfg) : null;
     else {
@@ -451,7 +461,7 @@ function applyStPlan(id, d) {
     changed = true;
   }
   if (order) b.groups.sort((x, y) => ((order.indexOf(x.id) + 1) || 1e9) - ((order.indexOf(y.id) + 1) || 1e9));
-  if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:') || f.startsWith('pr:') || f.startsWith('ts:')) sh[f] = fieldHash(rec[f]); }); }
+  if (changed) { const rec = stRecord(b); Object.keys(v).forEach((f) => { if (f in rec || f.startsWith('g:') || f.startsWith('pr:') || f.startsWith('ts:') || f.startsWith('mt:')) sh[f] = fieldHash(rec[f]); }); }
   return changed;
 }
 // ---------- Approval: DIC submits, CEO approves; changes after approval need the CEO's OK ----------

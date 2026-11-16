@@ -35,9 +35,12 @@ function yrMonthHTML({ y, m }) {
     const iso = yrIso(y, m, d);
     const wd = new Date(y, m - 1, d).getDay();
     const day = yrDay(iso);
-    rows.push(`<tr class="${wd === 0 || wd === 6 ? 'yr-we' : ''} ${iso === today ? 'yr-today' : ''}" data-iso="${iso}">
+    const hol = typeof holidaysOn === 'function' ? holidaysOn(iso) : [];
+    const pub = hol.find((h) => h.kind === 'pub');
+    const sch = hol.find((h) => h.kind !== 'pub');
+    rows.push(`<tr class="${wd === 0 || wd === 6 ? 'yr-we' : ''} ${iso === today ? 'yr-today' : ''} ${pub ? 'yr-pub' : ''} ${sch?.kind === 'school' ? 'yr-sch' : ''}" data-iso="${iso}" ${hol.length ? `title="${esc(hol.map(holLabel).join(' · '))}"` : ''}>
       <td class="yr-dn">${d}</td><td class="yr-wd">${YR_WD[wd]}</td>
-      ${YR_COLS.map(([k, label]) => `<td class="yr-${k}" ${k === 'ev' && day.c ? `style="--yc:${esc(day.c)}"` : ''}><input value="${esc(day[k] || '')}" data-change="yrCell" data-iso="${iso}" data-k="${k}" aria-label="${esc(`${label}, ${d} ${YR_MON[m - 1]} ${y}`)}" autocomplete="off"></td>`).join('')}
+      ${YR_COLS.map(([k, label]) => `<td class="yr-${k}" ${k === 'ev' && day.c ? `style="--yc:${esc(day.c)}"` : ''}><input value="${esc(day[k] || '')}" ${k === 'ev' && hol.length ? `placeholder="${esc(hol.map(holLabel).join(' · '))}"` : ''} data-change="yrCell" data-iso="${iso}" data-k="${k}" aria-label="${esc(`${label}, ${d} ${YR_MON[m - 1]} ${y}`)}" autocomplete="off"></td>`).join('')}
       <td class="yr-act">${day.task && taskById(day.task) ? `<button class="yr-tlink" data-open-task="${esc(day.task)}" title="Open its task" aria-label="Open its task">${icon('check', 12)}</button>` : ''}<button class="icon-btn yr-more" data-act="yrMenu" data-iso="${iso}" aria-label="Options for ${d} ${YR_MON[m - 1]}">${icon('more', 14)}</button></td></tr>`);
   }
   const cur = today.slice(0, 7) === yrIso(y, m, 1).slice(0, 7);
@@ -56,6 +59,7 @@ function renderYearly() {
       <div class="spacer"></div>
       <div class="seg">${[['h1', 'Jan – Jun'], ['h2', 'Jul – Dec'], ['year', 'Full Year']].map(([k, l]) => `<button class="${v.span === k ? 'on' : ''}" data-act="yrSpan" data-v="${k}">${l}</button>`).join('')}</div>
       <div class="row bp-year"><button class="icon-btn" data-act="yrYear" data-d="-1" aria-label="Previous year">${icon('chevL')}</button><b>${v.year}</b><button class="icon-btn" data-act="yrYear" data-d="1" aria-label="Next year">${icon('chevR')}</button></div>
+      <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
       <button class="btn ghost sm" data-act="yrThisMonth" title="Go to this month">${icon('cal', 14)} This month</button>
       <label class="yr-jump" title="Go to a month"><span class="sr-only">Go to month</span><input type="month" value="${esc(ui.yr.focus || `${v.year}-${String(yrMonths()[0].m).padStart(2, '0')}`)}" data-change="yrGo" aria-label="Go to month and year"></label>
     </header>

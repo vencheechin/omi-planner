@@ -70,6 +70,8 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/tasting.js` | PD Plan tasting log: each tasting is a version (photos shrunk to JPEG, comments, to-improve); counts versions before the 100% checkpoint; synced as `ts:<id>` fields |
 | `js/stages.js` | Stage list (Stage 1 Direction … 5 Review) picked on S-Team / PD Plan entries; admins edit numbers and names in Admin Portal › Stages; synced as `org.stages` |
 | `js/yearly.js` | Yearly Planner page (`#/yearly`): month blocks, a row per day with Event / Itinerary / Transport / Hotel, day colour, repeat to next days, optional Create task. Stored in `S.settings.yearly`, synced as the `yearly` prefs field |
+| `js/holidays.js` | VIC / NSW / ACT public holidays (live from date.nager.at, cached weekly) and school terms (written from the state education sites; update yearly). `holidaysOn(iso)` used by Yearly Planner and Meeting Calendar |
+| `js/meetcal.js` | Meeting Calendar (`#/meet`): day / week / month, create by clicking, drag to move, attendees by person key. Meetings live in the team-wide st record `meetings` (module `cal`), one `mt:<id>` field each |
 | `js/bin.js` | Recycle bin: drop or delete tasks, time boxes and S-Team rows; restore them one at a time. |
 | `js/history.js` | Undo/Redo and "confirm before deleting". |
 | `js/resize.js` | Resizable columns, reorderable left menu, phone swipe between Calendar and Allocation. |
