@@ -16,7 +16,7 @@
 
 const TASK_LOCAL_FIELDS = ['slotDate', 'slotStart', 'boxId', 'boxOrder', 'tbQueued', 'tbColor', 'myDay', 'box', 'reminders', 'remFired', 'myOrder', 'myBucketId', 'fromBucketId', 'fromOrder', 'tbRank', 'tbSessions', 'tbQueuedAt', 'fitAct', 'dailyPlan', 'fitDay', 'growBook'];
 const PLAN_LOCAL_FIELDS = ['pinned', 'personal', 'fromPos', 'fromColor'];
-const PERSON_FIELDS = ['name', 'email', 'color'];
+const PERSON_FIELDS = ['name', 'email', 'color', 'photo'];
 const PREFS_FIELDS = ['timebox', 'personPlans', 'days', 'chat', 'fromBoards', 'fitness', 'growth', 'yearly'];
 const ALL_TASK_FIELDS = [...TASK_FIELDS, ...TASK_LOCAL_FIELDS];
 const ALL_PLAN_FIELDS = [...PLAN_FIELDS, ...PLAN_LOCAL_FIELDS];

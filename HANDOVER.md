@@ -65,6 +65,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/donesound.js` | Short sound when a task is ticked complete; picked in Settings › Sounds (`S.settings.doneSound`) |
 | `js/rest.js` | Rest: Time Box › Not finished › Rest logs a skipped workout as rest (`fit().log` act `rest`); Fitness shows rest days, rests taken and the interval between sessions per activity |
 | `js/ownsound.js` | Your own sound for Time's up and Task complete: a file kept in IndexedDB (`planner-sounds`, this device) or a link (Dropbox / Drive share links made direct). Tone id `own` |
+| `js/photo.js` | Profile photo: Settings › People › tap your picture. Square 160px JPEG data URL in `person.photo` (synced via PERSON_FIELDS / team file); `avatar()` shows it |
 | `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/sttasks.js` | Every S-Team / PD Plan month entry gets its own Planner task (plan named after the S-Team Plan, bucket per brand, due month end, PIC assigned); progress syncs both ways; entries open their task |
 | `js/bpselect.js` | S-Team / PD Plan multi-select: Shift/Cmd-click (or Select on phones), drag together keeping spacing, copy/paste (Cmd/Ctrl+C/V or click a month), delete to bin |

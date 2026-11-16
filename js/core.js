@@ -1,4 +1,6 @@
 'use strict';
+/** A profile photo: a small JPEG/PNG data URL (made by Settings › People). */
+const okPhoto = (v) => typeof v === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length < 80000;
 /* Shared helpers, constants, the data model and on-device persistence. */
 
 // ---------- DOM + text helpers ----------
@@ -131,7 +133,7 @@ function normalizeState(raw) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.plans) || !Array.isArray(raw.tasks) || !Array.isArray(raw.people)) {
     throw new Error('This file is not a Planner backup.');
   }
-  const people = raw.people.filter((p) => p && p.id).map((p, i) => ({ id: String(p.id), name: String(p.name || 'Unnamed'), color: rebrand(p.color, OLD_PERSON_COLORS, PERSON_COLORS, PERSON_COLORS[i % PERSON_COLORS.length]), email: String(p.email || '').trim().toLowerCase(), ...(typeof p.style === 'string' ? { style: p.style.slice(0, 40) } : {}), ...(p._v && typeof p._v === 'object' ? { _v: p._v } : {}) }));
+  const people = raw.people.filter((p) => p && p.id).map((p, i) => ({ id: String(p.id), name: String(p.name || 'Unnamed'), color: rebrand(p.color, OLD_PERSON_COLORS, PERSON_COLORS, PERSON_COLORS[i % PERSON_COLORS.length]), email: String(p.email || '').trim().toLowerCase(), ...(typeof p.style === 'string' ? { style: p.style.slice(0, 40) } : {}), ...(okPhoto(p.photo) ? { photo: p.photo } : {}), ...(p._v && typeof p._v === 'object' ? { _v: p._v } : {}) }));
   if (!people.length) people.push({ id: uid(), name: 'Me', color: PERSON_COLORS[0] });
   const meId = people.some((p) => p.id === raw.meId) ? raw.meId : people[0].id;
   const plans = raw.plans.filter((p) => p && p.id).map((p) => ({

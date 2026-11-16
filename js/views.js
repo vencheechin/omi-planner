@@ -21,7 +21,9 @@ const ICON = {
 };
 const icon = (name, size = 16) => `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
 
-const avatar = (p, size = 26) => (p ? `<span class="avatar" style="--s:${size}px;background:${esc(p.color)}" title="${esc(p.name)}">${esc(initials(p.name))}</span>` : '');
+const avatar = (p, size = 26) => (!p ? '' : okPhoto(p.photo)
+  ? `<span class="avatar photo" style="--s:${size}px;background-image:url(${p.photo})" title="${esc(p.name)}" role="img" aria-label="${esc(p.name)}"></span>`
+  : `<span class="avatar" style="--s:${size}px;background:${esc(p.color)}" title="${esc(p.name)}">${esc(initials(p.name))}</span>`);
 const planTile = (p, size = 28) => `<span class="plan-tile" style="--s:${size}px;background:${esc(p.color)}" aria-hidden="true">${esc(initials(p.name))}</span>`;
 const labelChip = (plan, i) => `<span class="label-chip" style="background:${labelHex(plan, i)};color:${inkOn(labelHex(plan, i))}">${esc(labelName(plan, i))}</span>`;
 function priorityIcon(p) {

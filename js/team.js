@@ -191,11 +191,12 @@ function mergePeople(data) {
     }
     if (!local) {
       if (p.id === S.meId) continue;
-      S.people.push({ id: p.id, name: String(p.name || 'Teammate'), email, color: p.color || PERSON_COLORS[S.people.length % PERSON_COLORS.length] });
+      S.people.push({ id: p.id, name: String(p.name || 'Teammate'), email, color: p.color || PERSON_COLORS[S.people.length % PERSON_COLORS.length], ...(okPhoto(p.photo) ? { photo: p.photo } : {}) });
     } else if (p.id === owner.id && p.id !== S.meId) {
       local.name = String(p.name || local.name);
       local.email = email || local.email;
       if (typeof p.style === 'string') local.style = p.style;
+      if (okPhoto(p.photo)) local.photo = p.photo; else if (p.photo === null || p.photo === '') delete local.photo;
     }
     if (!local && p.id === owner.id && typeof p.style === 'string') { const added = person(p.id); if (added) added.style = p.style; }
   }

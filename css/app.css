@@ -2170,3 +2170,8 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .rest-pick { display: grid; gap: 6px; min-width: 250px; }
 .rest-pick .seg { display: flex; flex-wrap: wrap; }
 .rest-line { font-size: 1.08em; font-weight: 600; margin: 0 0 6px; }
+
+/* Profile photos */
+.avatar.photo { background-size: cover; background-position: center; background-color: var(--surface-2); }
+.photo-pick { position: relative; padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; flex: none; }
+.photo-pick i { position: absolute; right: -3px; bottom: -3px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; background: var(--highlight); color: var(--accent-ink); box-shadow: 0 0 0 2px var(--surface); }
