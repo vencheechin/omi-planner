@@ -213,7 +213,7 @@ function requestsNavHTML(r) {
   const n = (kind, dir) => openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind)).length;
   const row = (href, on, ic, label, count, mine) => `<a class="nav-item req-item ${on ? 'active' : ''}" href="${href}">${icon(ic, 17)}<span>${label}</span>${count ? `<em class="${mine ? 'to-check' : ''}">${count}</em>` : ''}</a>`;
   const reqOn = (kind, dir) => r.view === 'req' && r.kind === kind && r.dir === dir && !r.id;
-  return `<h3>Requests</h3>
+  return `<h3>Request to me</h3>
     ${row('#/check/me', r.view === 'check' && r.dir === 'me', 'check', 'Checking', checkingForMe().length, true)}
     ${row('#/req/approval/from', reqOn('approval', 'from'), 'approve', 'Approval', n('approval', 'from'), true)}
     ${row('#/req/decision/from', reqOn('decision', 'from'), 'flag', 'Decision Required', n('decision', 'from'), true)}
