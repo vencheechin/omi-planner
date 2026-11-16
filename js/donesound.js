@@ -40,9 +40,34 @@ const DONE_FX = {
   wind: (c, o) => { swell(c, o, { d: 1.8, g: 0.45, from: 300, to: 1100, q: 2.5, peak: 0.45 }); swell(c, o, { t: 0.3, d: 1.4, g: 0.15, from: 700, to: 1800, q: 6, peak: 0.5 }); },
   wave: (c, o) => { swell(c, o, { d: 2.2, g: 0.5, from: 250, to: 1600, type: 'lowpass', q: 0.5, peak: 0.4 }); swell(c, o, { t: 0.7, d: 1.4, g: 0.12, from: 2500, to: 5000, type: 'highpass', q: 0.3, peak: 0.2 }); },
   // Young: a cool synth hook, a rock stab, and a heavier distorted hit (original, made here).
-  cool: (c, o) => { [[659.3, 0], [784, 0.1], [987.8, 0.2], [1174.7, 0.3]].forEach(([f, t]) => { note(c, o, { f, t, d: 0.22, type: 'square', g: 0.07, a: 0.004 }); note(c, o, { f: f * 1.007, t, d: 0.22, type: 'sawtooth', g: 0.05, a: 0.004 }); }); kick(c, o, 0); noise(c, o, { t: 0.2, d: 0.06, g: 0.15, freq: 8000, q: 0.6, type: 'highpass' }); note(c, o, { f: 1318.5, t: 0.4, d: 0.5, type: 'triangle', g: 0.15 }); },
-  rock: (c, o) => { const amp = drive(c, o, 40); [[110, 0], [146.8, 0.22]].forEach(([f, t]) => { note(c, amp, { f, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.3 }); note(c, amp, { f: f * 1.5, t, d: t ? 0.7 : 0.2, type: 'sawtooth', g: 0.22 }); }); kick(c, o, 0); snare(c, o, 0.22); noise(c, o, { t: 0.22, d: 0.6, g: 0.18, freq: 7000, q: 0.5, type: 'highpass' }); },
-  hardrock: (c, o) => { const amp = drive(c, o, 120); [[82.4, 0, 0.12], [82.4, 0.13, 0.12], [98, 0.26, 0.12], [73.4, 0.4, 0.9]].forEach(([f, t, d]) => { note(c, amp, { f, t, d, type: 'sawtooth', g: 0.35 }); note(c, amp, { f: f * 1.5, t, d, type: 'sawtooth', g: 0.28 }); note(c, amp, { f: f * 2, t, d, type: 'square', g: 0.12 }); }); [0, 0.13, 0.26, 0.4].forEach((t) => kick(c, o, t)); snare(c, o, 0.4); noise(c, o, { t: 0.4, d: 0.9, g: 0.25, freq: 6000, q: 0.4, type: 'highpass' }); },
+  cool: (c, o) => {
+    // A laid-back synth hook over a beat, about 2.5 s.
+    const hook = [[659.3, 0], [784, 0.2], [987.8, 0.4], [880, 0.6], [784, 0.9], [987.8, 1.1], [1174.7, 1.3], [1318.5, 1.6]];
+    hook.forEach(([f, t], i) => { const d = i === hook.length - 1 ? 0.9 : 0.18; note(c, o, { f, t, d, type: 'square', g: 0.06, a: 0.004 }); note(c, o, { f: f * 1.007, t, d, type: 'sawtooth', g: 0.04, a: 0.004 }); });
+    [0, 0.4, 0.8, 1.2, 1.6].forEach((t) => kick(c, o, t));
+    [0.2, 0.6, 1.0, 1.4].forEach((t) => noise(c, o, { t, d: 0.1, g: 0.25, freq: 1800, q: 0.7 }));
+    for (let i = 0; i < 9; i++) noise(c, o, { t: i * 0.2 + 0.1, d: 0.04, g: 0.12, freq: 8000, q: 0.6, type: 'highpass' });
+    [[110, 0], [110, 0.4], [146.8, 0.8], [164.8, 1.2], [110, 1.6]].forEach(([f, t]) => note(c, o, { f, t, d: 0.35, type: 'triangle', g: 0.2, a: 0.005 }));
+  },
+  rock: (c, o) => {
+    // A rock riff with drums and a big ringing last chord, about 2.6 s.
+    const amp = drive(c, o, 40);
+    const riff = [[110, 0, 0.18], [110, 0.2, 0.18], [130.8, 0.4, 0.18], [146.8, 0.6, 0.38], [110, 1.0, 0.18], [164.8, 1.2, 0.18], [146.8, 1.4, 0.18], [110, 1.6, 1.0]];
+    riff.forEach(([f, t, d]) => { note(c, amp, { f, t, d, type: 'sawtooth', g: 0.28 }); note(c, amp, { f: f * 1.5, t, d, type: 'sawtooth', g: 0.2 }); });
+    [0, 0.4, 0.8, 1.0, 1.2, 1.6].forEach((t) => kick(c, o, t));
+    [0.2, 0.6, 1.4].forEach((t) => snare(c, o, t));
+    noise(c, o, { t: 1.6, d: 1.0, g: 0.2, freq: 7000, q: 0.5, type: 'highpass' });
+  },
+  hardrock: (c, o) => {
+    // Heavy chugging riff, a drum fill and a crashing final hit, about 2.8 s.
+    const amp = drive(c, o, 120);
+    const chug = [[82.4, 0], [82.4, 0.12], [82.4, 0.24], [98, 0.36], [82.4, 0.6], [82.4, 0.72], [110, 0.84], [98, 0.96], [82.4, 1.2], [82.4, 1.32], [123.5, 1.44], [110, 1.56]];
+    chug.forEach(([f, t]) => { note(c, amp, { f, t, d: 0.1, type: 'sawtooth', g: 0.33 }); note(c, amp, { f: f * 1.5, t, d: 0.1, type: 'sawtooth', g: 0.25 }); note(c, amp, { f: f * 2, t, d: 0.1, type: 'square', g: 0.1 }); });
+    chug.forEach(([, t]) => kick(c, o, t));
+    [1.7, 1.78, 1.86, 1.94].forEach((t) => snare(c, o, t));
+    [[73.4, 2.0]].forEach(([f, t]) => { note(c, amp, { f, t, d: 0.9, type: 'sawtooth', g: 0.35 }); note(c, amp, { f: f * 1.5, t, d: 0.9, type: 'sawtooth', g: 0.28 }); note(c, amp, { f: f * 2, t, d: 0.9, type: 'square', g: 0.12 }); });
+    kick(c, o, 2.0); noise(c, o, { t: 2.0, d: 1.0, g: 0.3, freq: 6000, q: 0.4, type: 'highpass' });
+  },
   // 8-bit: original chiptune-style blips in the spirit of retro console games (not any game's own sounds).
   'retro-up': (c, o) => [392, 523.3, 659.3, 784, 1046.5, 1318.5, 1568].forEach((f, i) => { note(c, o, { f, t: i * 0.055, d: 0.07, type: 'square', g: 0.1, a: 0.002 }); note(c, o, { f: f * 1.5, t: i * 0.055 + 0.025, d: 0.04, type: 'square', g: 0.04, a: 0.002 }); }),
   'retro-clear': (c, o) => { [[523.3, 0, 0.1], [659.3, 0.12, 0.1], [784, 0.24, 0.1], [1046.5, 0.36, 0.1], [880, 0.5, 0.1], [1046.5, 0.62, 0.45]].forEach(([f, t, d]) => { note(c, o, { f, t, d, type: 'square', g: 0.1, a: 0.002 }); note(c, o, { f: f / 2, t, d, type: 'triangle', g: 0.14, a: 0.002 }); }); },
