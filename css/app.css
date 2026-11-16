@@ -2159,3 +2159,7 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 /* Traffic light meaning: small, under the lights. */
 .health-toggle.tl-direct { flex-direction: column; align-items: center; gap: 3px; padding: 4px 6px; border-radius: 16px; }
 .tl-direct .tl-text { font-size: calc(10.5px * var(--scale) * var(--type)); line-height: 1.1; font-weight: 600; text-align: center; max-width: 150px; }
+
+/* Requests section in the sidebar */
+.req-gap { height: 8px; }
+.nav-item.req-item svg { opacity: .8; }

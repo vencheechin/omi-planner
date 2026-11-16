@@ -201,6 +201,36 @@ const byPersonName = (a, b) => (personByKey(a)?.name || '').localeCompare(person
 /** Tasks someone else delegated to you that are still open. */
 const delegatedFromTasks = () => S.tasks.filter((t) => delegatedToMe(t) && !isDone(t));
 /** One sidebar section, e.g. "Decision Request From": a row per person, newest names sorted A–Z. */
+/** Checking, approvals and decisions: what's waiting for you, then what you're waiting on. */
+const checkingForMe = () => S.tasks.filter((t) => !isDone(t) && isReviewer(t));
+const checkingSent = () => S.tasks.filter((t) => !isDone(t) && t.review && isMeId(t.review.by) && !isReviewer(t));
+function requestsNavHTML(r) {
+  const n = (kind, dir) => openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind)).length;
+  const row = (href, on, ic, label, count, mine) => `<a class="nav-item req-item ${on ? 'active' : ''}" href="${href}">${icon(ic, 17)}<span>${label}</span>${count ? `<em class="${mine ? 'to-check' : ''}">${count}</em>` : ''}</a>`;
+  const reqOn = (kind, dir) => r.view === 'req' && r.kind === kind && r.dir === dir && !r.id;
+  return `<h3>Requests</h3>
+    ${row('#/check/me', r.view === 'check' && r.dir === 'me', 'check', 'Checking', checkingForMe().length, true)}
+    ${row('#/req/approval/from', reqOn('approval', 'from'), 'approve', 'Approval', n('approval', 'from'), true)}
+    ${row('#/req/decision/from', reqOn('decision', 'from'), 'flag', 'Decision Required', n('decision', 'from'), true)}
+    <div class="req-gap"></div>
+    ${row('#/check/sent', r.view === 'check' && r.dir === 'sent', 'clock', 'Pending Checking', checkingSent().length)}
+    ${row('#/req/approval/to', reqOn('approval', 'to'), 'approve', 'Pending Approval', n('approval', 'to'))}
+    ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}`;
+}
+/** Tasks waiting for your check, or ones you submitted that are waiting for someone else's. */
+function renderChecking() {
+  const mine = ui.route.dir !== 'sent';
+  const list = (mine ? checkingForMe() : checkingSent()).sort((a, b) => a.review.at - b.review.at);
+  const item = (t) => {
+    const who = mine ? person(t.review.by)?.name || 'A teammate' : person(reviewerOf(t))?.name || 'the assigner';
+    return `<div class="dr-item"><div class="dr-who">${mine ? `From <b>${esc(who)}</b>` : `Waiting for <b>${esc(who)}</b>`} · submitted ${esc(fmtDateTime(t.review.at))}</div>${cardHTML(t, { showPlan: true })}</div>`;
+  };
+  return `<div class="page">
+    <header class="page-head"><h1>${mine ? 'Checking' : 'Pending Checking'}</h1></header>
+    <div class="dr-tools"><div class="seg"><a class="${mine ? 'on' : ''}" href="#/check/me">For me to check</a><a class="${mine ? '' : 'on'}" href="#/check/sent">Waiting on others</a></div></div>
+    <section class="dr-hub">${list.length ? `<div class="dr-cards">${list.map(item).join('')}</div>` : `<p class="muted small">${mine ? 'Nothing waiting for your check.' : 'Nothing you submitted is waiting.'}</p>`}</section>
+  </div>`;
+}
 function reqNavHTML(r, kind, dir) {
   const K = REQ_KINDS[kind];
   const list = openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind));
@@ -285,8 +315,7 @@ function renderSidebar() {
       <div class="nav-secs">${(() => {
         // The sections below the main links, in the order you dragged them into (by their heading).
         const secs = [
-          ['dec-from', reqNavHTML(r, 'decision', 'from')], ['dec-to', reqNavHTML(r, 'decision', 'to')],
-          ['apr-from', reqNavHTML(r, 'approval', 'from')], ['apr-to', reqNavHTML(r, 'approval', 'to')],
+          ['requests', requestsNavHTML(r)],
           ['approved', approvedNavHTML()],
           ['history', decidedByMe().length ? `<h3><a class="${r.view === 'history' ? 'active' : ''}" href="#/history">Approval History</a></h3>` : ''],
           ['deleg-to', S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''],
@@ -295,7 +324,7 @@ function renderSidebar() {
           ['recent', recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''],
         ].filter(([, html]) => html);
         const order = S.settings.navSecOrder || [];
-        const at = (k) => (order.includes(k) ? order.indexOf(k) : 100 + secs.findIndex(([x]) => x === k));
+        const at = (k) => (order.includes(k) ? order.indexOf(k) : k === 'requests' ? -1 : 100 + secs.findIndex(([x]) => x === k));
         return secs.sort((a, b) => at(a[0]) - at(b[0])).map(([k, html]) => `<div class="nav-sec" data-seckey="${k}">${html}</div>`).join('');
       })()}</div>
     </nav>
@@ -365,7 +394,7 @@ function renderRequests() {
     ${list.length ? `<div class="dr-cards">${list.map(item).join('')}</div>` : `<p class="muted small">${empty}</p>`}</section>`;
   const href = (k, d) => `#/req/${k}/${d}${key ? `/${encodeURIComponent(key)}` : ''}`;
   return `<div class="page">
-    <header class="page-head"><h1>${K.mark} ${K.label}${dir ? ` ${dir === 'from' ? 'From' : 'To'}` : ''}${who ? `: ${esc(who.name)}` : ''}</h1></header>
+    <header class="page-head"><h1>${K.mark} ${dir === 'from' ? (kind === 'decision' ? 'Decision Required' : 'Approval') : dir === 'to' ? (kind === 'decision' ? 'Pending Decision' : 'Pending Approval') : K.label}${who ? `: ${esc(who.name)}` : ''}</h1></header>
     <div class="dr-tools">
       <div class="seg">${Object.entries(REQ_KINDS).map(([k, x]) => `<a class="${k === kind ? 'on' : ''}" href="${href(k, dir || 'all')}">${x.label.replace(' Request', '')}</a>`).join('')}</div>
       <div class="seg">${[['all', 'All'], ['from', 'From'], ['to', 'To']].map(([d, l]) => `<a class="${(dir || 'all') === d ? 'on' : ''}" href="${href(kind, d)}">${l}</a>`).join('')}</div>
@@ -753,6 +782,7 @@ function renderMain() {
   }
   if (r.view === 'report') return renderReport();
   if (r.view === 'req') return renderRequests();
+  if (r.view === 'check') return renderChecking();
   if (r.view === 'from') return renderDelegatedFrom();
   if (r.view === 'history') return renderApprovalHistory();
   if (r.view === 'admin') return renderAdmin();
