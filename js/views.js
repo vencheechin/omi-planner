@@ -255,8 +255,8 @@ function delegateFromNavHTML(r, planLink) {
 function renderSidebar() {
   renderTabbar();
   const r = ui.route;
-  const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view ? 'active' : ''}" href="#/${view}" data-navkey="${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
-  const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
+  const link = (view, label, ic, count) => `<a class="nav-item ${r.view === view || (view === 'hub' && r.view === 'plan' && planById(r.id)?.personal) ? 'active' : ''}" href="#/${view}" data-navkey="${view}">${icon(ic, 18)}<span>${label}</span>${count ? `<em>${count}</em>` : ''}</a>`;
+  const planLink = (p) => `<a class="nav-item plan ${r.view === 'plan' && r.id === p.id && !p.personal ? 'active' : ''}" href="#/plan/${esc(p.id)}">${planTile(p, 22)}<span>${esc(planLabel(p))}</span></a>`;
   const pinned = S.plans.filter((p) => p.pinned && !sharedWithMe(p));
   const recent = S.plans.filter((p) => !p.pinned && !sharedWithMe(p)).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 6);
 

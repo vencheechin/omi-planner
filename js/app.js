@@ -25,7 +25,7 @@ function commit() {
   render();
 }
 function renderBanner() {
-  if (ui.route.view !== 'hub' || ui.search.trim() || ui.backupDismissed) return '';
+  if (!(ui.route.view === 'hub' || (ui.route.view === 'plan' && planById(ui.route.id)?.personal)) || ui.search.trim() || ui.backupDismissed) return '';
   const last = S.settings.lastBackup;
   if ((last && Date.now() - last < 14 * 86400000) || S.tasks.length < 7) return '';
   return `<div class="banner"><span>${last ? `Your last backup was ${Math.floor((Date.now() - last) / 86400000)} days ago.` : 'You have not made a backup yet.'} Your plans are stored only on this device.</span><button class="btn ghost sm" data-act="exportBackup">Export backup</button><button class="icon-btn" data-act="dismissBackup" aria-label="Dismiss">${icon('close', 14)}</button></div>`;
@@ -2422,10 +2422,11 @@ function route() {
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
     : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
     : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : a === 'growth' ? { view: 'growth' } : ['report', 'timebox', 'halfplan', 'pdplan', 'yearly', 'meet'].includes(a) ? { view: a } : { view: 'hub' };
-  // My Planner with just one plan opens that plan; with more, you pick one.
-  if (ui.route.view === 'hub' && !query && S.plans.length === 1) {
-    history.replaceState(null, '', `#/plan/${S.plans[0].id}`);
-    ui.route = { view: 'plan', id: S.plans[0].id };
+  // Planner opens your own planner straight away (other plans are in the sidebar).
+  const own = S.plans.find((p) => p.personal) || (S.plans.length === 1 ? S.plans[0] : null);
+  if (ui.route.view === 'hub' && !query && own) {
+    history.replaceState(null, '', `#/plan/${own.id}`);
+    ui.route = { view: 'plan', id: own.id };
   }
   const who = a === 'report' && query && new URLSearchParams(query).get('person');
   if (who) ui.report.person = who;
