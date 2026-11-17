@@ -269,6 +269,30 @@ const PANPAN = [
   ['sesame', 'Sesame', 'Open sesame, open your heart.'],
   ['hojicha', 'Hojicha', 'Stay in my lane and glow.'],
 ];
+// OMI culture, said simply: one value or Growth Journey theme with each rest, never the same twice in a row.
+const OMI_CULTURE = [
+  ['Gratitude', 'A rested mind notices more to be thankful for.'],
+  ['Contribution', 'Fresh eyes give better ideas to the team.'],
+  ['Community', 'Say hello to a teammate on your break.'],
+  ['Physical', 'Look after your body. It carries your best work.'],
+  ['Mental', 'A short pause keeps your mind clear and kind.'],
+  ['Habit', 'Small breaks, taken daily, become good habits.'],
+  ['Deliberate practice', 'Practise hard, then rest well. Both build mastery.'],
+  ['Mastery and focus', 'Rest is part of focus, not a break from it.'],
+  ['Mindset', 'Growth needs recovery too.'],
+  ['Value creation', 'Clear heads create more value.'],
+  ['Time', 'Use your time well, and that includes time to rest.'],
+  ['Network', 'Check in on someone today. It matters.'],
+  ['Learning', 'Let what you learned today settle in.'],
+];
+function nextCulture() {
+  let last = -1;
+  try { last = Number(localStorage.getItem('planner-culture-last')); } catch { /* fine */ }
+  let i = Math.floor(Math.random() * OMI_CULTURE.length);
+  if (i === last) i = (i + 1) % OMI_CULTURE.length;
+  try { localStorage.setItem('planner-culture-last', String(i)); } catch { /* fine */ }
+  return OMI_CULTURE[i];
+}
 const panPick = () => (Math.random() < 0.55 ? PANPAN[0] : PANPAN[1 + Math.floor(Math.random() * (PANPAN.length - 1))]);
 /** The rest reminder: a fun nudge, then Done (counts the break), Snooze 5 min or Skip. */
 async function restPopup(type) {
@@ -276,11 +300,12 @@ async function restPopup(type) {
   ui.fitNudgeOpen = true;
   const [art, line, idea] = nextRestLine();
   const [pid, pname, ptag] = panPick();
+  const cul = nextCulture();
   if (typeof playTone === 'function' && alarmPrefs().on) playTone('zen-chimes', alarmPrefs().vol);
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
     try { new Notification(`${art} Time for a ${f.breaks.min}-minute rest`, { body: `${line} ${idea}.`, tag: 'rest' }); } catch { /* not supported */ }
   }
-  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-pan"><img src="icons/panpan/${pid}.png" alt="${esc(pname)}" width="${pid === 'panpan' ? 120 : 96}"><div class="rest-bubble"><b>${esc(pname)}</b> <span class="muted">“${esc(ptag)}”</span><span class="rest-art-sm" aria-hidden="true">${art}</span></div></div><p class="rest-line">${esc(line)}</p><p class="rest-idea">${esc(idea)}. <span class="muted">${esc(f.breaks.every)} minutes of focus done.</span></p>`,
+  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-pan"><img src="icons/panpan/${pid}.png" alt="${esc(pname)}" width="${pid === 'panpan' ? 120 : 96}"><div class="rest-bubble"><b>${esc(pname)}</b> <span class="muted">“${esc(ptag)}”</span><span class="rest-art-sm" aria-hidden="true">${art}</span></div></div><p class="rest-line">${esc(line)}</p><p class="rest-idea">${esc(idea)}. <span class="muted">${esc(f.breaks.every)} minutes of focus done.</span></p><div class="rest-culture"><small>OMI Culture · ${esc(cul[0])}</small><p>${esc(cul[1])}</p><em>Creating a Happier Life for Everyone We Touch</em></div>`,
     [{ v: 'done', label: 'Rest now', primary: true }, { v: 'snooze', label: 'In 5 min' }, { v: 'skip', label: 'Skip' }]);
   ui.fitNudgeOpen = false;
   if (v === 'done') fitLogBreak(type);

@@ -224,7 +224,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? data.getAll('gal').map(Number) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? mcGalSave(data.getAll('gal').map(Number)) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -352,9 +352,11 @@ const mcAlHist = () => (S.settings.mcAlHist = S.settings.mcAlHist && typeof S.se
 /** Your default notifications for a new event (Settings › Calendar). */
 const mcAlDefault = () => (Array.isArray(S.settings.mcAlDefault) ? S.settings.mcAlDefault : [0]);
 /** Your most used notifications (fill-ins when there isn't enough history yet). */
-function mcAlTop(have, n = 3) {
-  const used = Object.entries(mcAlHist().n || {}).map(([k, c]) => [Number(k), c]).sort((a, b) => b[1] - a[1]).map(([k]) => k);
-  return [...new Set([...used, 10, 30, 60, 1440, 0])].filter((v) => !have.includes(v)).slice(0, n);
+function mcAlTop(have, n = 3, guests = false) {
+  // Guests: the ones you give guests most (30 minutes before first until there's history).
+  const h = guests ? (S.settings.mcGalHist || {}) : (mcAlHist().n || {});
+  const used = Object.entries(h).map(([k, c]) => [Number(k), c]).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  return [...new Set([...used, ...(guests ? [30, 10, 60, 1440] : [10, 30, 60, 1440, 0])])].filter((v) => !have.includes(v)).slice(0, n);
 }
 const mcIsOrg = (m) => !m.org || m.org === pkey(S.meId) || !mcAll().some((x) => x.id === m.id);
 function mcAlertsFor(m) {
@@ -432,7 +434,7 @@ Object.assign(actions, {
     const box = el.parentElement.querySelector('.mc-alerts');
     const have = [...box.querySelectorAll('select')].map((x) => Number(x.value));
     ui.mcAlBox = box;
-    openPop(el, () => `<div class="menu mc-al-menu" role="menu"><h4>Add notification</h4>${mcAlTop(have).map((v) => `<button role="menuitem" data-act="mcAlPick" data-v="${v}">🔔 ${esc(mcAlLabel(v))}</button>`).join('')}<button role="menuitem" data-act="mcAlPickCustom">${icon('plus', 13)} Custom…</button></div>`);
+    openPop(el, () => `<div class="menu mc-al-menu" role="menu"><h4>${box.dataset.name === 'gal' ? 'Notify guests' : 'Add notification'}</h4>${mcAlTop(have, 3, box.dataset.name === 'gal').map((v) => `<button role="menuitem" data-act="mcAlPick" data-v="${v}">🔔 ${esc(mcAlLabel(v))}</button>`).join('')}<button role="menuitem" data-act="mcAlPickCustom">${icon('plus', 13)} Custom…</button></div>`);
   },
   mcAlPick: (el) => { closePop(); if (ui.mcAlBox) mcAlAddRow(ui.mcAlBox, Number(el.dataset.v)); },
   mcAlPickCustom: () => {
@@ -900,3 +902,10 @@ function mcBdLabels(form) {
   form.querySelectorAll('.mc-al select option[value="0"]').forEach((o) => { o.textContent = bd ? 'On the day, 9:00 am' : 'At time of event'; });
 }
 document.addEventListener('click', (e) => { if (e.target.closest?.('.mc-al-menu, .mc-alc')) setTimeout(() => mcBdLabels($('dialog.mc-dlg form')), 50); });
+
+/** Counts what you give guests, so the most used come first next time. */
+function mcGalSave(list) {
+  const h = (S.settings.mcGalHist = S.settings.mcGalHist && typeof S.settings.mcGalHist === 'object' ? S.settings.mcGalHist : {});
+  list.filter((n) => Number.isInteger(n) && n >= 0).forEach((n) => { h[n] = (h[n] || 0) + 1; });
+  return list;
+}

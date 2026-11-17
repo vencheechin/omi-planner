@@ -2341,3 +2341,11 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .wp-pick { width: 230px; }
 .wp-wheels { grid-template-columns: 1fr 1fr; }
 .wp-unit { display: flex; align-items: center; justify-content: flex-start; padding-left: 4px; color: var(--muted); font-size: 17px; z-index: 1; }
+
+/* OMI culture line in the rest reminder */
+.rest-culture { margin: 12px 0 2px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); box-shadow: inset 3px 0 0 var(--ochre, #b5894d); text-align: center; }
+.rest-culture small { display: block; text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; color: var(--ochre, #b5894d); font-weight: 700; }
+.rest-culture p { margin: 4px 0; font-weight: 600; }
+.rest-culture em { display: block; font-size: 11.5px; color: var(--olive, #7b8060); }
+:root[data-theme="dark"] .rest-culture em { color: #a9ad8e; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .rest-culture em { color: #a9ad8e; } }
