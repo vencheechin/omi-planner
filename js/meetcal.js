@@ -908,7 +908,11 @@ function mcBusyOn(iso) {
     .flatMap((m) => mcOn([m], iso)).map((m) => ({ id: m.id, start: m.start, end: m.end, title: m.title || 'Event', color: m.color || MC_COLORS[0], meet: mcIsMeeting(m._o || m) }));
 }
 function mcBusyHTML(iso, y, ppm) {
-  return mcBusyOn(iso).map((b) => `<button class="tb-meet" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${Math.max(16, (b.end - b.start) * ppm - 2)}px;--ec:${b.color}" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><b>${b.meet ? '👥' : '📌'} ${esc(b.title)}</b><small>${esc(fmtTime(b.start))} – ${esc(fmtTime(b.end))}</small></button>`).join('');
+  // Drawn like a task block: the event's colour, title in the middle, length underneath.
+  return mcBusyOn(iso).map((b) => {
+    const h = Math.max(16, (b.end - b.start) * ppm - 1);
+    return `<div class="tb-block tb-meetblk ${h < 30 ? 'short' : ''}" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${h}px;left:1px;width:calc(100% - 2px);--c:color-mix(in srgb, ${b.color} 45%, #b9c6dc)" tabindex="0" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><div class="tb-b-title">${b.meet ? '👥' : '📌'} ${esc(b.title)}</div>${h >= 38 ? `<small class="tb-b-dur">(${b.end - b.start} min)</small>` : ''}</div>`;
+  }).join('');
 }
 Object.assign(actions, { mcOpenId: (el, e) => { e?.stopPropagation?.(); const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcOpen(m); } });
 

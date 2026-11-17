@@ -2362,3 +2362,5 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-rc-end span { color: var(--muted); font-size: .9em; }
 .mc-rc-end label { display: flex; align-items: center; gap: 6px; }
 .mc-rc-end input[type=number] { width: 80px; }
+
+.tb-block.tb-meetblk { cursor: pointer; z-index: 1; }
