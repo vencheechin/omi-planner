@@ -2,10 +2,10 @@
 // ---------- Phone bottom bar: choose your own buttons ----------
 // Like the iPhone dock: in the menu, hold an item and drag it down onto the bottom bar to add it
 // (drop it on a tab to swap when the bar is full). Hold a tab in the bar to drag it left or right,
-// or drag it up off the bar to take it out. Settings always stays at the end.
+// or drag it up off the bar to take it out. Settings is at the top right, so the bar is all yours.
 // Saved per device in S.settings.dock (a list of menu keys).
 
-const DOCK_MAX = 4;
+const DOCK_MAX = 5;
 const DOCK_DEFAULT = ['halfplan', 'timebox', 'hub'];
 const DOCK_ITEMS = {
   halfplan: { label: 'S-Team', ic: 'table' },
@@ -43,7 +43,7 @@ renderTabbar = function renderDock() {
     const it = DOCK_ITEMS[k];
     const n = it.n ? it.n() : 0;
     return `<a class="tab ${(it.on || [k]).includes(r) ? 'on' : ''}" href="#/${k}" data-dock="${k}" draggable="false">${icon(it.ic, 22)}<span>${esc(it.label)}</span>${n ? `<em>${n}</em>` : ''}</a>`;
-  }).join('') + `<button class="tab" data-act="openSettings">${icon('gear', 22)}<span>Settings</span></button>`;
+  }).join('');
 };
 
 // ---------- Dragging from the menu onto the bar (called by the menu's drag in resize.js) ----------
@@ -69,7 +69,7 @@ function dockHover(key, x, y) {
   const ph = document.createElement('span');
   ph.className = 'tab dock-ph';
   ph.innerHTML = `${icon(DOCK_ITEMS[key].ic, 22)}<span>${esc(DOCK_ITEMS[key].label)}</span>`;
-  bar.insertBefore(ph, before || bar.querySelector('[data-act="openSettings"]'));
+  bar.insertBefore(ph, before || null);
   if (already) $(`[data-dock="${key}"]`, bar)?.classList.add('dock-hidden');
   ui.dockDrop = { key, before: before?.dataset.dock || null };
   return true;
@@ -137,7 +137,7 @@ document.addEventListener('pointermove', (e) => {
   if (d.out) return;
   const others = $$('[data-dock]', bar).filter((x) => x !== d.t);
   const before = others.find((x) => { const r = x.getBoundingClientRect(); return e.clientX < r.left + r.width / 2; });
-  const ref = before || bar.querySelector('[data-act="openSettings"]');
+  const ref = before || null;
   if (d.t.nextElementSibling !== ref) bar.insertBefore(d.t, ref);
 }, { passive: false });
 function dockEnd() {

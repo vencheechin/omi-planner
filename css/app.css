@@ -2542,3 +2542,8 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-title-btn { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; padding: 2px 4px; border-radius: 8px; }
 .mc-title-btn svg { transition: transform .2s; color: var(--muted); }
 .mc-title-btn.open svg { transform: rotate(180deg); }
+
+/* Calendar: gear at the top right for time zone, calendars and holidays */
+.mc-h1row { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; }
+.mc-h1row h1 { flex: 1; }
+.mc-set { margin-left: auto; }

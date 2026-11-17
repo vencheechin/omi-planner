@@ -144,15 +144,11 @@ function renderMeetCal() {
   const days = s.view === 'day' ? [s.date] : Array.from({ length: 7 }, (_, i) => mcAddDays(mcWeekStart(s.date), i));
   return `<div class="page mc-page">
     <header class="mc-top">
-      <h1>Calendar</h1>
+      <div class="mc-h1row"><h1>Calendar</h1><button class="icon-btn mc-set" data-act="mcSettings" aria-label="Calendar settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button></div>
       <button class="btn primary sm" data-act="mcNew">${icon('plus', 14)} Create</button>
       <button class="btn ghost sm" data-act="mcToday">Today</button>
       <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next">${icon('chevR')}</button></span>
       <button class="mc-title mc-title-btn ${ui.mcMini ? 'open' : ''}" data-act="mcMiniToggle" aria-expanded="${!!ui.mcMini}" title="Show or hide the month">${esc(mcTitle())}${icon('chevD', 16)}</button>
-      <button class="btn ghost sm mc-tz" data-act="mcTzMenu" title="Time zones">🕒 ${tzNow() === tzHome() ? esc(tzLabel(tzNow())) : `Now: ${esc(tzLabel(tzNow()))} · Home: ${esc(tzLabel(tzHome()))}`}</button>
-      <span class="spacer"></span>
-      <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
-      <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
     </header>
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
   </div>`;
@@ -804,6 +800,16 @@ function mcCalDialog(c) {
 }
 Object.assign(actions, {
   mcCalsMenu: (el) => openPop(el, mcCalsMenuHTML),
+  // The gear at the top right of the Calendar: time zone, your calendars and holidays in one place.
+  mcSettings: (el) => {
+    const gear = () => $('.mc-set') || el;
+    const tz = tzNow() === tzHome() ? tzLabel(tzNow()) : `Now: ${tzLabel(tzNow())} · Home: ${tzLabel(tzHome())}`;
+    openMenu(el, [
+      { icon: 'clock', label: `Time zone: ${tz}`, run: () => setTimeout(() => actions.mcTzMenu(gear()), 0) },
+      { icon: 'cal', label: 'Calendars', run: () => setTimeout(() => actions.mcCalsMenu(gear()), 0) },
+      { icon: 'flag', label: 'Holidays', run: () => setTimeout(() => actions.holPick(gear()), 0) },
+    ]);
+  },
   mcCalEdit: (el) => { closePop(); mcCalDialog(el.dataset.id ? mcCalById(el.dataset.id) : null); },
   mcCalDelete: async (el) => {
     const c = mcCalById(el.dataset.id);

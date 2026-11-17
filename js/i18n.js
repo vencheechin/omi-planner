@@ -164,6 +164,7 @@ const I18N_ZH = {
   'S-Team': 'S-Team', 'Notes': '笔记', 'Hold an item and drag it to the bottom bar': '按住一项，拖到底部栏即可添加',
   'Schedule': '日程', 'Nothing planned': '没有安排', 'Show later months': '显示之后的月份',
   'My team': '我的团队', 'Everyone who reports to you. Tick to see their calendar with yours.': '所有向你汇报的人。勾选即可与你的日历一起查看。',
+  'Calendar settings': '日历设置', 'Time zone, calendars and holidays': '时区、日历和假期',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 
