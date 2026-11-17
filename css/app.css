@@ -2523,3 +2523,17 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-teamh { margin: 10px 0 2px; }
 .mc-calsmenu .avatar { flex: none; }
 .sc-who { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; opacity: .92; }
+
+/* Calendar › Schedule: round add button (Birthday, Reminder, Event) */
+.mc-fab { position: fixed; right: 22px; bottom: 24px; z-index: 60; display: grid; justify-items: end; gap: 12px; pointer-events: none; }
+.mc-fab > * { pointer-events: auto; }
+.mc-fab-btn { width: 58px; height: 58px; border-radius: 18px; border: 0; cursor: pointer; display: grid; place-items: center; background: var(--highlight); color: var(--on-highlight, #fff); box-shadow: 0 6px 18px rgba(0, 0, 0, .3); transition: transform .2s, border-radius .2s; }
+.mc-fab.open .mc-fab-btn { border-radius: 50%; transform: rotate(45deg); }
+.mc-fab-menu { display: grid; justify-items: end; gap: 12px; }
+.mc-fab:not(.open) .mc-fab-menu { display: none; }
+.mc-fab-it { display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer; font: inherit; font-size: 16px; font-weight: 600; padding: 13px 22px; border-radius: 999px; background: var(--surface); color: var(--ink); background: color-mix(in srgb, var(--highlight) 22%, var(--surface)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--highlight) 45%, transparent), 0 6px 18px rgba(0, 0, 0, .3); }
+.mc-fab-it svg { color: var(--highlight); }
+.mc-fab-dim { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); display: none; z-index: -1; }
+.mc-fab.open .mc-fab-dim { display: block; }
+@media (max-width: 760px) { .mc-fab { right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .mc-fab-btn { transition: none; } }

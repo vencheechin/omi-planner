@@ -1146,7 +1146,9 @@ function mcSchedHTML() {
   }
   const list = groups.map((g) => (g.head ? `<h3 class="sc-mhead">${esc(MC_MON[Number(g.ym.slice(5)) - 1])} ${g.ym.slice(0, 4)}</h3>` : g.html)).join('')
     || '<p class="muted sc-none">Nothing planned. Tap <b>Create</b> to add something.</p>';
-  return `<div class="sc-wrap">${mini}${chips}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>`;
+  // A round add button at the bottom right; tap it for Birthday, Reminder or Event (like Google Calendar).
+  const fab = `<div class="mc-fab ${ui.mcFab ? 'open' : ''}"><div class="mc-fab-dim" data-act="mcFab"></div><div class="mc-fab-menu">${[...MC_KINDS].reverse().map(([k, l, ic]) => `<button class="mc-fab-it" data-act="mcFabNew" data-k="${k}">${icon(ic, 18)}<span>${l}</span></button>`).join('')}</div><button class="mc-fab-btn" data-act="mcFab" aria-label="Add" aria-expanded="${!!ui.mcFab}">${icon('plus', 26)}</button></div>`;
+  return `<div class="sc-wrap">${mini}${chips}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>${fab}`;
 }
 /** Dark or light text, whichever reads better on the item's colour. */
 const mcInk = (c) => (typeof inkOn === 'function' && /^#[0-9a-f]{6}$/i.test(c) ? inkOn(c) : '#fff');
@@ -1160,4 +1162,13 @@ function mcSchScrollTo(d) {
 Object.assign(actions, {
   mcSchDay: (el) => { const s = mcState(); s.date = el.dataset.d; render(); mcSchScrollTo(el.dataset.d); },
   mcSchMore: () => { const s = mcState(); s.span = (s.span || 3) + 3; render(); },
+  mcFab: () => { ui.mcFab = !ui.mcFab; const f = $('.mc-fab'); if (!f) return; f.classList.toggle('open', ui.mcFab); $('.mc-fab-btn', f).setAttribute('aria-expanded', ui.mcFab); },
+  mcFabNew: (el) => {
+    ui.mcFab = false;
+    $('.mc-fab')?.classList.remove('open');
+    const k = el.dataset.k;
+    mcOpen(mcDraft(mcState().date, Math.min(1380, (new Date().getHours() + 1) * 60)));
+    // Switch the new item to the type you picked, the same as tapping it in the dialog.
+    setTimeout(() => { const b = document.querySelector(`.mc-kinds [data-v="${k}"]`); if (b && k !== 'event') actions.mcKind(b); }, 0);
+  },
 });
