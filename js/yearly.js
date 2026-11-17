@@ -311,14 +311,14 @@ document.addEventListener('pointermove', (e) => {
   const i = ths.indexOf(over) + (after ? 1 : 0);
   d.before = i < ths.length ? ths[i].dataset.k : '';
 });
-document.addEventListener('pointerup', () => {
+document.addEventListener('pointerup', (e) => {
   const d = yrColDrag;
   yrColDrag = null;
   if (!d) return;
   const cur = yrColsFor(d.ym).map(([k]) => k);
   const widths = { ...(yrLay(d.ym).w || {}) };
   if (d.kind === 'size') {
-    if (!d.w) return;
+    if (!d.w || e?.detail > 1) return;
     widths[d.k] = d.w;
     yrSaveLayout(d.ym, cur, widths);
     return;
@@ -332,11 +332,27 @@ document.addEventListener('pointerup', () => {
   if (order.join() === cur.join()) return;
   yrSaveLayout(d.ym, order, widths);
 });
+/** The width that fits a column's longest entry (or holiday label) in this month, plus padding. */
+function yrFitWidth(sec, k) {
+  const inputs = [...sec.querySelectorAll(`input[data-k="${k}"]`)];
+  const head = sec.querySelector(`th.yr-colh[data-k="${k}"]`);
+  const ctx = document.createElement('canvas').getContext('2d');
+  const measure = (text, el) => { const cs = getComputedStyle(el); ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; return ctx.measureText(text).width; };
+  let w = head ? measure(head.textContent, head) + 26 : 60;
+  for (const i of inputs) {
+    const t = i.value || i.placeholder || '';
+    if (!t) continue;
+    const cs = getComputedStyle(i);
+    const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + 18;
+    w = Math.max(w, measure(t, i) + pad);
+  }
+  return Math.max(40, Math.min(420, Math.ceil(w)));
+}
+// Double-click a heading's edge: fit the column to its longest entry.
 document.addEventListener('dblclick', (e) => {
   const rsz = e.target.closest?.('.yr-rsz');
   if (!rsz || ui.route?.view !== 'yearly') return;
   const ym = rsz.dataset.ym;
-  const w = { ...(yrLay(ym).w || {}) };
-  delete w[rsz.dataset.k];
+  const w = { ...(yrLay(ym).w || {}), [rsz.dataset.k]: yrFitWidth(rsz.closest('.yr-month'), rsz.dataset.k) };
   yrSaveLayout(ym, yrColsFor(ym).map(([k]) => k), w);
 });
