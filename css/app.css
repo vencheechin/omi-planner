@@ -2479,3 +2479,38 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 }
 @keyframes dock-wiggle { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
 @media (prefers-reduced-motion: reduce) { #tabbar .tab { animation: none !important; } }
+
+/* Calendar › Schedule: small month with dots, month buttons, then only the days with something on */
+.sc-wrap { display: grid; gap: 10px; max-width: 760px; }
+.sc-mini { border-radius: 12px; background: var(--surface); box-shadow: 0 0 0 .5px var(--line); padding: 8px 6px; }
+.sc-mh, .sc-mg { display: grid; align-items: start; grid-auto-rows: auto; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
+.sc-mh span { font-size: 11.5px; color: var(--muted); padding-bottom: 4px; }
+.sc-d { min-height: 0; height: auto; align-self: start; border: 0; background: none; font: inherit; color: var(--ink); padding: 4px 0 2px; display: grid; justify-items: center; gap: 2px; cursor: pointer; border-radius: 10px; }
+.sc-d .sc-n { width: 28px; height: 28px; line-height: 28px; border-radius: 50%; font-size: 14px; }
+.sc-d.today .sc-n { background: var(--highlight); color: var(--on-highlight, #fff); font-weight: 700; }
+.sc-d.sel:not(.today) .sc-n { box-shadow: inset 0 0 0 1.5px var(--highlight); }
+.sc-dots { display: flex; gap: 2px; height: 6px; align-items: center; }
+.sc-dots i { width: 5px; height: 5px; border-radius: 50%; }
+.sc-dots b { font-size: 9px; line-height: 6px; color: var(--muted); }
+.sc-months { display: flex; gap: 8px; overflow-x: auto; align-items: center; padding: 2px 0 4px; scrollbar-width: none; }
+.sc-months::-webkit-scrollbar { display: none; }
+.sc-mo { flex: none; border: 1px solid var(--line); background: none; color: var(--ink); font: inherit; padding: 5px 16px; border-radius: 999px; cursor: pointer; }
+.sc-mo.on { background: var(--highlight); border-color: var(--highlight); color: var(--on-highlight, #fff); font-weight: 600; }
+.sc-yr { flex: none; font-size: 15px; }
+.sc-list { display: grid; gap: 4px; }
+.sc-mhead { margin: 12px 0 2px 64px; font-size: 14px; color: var(--muted); }
+.sc-day { display: grid; grid-template-columns: 56px 1fr; gap: 8px; padding: 6px 0; scroll-margin-top: 70px; }
+.sc-date { display: grid; justify-items: center; align-content: start; }
+.sc-date small { font-size: 11px; text-transform: uppercase; color: var(--muted); }
+.sc-date b { font-size: 22px; font-weight: 500; width: 40px; height: 40px; line-height: 40px; text-align: center; border-radius: 50%; }
+.sc-day.today .sc-date small { color: var(--highlight); }
+.sc-day.today .sc-date b { background: var(--highlight); color: var(--on-highlight, #fff); }
+.sc-items { display: grid; gap: 6px; min-width: 0; }
+.sc-ev { display: grid; gap: 2px; text-align: left; border: 0; font: inherit; cursor: pointer; padding: 9px 12px; border-radius: 8px; color: #fff; background: var(--ec); min-width: 0; }
+.sc-ev b { font-weight: 600; display: flex; gap: 6px; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-ev small { opacity: .92; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-ev.sc-hol { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); cursor: default; font-size: 13px; }
+.sc-now { position: relative; height: 2px; background: var(--danger); margin: 2px 0; border-radius: 1px; }
+.sc-now i { position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+.sc-empty { margin: 8px 0; }
+.sc-more { justify-self: center; margin: 10px 0 20px; }

@@ -71,11 +71,11 @@ const MC_DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MC_MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ---------- Views ----------
-function mcState() { return (ui.mc = ui.mc || { view: matchMedia('(max-width: 760px)').matches ? 'day' : 'week', date: todayISO(), all: false }); }
+function mcState() { return (ui.mc = ui.mc || { view: 'schedule', date: todayISO(), all: false }); }
 function mcTitle() {
   const s = mcState();
   const d = new Date(`${s.date}T12:00:00`);
-  if (s.view === 'month') return `${MC_MON[d.getMonth()]} ${d.getFullYear()}`;
+  if (s.view === 'month' || s.view === 'schedule') return `${MC_MON[d.getMonth()]} ${d.getFullYear()}`;
   if (s.view === 'day') return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const a = new Date(`${mcWeekStart(s.date)}T12:00:00`);
   const b = new Date(`${mcAddDays(mcWeekStart(s.date), 6)}T12:00:00`);
@@ -148,10 +148,10 @@ function renderMeetCal() {
       ${stAdmin() ? `<label class="mc-allbox small"><input type="checkbox" data-change="mcAll" ${s.all ? 'checked' : ''}> Everyone's</label>` : ''}
       <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
       <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
-      <div class="seg">${[['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(([v, l]) => `<button class="${s.view === v ? 'on' : ''}" data-act="mcView" data-v="${v}">${l}</button>`).join('')}</div>
+      <div class="seg">${[['schedule', 'Schedule'], ['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(([v, l]) => `<button class="${s.view === v ? 'on' : ''}" data-act="mcView" data-v="${v}">${l}</button>`).join('')}</div>
     </header>
     ${upcoming ? `<p class="small muted mc-next">Next: <b>${esc(upcoming.title || '(No title)')}</b> · ${esc(dayLabel(upcoming.date))}, ${esc(mcFmt(upcoming.start))}</p>` : ''}
-    ${s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
+    ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
   </div>`;
 }
 
@@ -202,9 +202,9 @@ function mcTzNote(date, start, tz) {
 }
 
 Object.assign(actions, {
-  mcView: (el) => { mcState().view = el.dataset.v; render(); },
-  mcToday: () => { mcState().date = todayISO(); render(); mcScrollToNow(); },
-  mcStep: (el) => { const s = mcState(); const n = Number(el.dataset.d); if (s.view === 'month') { const d = new Date(`${s.date.slice(0, 7)}-01T12:00:00`); d.setMonth(d.getMonth() + n); s.date = d.toISOString().slice(0, 10); } else s.date = mcAddDays(s.date, n * (s.view === 'day' ? 1 : 7)); render(); },
+  mcView: (el) => { mcState().view = el.dataset.v; render(); if (el.dataset.v === 'schedule') mcSchScrollTo(todayISO()); },
+  mcToday: () => { mcState().date = todayISO(); render(); if (mcState().view === 'schedule') mcSchScrollTo(todayISO()); else mcScrollToNow(); },
+  mcStep: (el) => { const s = mcState(); const n = Number(el.dataset.d); if (s.view === 'month' || s.view === 'schedule') { const d = new Date(`${s.date.slice(0, 7)}-01T12:00:00`); d.setMonth(d.getMonth() + n); s.date = d.toISOString().slice(0, 10); } else s.date = mcAddDays(s.date, n * (s.view === 'day' ? 1 : 7)); render(); },
   mcGoDay: (el) => { const s = mcState(); s.date = el.dataset.d; s.view = 'day'; render(); },
   mcNew: () => { const n = new Date(); mcOpen(mcDraft(mcState().view === 'month' ? todayISO() : mcState().date, Math.min(1380, (n.getHours() + 1) * 60))); },
   mcDelete: async (el) => {
@@ -1090,4 +1090,67 @@ Object.assign(actions, {
     if (typeof departPreview === 'function') departPreview(form);
   },
   mcPlaceManage: () => { closePop(); actions.openSettings(); setTimeout(() => { const b = document.querySelector('[data-act="settingsTab"][data-v="calendar"]'); if (b) b.click(); }, 60); },
+});
+
+// ---------- Schedule (the default, like Google Calendar's Schedule) ----------
+// A small month with a dot per item, month buttons, then only the days that have something on.
+function mcSchedHTML() {
+  const s = mcState();
+  const today = todayISO();
+  const ym = s.date.slice(0, 7);
+  const shown = mcShown();
+  const first = `${ym}-01`;
+  const gridStart = mcWeekStart(first);
+  const cells = Array.from({ length: 42 }, (_, i) => mcAddDays(gridStart, i));
+  const rows = cells.slice(35).some((d) => d.slice(0, 7) === ym) ? 6 : 5;
+  const dots = (d) => {
+    const cols = [...holidaysOn(d).map(() => 'var(--muted)'), ...mcOn(shown, d).map((m) => m.color || MC_COLORS[0])];
+    return `<span class="sc-dots">${cols.slice(0, 3).map((c) => `<i style="background:${esc(c)}"></i>`).join('')}${cols.length > 3 ? '<b>+</b>' : ''}</span>`;
+  };
+  const mini = `<div class="sc-mini"><div class="sc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
+    <div class="sc-mg">${cells.slice(0, rows * 7).map((d) => d.slice(0, 7) !== ym ? '<span></span>'
+      : `<button class="sc-d ${d === today ? 'today' : ''} ${d === s.date ? 'sel' : ''}" data-act="mcSchDay" data-d="${d}"><span class="sc-n">${Number(d.slice(8))}</span>${dots(d)}</button>`).join('')}</div></div>`;
+  // Month buttons: this month and the next eleven, with the year where it changes.
+  const m0 = new Date(`${today.slice(0, 7)}-01T12:00:00`);
+  const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(m0); d.setMonth(m0.getMonth() + i); return d.toISOString().slice(0, 7); });
+  const chips = `<div class="sc-months">${months.map((m, i) => `${i && m.endsWith('-01') ? `<b class="sc-yr">${m.slice(0, 4)}</b>` : ''}<button class="sc-mo ${m === ym ? 'on' : ''}" data-act="mcSchDay" data-d="${m}-01">${esc(MC_MON[Number(m.slice(5)) - 1].slice(0, 3))}</button>`).join('')}</div>`;
+  // The list: from the start of the chosen month, for as many months as you've opened.
+  const span = s.span || 3;
+  const end = (() => { const d = new Date(`${first}T12:00:00`); d.setMonth(d.getMonth() + span); return d.toISOString().slice(0, 10); })();
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const groups = [];
+  for (let d = first; d < end; d = mcAddDays(d, 1)) {
+    const hs = holidaysOn(d);
+    const ms = mcOn(shown, d).sort((a, b) => (mcAllDay(b) - mcAllDay(a)) || a.start - b.start);
+    if (!hs.length && !ms.length && d !== today) continue;
+    const dt = new Date(`${d}T12:00:00`);
+    let nowDone = d !== today;
+    const items = [...hs.map((h) => `<div class="sc-ev sc-hol">${esc(holLabel(h))}</div>`)];
+    for (const m of ms) {
+      const timed = !mcAllDay(m);
+      if (!nowDone && timed && m.start > nowMin) { items.push('<div class="sc-now"><i></i></div>'); nowDone = true; }
+      items.push(`<button class="sc-ev" data-mc-ev="${esc(m.id)}" style="--ec:${esc(m.color || MC_COLORS[0])};color:${esc(mcInk(m.color || MC_COLORS[0]))}"><b>${mcIconHTML(m)}${esc(mcAllDay(m) ? mcAllDayText(m, d) : (m.title || '(No title)'))}</b>${timed ? `<small>${esc(`${mcFmt(m.start)} – ${mcFmt(m.end)}`)}${m.loc ? ` · ${esc(m.loc)}` : ''}</small>` : ''}</button>`);
+    }
+    if (!nowDone) items.push('<div class="sc-now"><i></i></div>');
+    if (!ms.length && !hs.length) items.push('<p class="sc-empty muted small">Nothing planned</p>');
+    // A month heading where the month changes.
+    if (!groups.length || groups[groups.length - 1].ym !== d.slice(0, 7)) groups.push({ ym: d.slice(0, 7), head: true });
+    groups.push({ ym: d.slice(0, 7), html: `<div class="sc-day ${d === today ? 'today' : ''}" data-sch-day="${d}"><div class="sc-date"><small>${esc(dt.toLocaleDateString(undefined, { weekday: 'short' }))}</small><b>${dt.getDate()}</b></div><div class="sc-items">${items.join('')}</div></div>` });
+  }
+  const list = groups.map((g) => (g.head ? `<h3 class="sc-mhead">${esc(MC_MON[Number(g.ym.slice(5)) - 1])} ${g.ym.slice(0, 4)}</h3>` : g.html)).join('')
+    || '<p class="muted sc-none">Nothing planned. Tap <b>Create</b> to add something.</p>';
+  return `<div class="sc-wrap">${mini}${chips}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>`;
+}
+/** Dark or light text, whichever reads better on the item's colour. */
+const mcInk = (c) => (typeof inkOn === 'function' && /^#[0-9a-f]{6}$/i.test(c) ? inkOn(c) : '#fff');
+/** Scrolls the schedule to a day (or the next day that has something on). */
+function mcSchScrollTo(d) {
+  setTimeout(() => {
+    const el = $$('[data-sch-day]').find((x) => x.dataset.schDay >= d);
+    if (el) el.scrollIntoView({ block: 'start' });
+  }, 30);
+}
+Object.assign(actions, {
+  mcSchDay: (el) => { const s = mcState(); s.date = el.dataset.d; render(); mcSchScrollTo(el.dataset.d); },
+  mcSchMore: () => { const s = mcState(); s.span = (s.span || 3) + 3; render(); },
 });
