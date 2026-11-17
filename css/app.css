@@ -2445,3 +2445,16 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .stv-tbl tbody th { text-align: left; font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .stv-tbl thead th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .stv-own { color: var(--muted); }
+
+/* Progress Meeting: weeks down, meeting slots across (like the OMI meeting calendar) */
+.pm-scroll { overflow-x: auto; border-radius: 12px; box-shadow: 0 0 0 .5px var(--line); background: var(--surface); }
+.pm-tbl { border-collapse: collapse; min-width: 100%; }
+.pm-tbl th, .pm-tbl td { border: 1px solid var(--line); padding: 6px 8px; text-align: center; white-space: nowrap; }
+.pm-tbl thead th { font-size: 12.5px; position: sticky; top: 0; background: var(--surface-2); }
+.pm-wk { min-width: 96px; } .pm-no { width: 64px; } .pm-rm { min-width: 160px; }
+.pm-rm input { width: 100%; border: 0; background: transparent; box-shadow: none; padding: 4px; }
+.pm-cell { min-width: 96px; height: 40px; cursor: cell; padding: 3px; }
+.pm-cell:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.pm-chip { display: block; width: 100%; border: 0; border-radius: 6px; padding: 7px 6px; font: inherit; font-weight: 600; cursor: pointer; color: var(--ink); background: color-mix(in srgb, var(--ec) 55%, var(--surface)); }
+.pm-now td { background: color-mix(in srgb, var(--highlight) 8%, transparent); }
+.pm-now .pm-wk { font-weight: 700; }

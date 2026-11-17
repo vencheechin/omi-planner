@@ -35,6 +35,7 @@ function mcNorm(m) {
     mapUrl: /^https?:\/\/\S+$/i.test(String(m.mapUrl || '')) ? String(m.mapUrl).slice(0, 500) : '',
     geo: m.geo && Number.isFinite(Number(m.geo.lat)) && Number.isFinite(Number(m.geo.lon)) ? { lat: Number(m.geo.lat), lon: Number(m.geo.lon) } : null,
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
+    pm: typeof m.pm === 'string' ? m.pm.slice(0, 40) : '',
     kind: m.kind === 'birthday' || m.kind === 'reminder' ? m.kind : 'event',
     ...(typeof m.block === 'boolean' ? { block: m.block } : (!m.kind || m.kind === 'meeting') ? { block: true } : {}),
     rep: MC_REPS.some(([v]) => v === m.rep) || m.rep === 'custom' ? m.rep : '',

@@ -69,6 +69,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/depart.js` | Time to leave: drive time (OSRM) from this device's location or a saved place to an event's place (Photon geocode), buffer from Settings › Calendar, Pan Pan pop-up and notification |
 | `js/culture.js` | Culture quotes set by admins (Admin Portal › Culture, org field `quotes`), shown in the rest reminder, task reminders and as a line on the Time Box, Work Planner and Calendar |
 | `js/notes.js` | Discussion Notes (`#/notes`): notes per person with points to discuss; tick when discussed, make a task for them (Delegate To) or for yourself. Shared with that person; stored as `dn:<id>` fields in the `meetings` record |
+| `js/progress.js` | Progress Meeting (`#/progress`): weeks × meeting-slot grid like the OMI meeting calendar; set up a repeating meeting with a department's DIC (every 2 weeks by default). Each is a Calendar event with `pm: deptId` |
 | `js/remsound.js` | Reminder sound (Settings › Sounds): any task-complete sound or ringtone, played by `checkReminders` when a reminder fires (`S.settings.remSound`) |
 | `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/sttasks.js` | Every S-Team / PD Plan month entry gets its own Planner task (plan named after the S-Team Plan, bucket per brand, due month end, PIC assigned); progress syncs both ways; entries open their task |
