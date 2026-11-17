@@ -2330,3 +2330,10 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 @media (max-width: 640px) { .mc-place { grid-template-columns: 1fr auto; } .mc-place input:nth-child(2), .mc-place input:nth-child(3) { grid-column: 1 / 2; } }
 
 .mc-gal > span small { font-weight: 400; }
+
+/* Sidebar: each request group on its own tint */
+.req-box { border-radius: 12px; padding: 4px 4px 6px; margin: 4px 0 8px; }
+.req-box h3 { margin-top: 4px !important; }
+.req-me { background: color-mix(in srgb, #c9a46e 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #c9a46e 22%, transparent); }
+.req-others { background: color-mix(in srgb, #6e8fbf 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #6e8fbf 22%, transparent); }
+.req-box .req-sub { margin-top: 4px; }

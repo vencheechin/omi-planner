@@ -213,14 +213,14 @@ function requestsNavHTML(r) {
   const n = (kind, dir) => openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind)).length;
   const row = (href, on, ic, label, count, mine) => `<a class="nav-item req-item ${on ? 'active' : ''}" href="${href}">${icon(ic, 17)}<span>${label}</span>${count ? `<em class="${mine ? 'to-check' : ''}">${count}</em>` : ''}</a>`;
   const reqOn = (kind, dir) => r.view === 'req' && r.kind === kind && r.dir === dir && !r.id;
-  return `<h3>Request to me</h3>
+  return `<div class="req-box req-me"><h3>Request to me</h3>
     ${row('#/check/me', r.view === 'check' && r.dir === 'me', 'check', 'Checking', checkingForMe().length, true)}
     ${row('#/req/approval/from', reqOn('approval', 'from'), 'approve', 'Approval', n('approval', 'from'), true)}
     ${row('#/req/decision/from', reqOn('decision', 'from'), 'flag', 'Decision Required', n('decision', 'from'), true)}
-    <h3 class="req-sub">Pending from Others</h3>
+    </div><div class="req-box req-others"><h3 class="req-sub">Pending from Others</h3>
     ${row('#/check/sent', r.view === 'check' && r.dir === 'sent', 'clock', 'Pending Checking', checkingSent().length + checkedForMe().length, checkedForMe().length > 0)}
     ${row('#/req/approval/to', reqOn('approval', 'to'), 'approve', 'Pending Approval', n('approval', 'to'))}
-    ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}`;
+    ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}</div>`;
 }
 /** Checking / approval / decision lists: grouped by the person (default) or by the task's due date. */
 const reqGroupBy = () => (S.settings.reqGroup === 'due' ? 'due' : 'person');
