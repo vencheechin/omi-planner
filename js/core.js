@@ -297,6 +297,7 @@ const Store = {
     if (!this.db) return;
     // Files in deleted messages are kept too, so Undo and teammates' copies still work.
     const used = new Set(S.tasks.flatMap((t) => [...t.attachments, ...t.comments.flatMap((c) => c.files || [])].filter((a) => a.kind === 'file').map((a) => a.id)));
+    if (typeof mcAll === 'function') mcAll().forEach((m) => (m.files || []).forEach((f) => used.add(f.id)));
     const keys = await this.tx('files', 'readonly', (s) => s.getAllKeys());
     const stale = (keys || []).filter((k) => !used.has(k));
     if (stale.length) await this.tx('files', 'readwrite', (s) => { stale.forEach((k) => s.delete(k)); });

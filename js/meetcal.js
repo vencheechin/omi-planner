@@ -32,6 +32,7 @@ function mcNorm(m) {
     tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
     al: mcNormAl(m.al),
     map: ['google', 'amap'].includes(m.map) ? m.map : '',
+    files: (Array.isArray(m.files) ? m.files : []).filter((f) => f && typeof f.id === 'string').slice(0, 30).map((f) => ({ id: f.id.slice(0, 40), name: String(f.name || 'File').slice(0, 200), size: Number(f.size) || 0, type: String(f.type || '').slice(0, 100), ...(typeof f.thumb === 'string' && f.thumb.length < 60000 ? { thumb: f.thumb } : {}) })),
   };
 }
 const mcAll = () => { const p = mcPlan(); return p ? (p.meetings = Array.isArray(p.meetings) ? p.meetings : []) : []; };
@@ -159,6 +160,8 @@ function mcFormHTML(m) {
     <input type="hidden" name="map" value="${esc(m.map || '')}"><a class="mc-maplink" href="${esc(mcMapUrl(m.map, m.loc))}" target="_blank" rel="noopener" ${(m.map && m.loc) || mcIsLink(m.loc) ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.map, m.loc))}</span></a>
     <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
+    <div class="pd-f mc-files"><span>Attachments</span><input type="hidden" name="files" value="${esc(JSON.stringify(m.files || []))}"><div class="mc-flist">${(m.files || []).map(mcFileChip).join('')}</div>
+      <div class="mc-drop" data-mc-drop>${icon('clip', 15)} <span>Drop files here or</span> <button type="button" class="btn ghost xs" data-act="mcFileAdd">${icon('upload', 12)} Upload</button></div></div>
     <label class="pd-f"><span>Notes</span><textarea name="notes" rows="3" placeholder="Agenda, documents">${esc(m.notes)}</textarea></label>
     <div class="mc-colors" role="radiogroup" aria-label="Colour">${MC_COLORS.map((c, i) => `<label style="--ec:${c}"><input type="radio" name="color" value="${c}" ${(m.color || MC_COLORS[0]) === c ? 'checked' : ''} aria-label="Colour ${i + 1}"><i></i></label>`).join('')}</div>
     <div class="row">${mcAll().some((x) => x.id === m.id) ? `<button type="button" class="btn ghost sm danger" data-act="mcDelete" data-id="${esc(m.id)}">${icon('trash', 13)} Delete</button>` : ''}<span class="spacer"></span><button class="btn primary">Save</button></div>
@@ -205,7 +208,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -561,3 +564,58 @@ function mcMapRefresh(form) {
   a.querySelector('span').textContent = mcMapText(svc, loc);
 }
 document.addEventListener('input', (e) => { if (e.target.matches?.('.mc-form [name="loc"]')) mcMapRefresh(e.target.closest('form')); });
+
+// ---------- Event attachments: drop files on the form, or Upload ----------
+// Files are kept on this device (like task attachments) and travel to teammates through Team sync.
+function mcFileChip(f) {
+  return `<span class="mc-fchip" data-id="${esc(f.id)}">${f.thumb ? `<img src="${esc(f.thumb)}" alt="">` : icon('clip', 14)}<button type="button" class="linklike" data-act="mcFileOpen" data-id="${esc(f.id)}" title="Open ${esc(f.name)}">${esc(f.name)}</button><small class="muted">${esc(fmtSize(f.size || 0))}</small><button type="button" class="chip-x" data-act="mcFileDel" data-id="${esc(f.id)}" aria-label="Remove ${esc(f.name)}">${icon('close', 11)}</button></span>`;
+}
+const mcFilesOf = (form) => { try { return JSON.parse(form.querySelector('[name="files"]').value || '[]'); } catch { return []; } };
+function mcFilesSet(form, list) {
+  form.querySelector('[name="files"]').value = JSON.stringify(list);
+  form.querySelector('.mc-flist').innerHTML = list.map(mcFileChip).join('');
+}
+async function mcFilesAdd(form, files) {
+  const list = mcFilesOf(form);
+  for (const file of files) {
+    if (file.size > 50 * 1048576) { toast(`${file.name} is over the 50 MB limit.`, { error: true }); continue; }
+    try {
+      const id = uid();
+      await Store.putFile(id, file);
+      const thumb = typeof makeThumb === 'function' ? await makeThumb(file) : null;
+      list.push({ id, name: file.name, size: file.size, type: file.type, ...(thumb ? { thumb } : {}) });
+    } catch (err) { toast(err.message || `Could not keep ${file.name}.`, { error: true }); }
+  }
+  mcFilesSet(form, list);
+}
+Object.assign(actions, {
+  mcFileAdd: (el) => {
+    const form = el.closest('form');
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.multiple = true;
+    inp.onchange = () => { if (inp.files.length) mcFilesAdd(form, [...inp.files]); };
+    inp.click();
+  },
+  mcFileDel: (el) => { const form = el.closest('form'); mcFilesSet(form, mcFilesOf(form).filter((f) => f.id !== el.dataset.id)); },
+  mcFileOpen: async (el) => {
+    const f = mcFilesOf(el.closest('form')).find((x) => x.id === el.dataset.id);
+    const blob = f && await Store.getFile(f.id);
+    if (blob) download(f.name, blob); else toast('This file is not on this device yet. It arrives with the next Team sync.', { error: true });
+  },
+});
+// Drag files anywhere onto the event form.
+document.addEventListener('dragover', (e) => {
+  const form = e.target.closest?.('.mc-form');
+  if (!form || ![...(e.dataTransfer?.types || [])].includes('Files')) return;
+  e.preventDefault();
+  form.querySelector('[data-mc-drop]')?.classList.add('over');
+});
+document.addEventListener('dragleave', (e) => { if (!e.relatedTarget || !e.target.closest?.('.mc-form')?.contains(e.relatedTarget)) $$('[data-mc-drop].over').forEach((x) => x.classList.remove('over')); });
+document.addEventListener('drop', (e) => {
+  const form = e.target.closest?.('.mc-form');
+  if (!form || !e.dataTransfer?.files?.length) return;
+  e.preventDefault();
+  $$('[data-mc-drop].over').forEach((x) => x.classList.remove('over'));
+  mcFilesAdd(form, [...e.dataTransfer.files]);
+});
