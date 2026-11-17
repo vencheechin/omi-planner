@@ -386,7 +386,7 @@ function sizeControls() {
 // ---------- Settings ----------
 /** Settings, one tab at a time. Each section goes to a tab by its heading. */
 const SETTINGS_TABS = [
-  ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style', 'Pop-up messages']],
+  ['general', 'General', ['Planner', 'Language', 'Appearance', 'Font', 'Colour Style', 'Pop-up messages']],
   ['timebox', 'Time Box', ['Time boxing']],
   ['ringtone', 'Sounds', ["Time's up alert", 'Task complete sound', 'Reminder sound']],
   ['calendar', 'Calendar', ['Default notifications', 'Saved locations', 'Time to leave']],
@@ -422,6 +422,7 @@ function settingsHTML() {
     <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form></section>
   <section class="set-sec"><h3>Reporting Lines</h3>${reportingLinesHTML()}</section>
   <section class="set-sec"><h3>Messages and Language</h3>${chatSettingsHTML()}</section>
+  <section class="set-sec"><h3>Language</h3>${typeof langSettingsHTML === 'function' ? langSettingsHTML() : ''}</section>
   <section class="set-sec"><h3>Appearance</h3>
     <div class="seg">${[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<button class="${S.settings.theme === v ? 'on' : ''}" data-act="setTheme" data-v="${v}">${l}</button>`).join('')}</div>
     ${sizeControls()}</section>

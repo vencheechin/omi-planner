@@ -447,7 +447,7 @@ function adoptEmailIds(myEmail) {
 function replaceWithCloud(email) {
   const local = person(S.meId);
   const me = { id: `e:${email}`, name: local && local.name !== 'Me' ? local.name : nameFromEmail(email), email, color: local?.color || PERSON_COLORS[0] };
-  const keep = { theme: S.settings.theme, cloud: S.settings.cloud };
+  const keep = { theme: S.settings.theme, cloud: S.settings.cloud, uiLang: S.settings.uiLang };
   S = normalizeState({ v: 1, people: [me], meId: me.id, plans: [], tasks: [], settings: { ...keep }, days: {}, personPlans: [], inbox: [] });
   S.sync.ready = true;
   S.sync.cloud = { since: null };
