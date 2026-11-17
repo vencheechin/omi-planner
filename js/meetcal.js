@@ -142,7 +142,6 @@ function mcMonthHTML() {
 function renderMeetCal() {
   const s = mcState();
   const days = s.view === 'day' ? [s.date] : Array.from({ length: 7 }, (_, i) => mcAddDays(mcWeekStart(s.date), i));
-  const upcoming = mcShown().filter((m) => m.date >= todayISO()).sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start).slice(0, 1)[0];
   return `<div class="page mc-page">
     <header class="mc-top">
       <h1>Calendar</h1>
@@ -155,7 +154,6 @@ function renderMeetCal() {
       <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
       <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
     </header>
-    ${upcoming ? `<p class="small muted mc-next">Next: <b>${esc(upcoming.title || '(No title)')}</b> · ${esc(dayLabel(upcoming.date))}, ${esc(mcFmt(upcoming.start))}</p>` : ''}
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
   </div>`;
 }
