@@ -2201,3 +2201,11 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .req-sub { margin-top: 10px; }
 
 .pd-fw-foot { margin-top: 14px; position: sticky; bottom: 0; background: var(--surface); padding-top: 10px; }
+
+/* Yearly Planner: drag a heading to move it, drag its edge to resize */
+.yr-tbl th.yr-colh { position: relative; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; }
+.yr-tbl th.yr-colh.yr-dragging { opacity: .5; cursor: grabbing; }
+.yr-tbl th.yr-drop-before { box-shadow: inset 3px 0 0 var(--highlight); }
+.yr-tbl th.yr-drop-after { box-shadow: inset -3px 0 0 var(--highlight); }
+.yr-rsz { position: absolute; top: 0; right: -4px; width: 9px; height: 100%; cursor: col-resize; z-index: 2; touch-action: none; }
+.yr-rsz:hover, .yr-rsz:active { background: color-mix(in srgb, var(--highlight) 45%, transparent); }

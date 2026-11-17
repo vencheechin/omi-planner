@@ -52,10 +52,10 @@ function holSchool() {
       const t = (i % 4) + 1;
       (m[s] = m[s] || []).push({ region, label: `Term ${t} starts`, kind: 'term' });
       (m[e] = m[e] || []).push({ region, label: `Term ${t} ends`, kind: 'term' });
-      if (region !== 'NSW' && terms[i + 1]) put(holAdd(e, 1), holAdd(terms[i + 1][0], -1), region, 'School holidays');
+      if (region !== 'NSW' && terms[i + 1]) put(holAdd(e, 1), holAdd(terms[i + 1][0], -1), region, 'Sch Hday');
     });
   }
-  NSW_SCHOOL_HOLS.forEach(([s, e, n]) => put(s, e, 'NSW', `${n} school holidays`));
+  NSW_SCHOOL_HOLS.forEach(([s, e, n]) => put(s, e, 'NSW', `${n} Sch Hday`));
   holSchoolMap = m;
   return m;
 }
@@ -98,7 +98,7 @@ function holidaysOn(iso) {
   }
   return out;
 }
-const holLabel = (h) => `${h.label}${h.region && h.region !== 'National' ? ` (${h.region})` : ''}`;
+const holLabel = (h) => `${h.label}${h.region && h.region !== 'National' ? ` (${h.region.replace(/\bVIC\b/g, 'Vic')})` : ''}`;
 
 /** The little settings panel used by the Yearly Planner and Meeting Calendar. */
 function holPickerHTML() {

@@ -10,6 +10,15 @@ const yr = () => (S.settings.yearly = S.settings.yearly && typeof S.settings.yea
 const yrDays = () => (yr().d = yr().d && typeof yr().d === 'object' ? yr().d : {});
 const yrDay = (iso) => yrDays()[iso] || {};
 const yrIso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+/** Column order and widths: one layout for every month, or a month's own. Synced with your settings. */
+const yrLayAll = () => (yr().layout = yr().layout && typeof yr().layout === 'object' ? yr().layout : {});
+function yrLay(ym) { const L = yrLayAll(); return (L.m && L.m[ym]) || L.all || {}; }
+function yrColsFor(ym) {
+  const order = Array.isArray(yrLay(ym).order) ? yrLay(ym).order : [];
+  const keys = [...order.filter((k) => YR_COLS.some(([x]) => x === k)), ...YR_COLS.map(([k]) => k).filter((k) => !order.includes(k))];
+  return keys.map((k) => YR_COLS.find(([x]) => x === k));
+}
+const yrW = (ym, k) => { const w = yrLay(ym).w?.[k]; return Number.isFinite(w) ? w : null; };
 const YR_WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const YR_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -27,11 +36,13 @@ function yrMonths() {
 }
 
 function yrMonthHTML({ y, m }) {
+  const ym = yrIso(y, m, 1).slice(0, 7);
+  const cols = yrColsFor(ym);
   const n = new Date(y, m, 0).getDate();
   const today = todayISO();
   const rows = [];
   for (let d = 1; d <= 31; d += 1) {
-    if (d > n) { rows.push(`<tr class="yr-none"><td class="yr-dn"></td><td class="yr-wd"></td>${YR_COLS.map(() => '<td></td>').join('')}<td></td></tr>`); continue; }
+    if (d > n) { rows.push(`<tr class="yr-none"><td class="yr-dn"></td><td class="yr-wd"></td>${cols.map(() => '<td></td>').join('')}<td></td></tr>`); continue; }
     const iso = yrIso(y, m, d);
     const wd = new Date(y, m - 1, d).getDay();
     const day = yrDay(iso);
@@ -40,14 +51,14 @@ function yrMonthHTML({ y, m }) {
     const sch = hol.find((h) => h.kind !== 'pub');
     rows.push(`<tr class="${wd === 0 || wd === 6 ? 'yr-we' : ''} ${iso === today ? 'yr-today' : ''} ${pub ? 'yr-pub' : ''} ${sch?.kind === 'school' ? 'yr-sch' : ''}" data-iso="${iso}" ${hol.length ? `title="${esc(hol.map(holLabel).join(' · '))}"` : ''}>
       <td class="yr-dn">${d}</td><td class="yr-wd">${YR_WD[wd]}</td>
-      ${YR_COLS.map(([k, label]) => `<td class="yr-${k}" ${k === 'ev' && day.c ? `style="--yc:${esc(day.c)}"` : ''}><input value="${esc(day[k] || '')}" ${k === 'ev' && hol.length ? `placeholder="${esc(hol.map(holLabel).join(' · '))}"` : ''} data-change="yrCell" data-iso="${iso}" data-k="${k}" aria-label="${esc(`${label}, ${d} ${YR_MON[m - 1]} ${y}`)}" autocomplete="off"></td>`).join('')}
+      ${cols.map(([k, label]) => `<td class="yr-${k}" ${k === 'ev' && day.c ? `style="--yc:${esc(day.c)}"` : ''}><input value="${esc(day[k] || '')}" ${k === 'ev' && hol.length ? `placeholder="${esc(hol.map(holLabel).join(' · '))}"` : ''} data-change="yrCell" data-iso="${iso}" data-k="${k}" aria-label="${esc(`${label}, ${d} ${YR_MON[m - 1]} ${y}`)}" autocomplete="off"></td>`).join('')}
       <td class="yr-act">${day.task && taskById(day.task) ? `<button class="yr-tlink" data-open-task="${esc(day.task)}" title="Open its task" aria-label="Open its task">${icon('check', 12)}</button>` : ''}<button class="icon-btn yr-more" data-act="yrMenu" data-iso="${iso}" aria-label="Options for ${d} ${YR_MON[m - 1]}">${icon('more', 14)}</button></td></tr>`);
   }
   const cur = today.slice(0, 7) === yrIso(y, m, 1).slice(0, 7);
   return `<section class="yr-month ${cur ? 'yr-cur' : ''}" data-ym="${yrIso(y, m, 1).slice(0, 7)}"><table class="yr-tbl">
-    <colgroup><col class="c-dn"><col class="c-wd">${YR_COLS.map(([k]) => `<col class="c-${k}">`).join('')}<col class="c-act"></colgroup>
-    <thead><tr class="yr-mh"><th colspan="${YR_COLS.length + 3}">${YR_MON[m - 1]} ${String(y).slice(2)}${cur ? '<span class="yr-curtag">This month</span>' : ''}</th></tr>
-      <tr><th class="yr-dn"></th><th class="yr-wd"></th>${YR_COLS.map(([k, l]) => `<th class="yr-${k}">${l}</th>`).join('')}<th class="yr-act"></th></tr></thead>
+    <colgroup><col class="c-dn"><col class="c-wd">${cols.map(([k]) => `<col class="c-${k}" ${yrW(ym, k) ? `style="width:${yrW(ym, k)}px"` : ''}>`).join('')}<col class="c-act"></colgroup>
+    <thead><tr class="yr-mh"><th colspan="${cols.length + 3}">${YR_MON[m - 1]} ${String(y).slice(2)}${cur ? '<span class="yr-curtag">This month</span>' : ''}</th></tr>
+      <tr><th class="yr-dn"></th><th class="yr-wd"></th>${cols.map(([k, l]) => `<th class="yr-${k} yr-colh" data-ym="${ym}" data-k="${k}" title="Drag to move this column; drag its edge to resize">${l}<span class="yr-rsz" data-ym="${ym}" data-k="${k}" aria-hidden="true"></span></th>`).join('')}<th class="yr-act"></th></tr></thead>
     <tbody>${rows.join('')}</tbody></table></section>`;
 }
 function renderYearly() {
@@ -137,15 +148,15 @@ Object.assign(changes, {
 // fills the days and columns from the cell you paste into.
 let yrRange = null; // { a: {iso, c}, b: {iso, c} }
 let yrPick = null;
-const yrCol = (k) => YR_COLS.findIndex(([x]) => x === k);
-const yrCellOf = (el) => { const i = el?.closest?.('td')?.querySelector('input[data-change="yrCell"]'); return i ? { iso: i.dataset.iso, c: yrCol(i.dataset.k), el: i } : null; };
+const yrCol = (k, ym) => yrColsFor(ym).findIndex(([x]) => x === k);
+const yrCellOf = (el) => { const i = el?.closest?.('td')?.querySelector('input[data-change="yrCell"]'); return i ? { iso: i.dataset.iso, c: yrCol(i.dataset.k, i.dataset.iso.slice(0, 7)), el: i } : null; };
 function yrRangeCells() {
   if (!yrRange) return null;
   const [d1, d2] = [yrRange.a.iso, yrRange.b.iso].sort();
   const [c1, c2] = [yrRange.a.c, yrRange.b.c].sort((x, y) => x - y);
   const days = [];
   for (let d = d1, i = 0; d <= d2 && i < 400; d = yrNext(d, 1), i += 1) days.push(d);
-  return { days, cols: YR_COLS.slice(c1, c2 + 1).map(([k]) => k) };
+  return { days, cols: yrColsFor(yrRange.a.iso.slice(0, 7)).slice(c1, c2 + 1).map(([k]) => k) };
 }
 function yrPaint() {
   $$('.yr-sel').forEach((n) => n.classList.remove('yr-sel'));
@@ -203,7 +214,7 @@ document.addEventListener('copy', (e) => {
 });
 document.addEventListener('paste', (e) => {
   if (ui.route?.view !== 'yearly') return;
-  const at = (yrMulti() && yrRangeCells()) ? { iso: yrRangeCells().days[0], c: yrCol(yrRangeCells().cols[0]) } : yrCellOf(document.activeElement);
+  const at = (yrMulti() && yrRangeCells()) ? { iso: yrRangeCells().days[0], c: yrCol(yrRangeCells().cols[0], yrRangeCells().days[0].slice(0, 7)) } : yrCellOf(document.activeElement);
   if (!at) return;
   const text = e.clipboardData?.getData('text/plain') || '';
   if (!/[\t\n]/.test(text.replace(/\n$/, ''))) return; // one value: the box takes it as usual
@@ -212,7 +223,7 @@ document.addEventListener('paste', (e) => {
   let n = 0;
   rows.forEach((row, ri) => {
     const iso = yrNext(at.iso, ri);
-    row.forEach((v, ci) => { const col = YR_COLS[at.c + ci]; if (col) { yrSet(iso, col[0], v.trim().slice(0, 300)); n += 1; } });
+    row.forEach((v, ci) => { const col = yrColsFor(at.iso.slice(0, 7))[at.c + ci]; if (col) { yrSet(iso, col[0], v.trim().slice(0, 300)); n += 1; } });
   });
   const last = yrNext(at.iso, rows.length - 1);
   yrRange = { a: { iso: at.iso, c: at.c }, b: { iso: last, c: Math.min(YR_COLS.length - 1, at.c + Math.max(...rows.map((r) => r.length)) - 1) } };
@@ -258,3 +269,74 @@ function yrGoTo(ym) {
     if (ym === todayISO().slice(0, 7)) $(`tr[data-iso="${todayISO()}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, 30);
 }
+
+// ---------- Column width and order (drag a heading's edge, or the heading itself) ----------
+let yrColDrag = null;
+async function yrSaveLayout(ym, order, w) {
+  const v = await choiceDlg('Apply to all months?', '<p>Use this column layout for every month, or only this one?</p>',
+    [{ v: 'all', label: 'All months', primary: true }, { v: 'this', label: 'Only this month' }, { v: 'cancel', label: 'Cancel' }]);
+  const L = yrLayAll();
+  if (v === 'all') { L.all = { order, w }; delete L.m; }
+  else if (v === 'this') { L.m = { ...(L.m || {}), [ym]: { order, w } }; }
+  commit();
+}
+document.addEventListener('pointerdown', (e) => {
+  if (ui.route?.view !== 'yearly' || e.button !== 0) return;
+  const rsz = e.target.closest?.('.yr-rsz');
+  const th = e.target.closest?.('th.yr-colh');
+  if (!rsz && !th) return;
+  e.preventDefault();
+  const ym = (rsz || th).dataset.ym;
+  const k = (rsz || th).dataset.k;
+  const sec = (rsz || th).closest('.yr-month');
+  const col = sec.querySelector(`col.c-${k}`);
+  yrColDrag = rsz
+    ? { kind: 'size', ym, k, sec, col, x: e.clientX, w0: col.getBoundingClientRect().width || th?.offsetWidth || 100 }
+    : { kind: 'move', ym, k, sec, th, x: e.clientX, y: e.clientY, on: false, before: null };
+});
+document.addEventListener('pointermove', (e) => {
+  const d = yrColDrag;
+  if (!d) return;
+  if (d.kind === 'size') { d.w = Math.max(40, Math.min(420, Math.round(d.w0 + e.clientX - d.x))); d.col.style.width = `${d.w}px`; return; }
+  if (!d.on && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+  d.on = true;
+  d.th.classList.add('yr-dragging');
+  const ths = [...d.sec.querySelectorAll('th.yr-colh')];
+  d.sec.querySelectorAll('.yr-drop-before, .yr-drop-after').forEach((n) => n.classList.remove('yr-drop-before', 'yr-drop-after'));
+  const over = ths.find((t) => { const r = t.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right; });
+  if (!over) { d.before = null; return; }
+  const r = over.getBoundingClientRect();
+  const after = e.clientX > r.left + r.width / 2;
+  over.classList.add(after ? 'yr-drop-after' : 'yr-drop-before');
+  const i = ths.indexOf(over) + (after ? 1 : 0);
+  d.before = i < ths.length ? ths[i].dataset.k : '';
+});
+document.addEventListener('pointerup', () => {
+  const d = yrColDrag;
+  yrColDrag = null;
+  if (!d) return;
+  const cur = yrColsFor(d.ym).map(([k]) => k);
+  const widths = { ...(yrLay(d.ym).w || {}) };
+  if (d.kind === 'size') {
+    if (!d.w) return;
+    widths[d.k] = d.w;
+    yrSaveLayout(d.ym, cur, widths);
+    return;
+  }
+  d.th.classList.remove('yr-dragging');
+  d.sec.querySelectorAll('.yr-drop-before, .yr-drop-after').forEach((n) => n.classList.remove('yr-drop-before', 'yr-drop-after'));
+  if (!d.on || d.before === null || d.before === d.k) return;
+  const order = cur.filter((k) => k !== d.k);
+  const at = d.before === '' ? order.length : order.indexOf(d.before);
+  order.splice(at < 0 ? order.length : at, 0, d.k);
+  if (order.join() === cur.join()) return;
+  yrSaveLayout(d.ym, order, widths);
+});
+document.addEventListener('dblclick', (e) => {
+  const rsz = e.target.closest?.('.yr-rsz');
+  if (!rsz || ui.route?.view !== 'yearly') return;
+  const ym = rsz.dataset.ym;
+  const w = { ...(yrLay(ym).w || {}) };
+  delete w[rsz.dataset.k];
+  yrSaveLayout(ym, yrColsFor(ym).map(([k]) => k), w);
+});
