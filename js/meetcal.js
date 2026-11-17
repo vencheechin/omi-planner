@@ -162,7 +162,7 @@ function mcFormHTML(m) {
   return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}" data-kind="${kind}">
     <input type="hidden" name="kind" value="${kind}"><div class="seg mc-kinds" role="group" aria-label="Type" ${mcAll().some((x) => x.id === m.id) ? 'hidden' : ''}>${MC_KINDS.map(([k, l, ic]) => `<button type="button" class="${k === kind ? 'on' : ''}" data-act="mcKind" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
     ${mcCalPickHTML(m)}
-    <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="${esc(MC_TITLE_HINT[kind])}" aria-label="Title" autocomplete="off" data-focus="mc-title">
+    <div class="mc-titlerow"><input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="${esc(MC_TITLE_HINT[kind])}" aria-label="Title" autocomplete="off" data-focus="mc-title"><a class="mc-mapbtn" href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener" title="Open the location in Google Maps" ${m.loc && mcKind(m) === 'event' ? '' : 'hidden'}>${icon('pin', 14)} Google Maps</a></div>
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required><span class="mc-k-timed">${wheelTimeHTML('start', m.start, 'Start')}</span><span class="mc-k-ev">–</span><span class="mc-k-ev">${wheelTimeHTML('end', m.end, 'End')}</span><label class="mc-k-bd mc-by"><span>Year born</span><input name="by" inputmode="numeric" maxlength="4" value="${m.by || ''}" placeholder="optional"></label></div>
     <p class="mc-k-bd small muted mc-yearly">🎂 Repeats every year${m.by ? ` · turns ${mcAge(m, m.date)}` : ''}</p>
     <label class="mc-k-rep mc-rep"><span>Repeat</span><select name="rep" data-prev="${esc(m.rep || '')}">${MC_REPS.map(([v, l]) => `<option value="${v}" ${(m.rep || '') === v ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom" ${m.rep === 'custom' ? 'selected' : ''}>${m.rep === 'custom' ? esc(mcRcText(m.rc, m.date)) : 'Custom…'}</option></select><input type="hidden" name="rc" value="${esc(JSON.stringify(m.rc || null))}"></label>
@@ -173,7 +173,7 @@ function mcFormHTML(m) {
     <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved place" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
-    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><a class="mc-maplink" href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener" ${m.loc ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.mapUrl, m.loc))}</span></a><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this place for next time">⭐ Save place</button></div>
+    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this place for next time">⭐ Save place</button></div>
     <p class="mc-travel mc-k-ev small" hidden></p>
 
     <label class="pd-f mc-k-ev"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
@@ -583,11 +583,11 @@ const mcMapText = (mapUrl, loc) => (mcIsLink(loc) ? 'Open map link' : String(loc
 function mcMapRefresh(form) {
   const loc = form.querySelector('[name="loc"]')?.value || '';
   const url = form.querySelector('[name="mapUrl"]')?.value || '';
-  const a = form.querySelector('.mc-maplink');
+  // The Google Maps button at the top right, shown once there's a location.
+  const a = form.querySelector('.mc-mapbtn');
   if (!a) return;
-  a.hidden = !loc.trim();
+  a.hidden = !loc.trim() || form.dataset.kind !== 'event';
   a.href = mcMapUrl(url, loc);
-  a.querySelector('span').textContent = mcMapText(url, loc);
 }
 
 // ---------- Location: saved places and live address search ----------
@@ -893,6 +893,7 @@ Object.assign(actions, {
     if (box && isNew && !box.dataset.touched) box.innerHTML = (MC_KIND_ALERTS[k] || mcAlDefault()).map((n) => mcAlertRow(n)).join('');
     if (k === 'birthday') { const r = form.querySelector('input[name="color"][value="#9a5b6e"]'); if (r) r.checked = true; }
     mcBdLabels(form);
+    mcMapRefresh(form);
   },
 });
 document.addEventListener('change', (e) => {
