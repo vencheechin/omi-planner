@@ -2319,3 +2319,12 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ec) 34%, var(--surface)) 0 8px, color-mix(in srgb, var(--ec) 24%, var(--surface)) 8px 16px); color: var(--ink); box-shadow: inset 3px 0 0 var(--ec); display: grid; align-content: start; }
 .tb-meet b { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-meet small { font-size: 10.5px; color: var(--muted); }
+
+/* Location search and saved places */
+.mc-locf { position: relative; }
+.mc-locsug { position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px; z-index: 6; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-lg), 0 0 0 1px var(--line); padding: 4px; display: grid; max-height: 280px; overflow-y: auto; }
+.mc-locmanual { border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; color: var(--muted); }
+.mc-maps { align-items: center; }
+.mc-places { display: grid; gap: 8px; margin-bottom: 8px; }
+.mc-place { display: grid; grid-template-columns: 1fr 1.6fr 1.3fr auto; gap: 6px; align-items: center; }
+@media (max-width: 640px) { .mc-place { grid-template-columns: 1fr auto; } .mc-place input:nth-child(2), .mc-place input:nth-child(3) { grid-column: 1 / 2; } }

@@ -31,7 +31,7 @@ function mcNorm(m) {
     color: /^#[0-9a-f]{6}$/i.test(m.color || '') ? m.color : '', at: Number(m.at) || Date.now(),
     tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
     al: mcNormAl(m.al),
-    map: ['google', 'amap'].includes(m.map) ? m.map : '',
+    mapUrl: /^https?:\/\/\S+$/i.test(String(m.mapUrl || '')) ? String(m.mapUrl).slice(0, 500) : '',
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
     kind: MC_KINDS.some(([k]) => k === m.kind) ? m.kind : 'meeting',
     ...(typeof m.block === 'boolean' ? { block: m.block } : {}),
@@ -168,9 +168,9 @@ function mcFormHTML(m) {
     <div class="pd-f"><span>Notifications</span><div class="mc-alerts">${mcAlertsFor(m).map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
     <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
-    <label class="pd-f mc-k-ev"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
-    <div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
-    <input type="hidden" name="map" value="${esc(m.map || '')}"><a class="mc-maplink" href="${esc(mcMapUrl(m.map, m.loc))}" target="_blank" rel="noopener" ${(m.map && m.loc) || mcIsLink(m.loc) ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.map, m.loc))}</span></a>
+    <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved place" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
+    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><div class="mc-maps mc-k-ev"><a class="mc-maplink" href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener" ${m.loc ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.mapUrl, m.loc))}</span></a><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this place for next time">⭐ Save place</button></div>
+
     <label class="pd-f mc-k-ev"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
     <div class="pd-f mc-files mc-k-ev"><span>Attachments</span><input type="hidden" name="files" value="${esc(JSON.stringify(m.files || []))}"><div class="mc-flist">${(m.files || []).map(mcFileChip).join('')}</div>
@@ -222,7 +222,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -322,15 +322,7 @@ function mcTzMenuHTML() {
 }
 Object.assign(actions, {
   mcTzMenu: (el) => openPop(el, mcTzMenuHTML),
-  mcMap: (el) => {
-    const form = el.closest('form');
-    const q = String(form?.querySelector('[name="loc"]')?.value || '').trim();
-    if (!q) { toast('Type the place in Location first.', { error: true }); return; }
-    // Keep the map with the event (saved with it), so everyone can tap it, and open it now.
-    form.querySelector('[name="map"]').value = el.dataset.svc;
-    mcMapRefresh(form);
-    window.open(mcMapUrl(el.dataset.svc, q), '_blank', 'noopener');
-  },
+
 });
 Object.assign(changes, {
   mcHomeTz: (el) => { if (tzValid(el.value)) { S.settings.homeTz = el.value; Store.save(); closePop(); render(); } },
@@ -563,23 +555,129 @@ Object.assign(actions, { mcGuestDel: (el) => el.closest('.mc-gchip').remove() })
 
 // ---------- The event's map link ----------
 const mcIsLink = (v) => /^https?:\/\/\S+$/i.test(String(v || '').trim());
-function mcMapUrl(svc, loc) {
+/** The event's map link: a saved/pasted link if there is one, otherwise a Google Maps search for the address. */
+function mcMapUrl(mapUrl, loc) {
+  if (mapUrl && mcIsLink(mapUrl)) return mapUrl;
   if (mcIsLink(loc)) return String(loc).trim();
-  const q = encodeURIComponent(String(loc || '').trim());
-  if (!svc || !q) return '#';
-  return svc === 'amap' ? `https://uri.amap.com/search?keyword=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+  const q = String(loc || '').trim();
+  return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : '#';
 }
-const mcMapText = (svc, loc) => (mcIsLink(loc) ? `Open map link (${new URL(String(loc).trim()).hostname.replace(/^www\./, '')})` : svc && loc ? `${String(loc).trim()} · ${svc === 'amap' ? 'Amap 高德地图' : 'Google Maps'}` : '');
+const mcMapText = (mapUrl, loc) => (mcIsLink(loc) ? 'Open map link' : String(loc || '').trim() ? 'Open in Google Maps' : '');
 function mcMapRefresh(form) {
-  const svc = form.querySelector('[name="map"]')?.value;
   const loc = form.querySelector('[name="loc"]')?.value || '';
+  const url = form.querySelector('[name="mapUrl"]')?.value || '';
   const a = form.querySelector('.mc-maplink');
   if (!a) return;
-  a.hidden = !((svc && loc.trim()) || mcIsLink(loc));
-  a.href = mcMapUrl(svc, loc);
-  a.querySelector('span').textContent = mcMapText(svc, loc);
+  a.hidden = !loc.trim();
+  a.href = mcMapUrl(url, loc);
+  a.querySelector('span').textContent = mcMapText(url, loc);
 }
-document.addEventListener('input', (e) => { if (e.target.matches?.('.mc-form [name="loc"]')) mcMapRefresh(e.target.closest('form')); });
+
+// ---------- Location: saved places and live address search ----------
+// As you type, your saved places that match come first, then addresses found live (OpenStreetMap,
+// through the free Photon search). Picking one fills Location; a saved place brings its own map link.
+const mcPlaces = () => (Array.isArray(S.settings.places) ? S.settings.places : []);
+const mcPlaceText = (p) => [p.name, p.addr].filter(Boolean).join(', ');
+let mcLocTimer = null;
+let mcLocSeq = 0;
+function mcPhotonText(f) {
+  const p = f.properties || {};
+  const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+  const first = p.name && p.name !== p.street ? p.name : '';
+  const area = [p.city || p.district || p.locality, p.state && p.countrycode === 'AU' ? ({ Victoria: 'VIC', 'New South Wales': 'NSW', Queensland: 'QLD', 'Australian Capital Territory': 'ACT', 'South Australia': 'SA', 'Western Australia': 'WA', Tasmania: 'TAS', 'Northern Territory': 'NT' }[p.state] || p.state) : p.state, p.postcode].filter(Boolean).join(' ');
+  return [first, street, area, p.countrycode === 'AU' ? '' : p.country].filter(Boolean).join(', ');
+}
+function mcLocShow(box, saved, found, q) {
+  const sug = box.querySelector('.mc-locsug');
+  const rows = [
+    ...saved.map((p) => `<button type="button" class="mc-gopt" data-loc="${esc(mcPlaceText(p))}" data-url="${esc(p.url || '')}">⭐ <span><b>${esc(p.name || p.addr)}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`),
+    ...found.map((t) => `<button type="button" class="mc-gopt" data-loc="${esc(t)}" data-url="">📍 <span>${esc(t)}</span></button>`),
+  ];
+  if (!rows.length && !q) { sug.hidden = true; return; }
+  sug.innerHTML = (rows.join('') || '<p class="small muted mc-gnone">Searching…</p>') + `<button type="button" class="mc-gopt mc-locmanual" data-loc="${esc(q)}" data-url="">✏️ <span>Use “${esc(q)}” as typed</span></button>`;
+  sug.hidden = false;
+}
+function mcLocSearch(inp) {
+  const box = inp.closest('.mc-locf');
+  const q = inp.value.trim();
+  const ql = q.toLowerCase();
+  const saved = mcPlaces().filter((p) => !ql || `${p.name} ${p.addr}`.toLowerCase().includes(ql)).slice(0, 5);
+  if (!q || mcIsLink(q)) { if (!q && saved.length && document.activeElement === inp) mcLocShow(box, saved, [], ''); else box.querySelector('.mc-locsug').hidden = true; return; }
+  mcLocShow(box, saved, [], q);
+  clearTimeout(mcLocTimer);
+  if (q.length < 3 || !navigator.onLine) return;
+  const seq = ++mcLocSeq;
+  mcLocTimer = setTimeout(async () => {
+    try {
+      const near = /^Australia\//.test(tzHome()) ? '&lat=-37.81&lon=144.96' : '';
+      const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en${near}`);
+      const j = await r.json();
+      if (seq !== mcLocSeq) return;
+      const found = [...new Set((j.features || []).map(mcPhotonText).filter(Boolean))].slice(0, 5);
+      mcLocShow(box, saved, found, q);
+    } catch { /* offline or blocked: saved places still work */ }
+  }, 300);
+}
+document.addEventListener('input', (e) => {
+  if (!e.target.matches?.('[data-mc-loc]')) return;
+  const form = e.target.closest('form');
+  form.querySelector('[name="mapUrl"]').value = '';
+  mcMapRefresh(form);
+  mcLocSearch(e.target);
+});
+document.addEventListener('focusin', (e) => { if (e.target.matches?.('[data-mc-loc]') && !e.target.value) mcLocSearch(e.target); });
+document.addEventListener('mousedown', (e) => {
+  const o = e.target.closest?.('.mc-locsug .mc-gopt');
+  if (!o) return;
+  e.preventDefault();
+  const form = o.closest('form');
+  form.querySelector('[name="loc"]').value = o.dataset.loc;
+  form.querySelector('[name="mapUrl"]').value = o.dataset.url || '';
+  o.closest('.mc-locsug').hidden = true;
+  mcMapRefresh(form);
+});
+document.addEventListener('keydown', (e) => {
+  if (!e.target.matches?.('[data-mc-loc]')) return;
+  const sug = e.target.closest('.mc-locf').querySelector('.mc-locsug');
+  if (e.key === 'Escape') sug.hidden = true;
+  if (e.key === 'Enter') { e.preventDefault(); const first = sug.hidden ? null : sug.querySelector('.mc-gopt'); if (first) first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); }
+});
+document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-loc]')) setTimeout(() => { const s = e.target.closest('.mc-locf')?.querySelector('.mc-locsug'); if (s) s.hidden = true; }, 150); });
+
+// Saved places: from an event (⭐ Save place) or Settings › Calendar.
+function mcPlacesHTML() {
+  return `<p class="small muted">Places you use often. They come up first when you type a Location.</p>
+    <div class="mc-places">${mcPlaces().map((p, i) => `<div class="mc-place"><input value="${esc(p.name)}" placeholder="Name, e.g. Office" data-change="mcPlaceSet" data-i="${i}" data-k="name" aria-label="Place name"><input value="${esc(p.addr)}" placeholder="Address" data-change="mcPlaceSet" data-i="${i}" data-k="addr" aria-label="Address"><input value="${esc(p.url || '')}" placeholder="Map link (optional)" data-change="mcPlaceSet" data-i="${i}" data-k="url" aria-label="Map link" type="url"><button class="icon-btn" data-act="mcPlaceDel" data-i="${i}" aria-label="Remove ${esc(p.name || 'place')}">${icon('close', 13)}</button></div>`).join('') || '<p class="small muted">No saved places yet.</p>'}</div>
+    <button class="btn ghost xs" data-act="mcPlaceAdd">${icon('plus', 12)} Add place</button>`;
+}
+const mcPlacesSave = (list) => { S.settings.places = list.slice(0, 50); commit(); if (typeof refreshSettings === 'function') refreshSettings(); };
+Object.assign(actions, {
+  mcPlaceSave: async (el) => {
+    const form = el.closest('form');
+    const addr = form.querySelector('[name="loc"]').value.trim();
+    if (!addr) { toast('Type or pick the location first.', { error: true }); return; }
+    const name = await promptDlg('Save this place', 'Name (e.g. Office, Central kitchen)', '', 'Save');
+    if (name === null || name === undefined) return;
+    const url = form.querySelector('[name="mapUrl"]').value || (mcIsLink(addr) ? addr : '');
+    S.settings.places = [...mcPlaces().filter((p) => p.addr !== addr), { id: uid(), name: String(name).trim().slice(0, 60), addr: mcIsLink(addr) ? '' : addr, url }];
+    commit();
+    toast(`Saved “${String(name).trim() || addr}”.`, { keep: true });
+  },
+  mcPlaceAdd: () => mcPlacesSave([...mcPlaces(), { id: uid(), name: '', addr: '', url: '' }]),
+  mcPlaceDel: (el) => mcPlacesSave(mcPlaces().filter((_, i) => i !== Number(el.dataset.i))),
+});
+Object.assign(changes, {
+  mcPlaceSet: (el) => {
+    const list = mcPlaces().map((p) => ({ ...p }));
+    const p = list[Number(el.dataset.i)];
+    if (!p) return;
+    const v = el.value.trim().slice(0, el.dataset.k === 'url' ? 500 : 200);
+    if (el.dataset.k === 'url' && v && !mcIsLink(v)) { toast('A map link starts with https://', { error: true }); return; }
+    p[el.dataset.k] = v;
+    S.settings.places = list;
+    commit();
+  },
+});
 
 // ---------- Event attachments: drop files on the form, or Upload ----------
 // Files are kept on this device (like task attachments) and travel to teammates through Team sync.
