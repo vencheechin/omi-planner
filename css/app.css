@@ -2653,3 +2653,40 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .sc-ev.sc-hol.sc-pub { background: color-mix(in srgb, var(--mc-pub) 30%, var(--surface)); font-weight: 600; }
 .sc-ev.sc-hol.sc-school { background: color-mix(in srgb, var(--mc-sch) 26%, var(--surface)); }
 .sc-ev.sc-hol.sc-term { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Admin Portal: Org Chart (draws itself from who reports to whom) */
+.oc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.oc-head h2 { margin: 0; }
+.oc-tree { --oc-line: color-mix(in srgb, var(--muted) 55%, transparent); }
+.oc-scroll { overflow-x: auto; padding: 12px 0 8px; -webkit-overflow-scrolling: touch; }
+.oc-tree { width: max-content; min-width: 100%; }
+.oc-tree ul { display: flex; justify-content: center; margin: 0; padding: 22px 0 0; position: relative; list-style: none; }
+.oc-tree > ul { padding-top: 0; gap: 24px; }
+.oc-tree li { position: relative; padding: 22px 6px 0; display: flex; flex-direction: column; align-items: center; }
+.oc-tree > ul > li { padding-top: 0; }
+.oc-tree li::before, .oc-tree li::after { content: ''; position: absolute; top: 0; right: 50%; width: 50%; height: 22px; border-top: 1.5px solid var(--oc-line); }
+.oc-tree li::after { right: auto; left: 50%; border-left: 1.5px solid var(--oc-line); }
+.oc-tree li:only-child::before { display: none; }
+.oc-tree li:only-child::after { border-top: 0; }
+.oc-tree li:first-child::before, .oc-tree li:last-child::after { border: 0; }
+.oc-tree li:last-child::before { border-right: 1.5px solid var(--oc-line); border-radius: 0 8px 0 0; }
+.oc-tree li:first-child::after { border-radius: 8px 0 0 0; }
+.oc-tree > ul > li::before, .oc-tree > ul > li::after { display: none; }
+.oc-tree ul ul::before { content: ''; position: absolute; top: 0; left: 50%; height: 22px; border-left: 1.5px solid var(--oc-line); }
+.oc-card { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 132px; padding: 12px 8px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; text-align: center; }
+.oc-card:hover { border-color: var(--highlight); }
+.oc-card b { font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+.oc-dept { font-size: 12px; color: var(--muted); }
+.oc-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.oc-tags i { font-style: normal; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--muted); }
+.oc-tags .oc-tag { background: color-mix(in srgb, var(--highlight) 22%, transparent); color: var(--ink); }
+.oc-empty { padding: 16px 0; }
+.oc-loose { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.oc-loose-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.oc-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 4px; border: 1px dashed var(--line); border-radius: 999px; background: none; color: var(--ink); cursor: pointer; font: inherit; }
+.oc-chip:hover { border-color: var(--highlight); }
+.oc-form { display: grid; gap: 12px; }
+.oc-form select, .oc-form input:not([type=checkbox]) { width: 100%; }
+.oc-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.oc-foot .danger-text { margin-right: auto; }
+@media (max-width: 700px) { .oc-card { width: 104px; padding: 10px 6px 8px; } .oc-card b { font-size: 13px; } .oc-tree li { padding-left: 3px; padding-right: 3px; } }
