@@ -208,13 +208,8 @@ Object.assign(actions, {
   mcNew: () => { const n = new Date(); mcOpen(mcDraft(mcState().view === 'month' ? todayISO() : mcState().date, Math.min(1380, (n.getHours() + 1) * 60))); },
   mcDelete: async (el) => {
     const m = mcAll().find((x) => x.id === el.dataset.id);
-    if (!m || !mcCanEdit(m) || !await confirmDlg(`Delete “${m.title || 'this meeting'}”?`, 'It goes from everyone\'s calendar.', 'Delete')) return;
-    const p = mcPlan(true);
-    p.meetings = mcAll().filter((x) => x !== m);
-    mcDirty();
-    $$('dialog.mc-dlg').forEach((d) => d.close());
-    commit();
-    toast('Event deleted.');
+    if (!m || !mcCanEdit(m)) return;
+    if (await mcToBin(m)) $$('dialog.mc-dlg').forEach((d) => d.close());
   },
 });
 Object.assign(changes, { mcAll: (el) => { mcState().all = el.checked; render(); } });
@@ -266,11 +261,18 @@ document.addEventListener('pointermove', (e) => {
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
     // On a phone a swipe scrolls; press and hold first to drag.
     if (d.touch) { clearTimeout(d.hold); mcDrag = null; return; }
-    if (!d.grid || !mcCanEdit(d.m)) return;
+    if (!mcCanEdit(d.m)) return;
     d.on = true;
     d.el.classList.add('dragging');
+    document.body.classList.add('dragging');
   }
   e.preventDefault();
+  // Over the recycle bin?
+  $$('.side-bin.over').forEach((n) => n.classList.remove('over'));
+  const bin = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList?.contains('side-bin'));
+  d.toBin = !!bin;
+  if (bin) { bin.classList.add('over'); return; }
+  if (!d.grid) { Object.assign(d.el.style, { position: 'fixed', left: `${e.clientX - 20}px`, top: `${e.clientY - 12}px`, zIndex: 50, pointerEvents: 'none', width: `${d.el.offsetWidth}px` }); return; }
   const col = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.dataset?.mcDay);
   if (!col) return;
   const len = d.m.end - d.m.start;
@@ -296,6 +298,10 @@ document.addEventListener('pointerup', (e) => {
   const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', stop, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50);
+  document.body.classList.remove('dragging');
+  $$('.side-bin.over').forEach((n) => n.classList.remove('over'));
+  if (d.toBin) { render(); mcToBin(d.m._o || d.m); return; }
+  if (!d.grid) { render(); return; }
   if (!d.to || (d.to.date === d.m.date && d.to.start === d.m.start)) { render(); return; }
   const real = d.m._o || d.m;
   const len = real.end - real.start;
@@ -306,7 +312,7 @@ document.addEventListener('pointerup', (e) => {
   commit();
   toast(`Moved to ${dayLabel(d.to.date)}, ${mcFmt(d.to.start)}.`, { undo: () => { Object.assign(real, before, { at: Date.now() }); mcDirty(); commit(); } });
 });
-document.addEventListener('pointercancel', () => { if (mcDrag) { clearTimeout(mcDrag.hold); mcDrag = null; render(); } });
+document.addEventListener('pointercancel', () => { if (mcDrag) { clearTimeout(mcDrag.hold); mcDrag = null; document.body.classList.remove('dragging'); render(); } });
 
 // Open on the current time the first time the page shows.
 const origRenderMc = render;
@@ -1039,3 +1045,18 @@ function mcAutoBlock(form) {
   blk.checked = guests || link;
 }
 document.addEventListener('input', (e) => { if (e.target.matches?.('.mc-form [name="link"]')) mcAutoBlock(e.target.closest('form')); });
+
+// ---------- Recycle bin ----------
+/** Moves an event to the recycle bin (after asking), with Undo. Returns true when it went. */
+async function mcToBin(m) {
+  if (!m || !mcCanEdit(m)) return false;
+  if (!await confirmDlg(`Delete “${m.title || 'this event'}”?`, 'It goes from everyone’s calendar. You can restore it from the recycle bin.', 'Delete')) return false;
+  const local = mcLocal(m);
+  binAdd({ kind: 'event', title: m.title || (mcKind(m) === 'birthday' ? mcAllDayText(m, m.date) : 'Event'), where: `Calendar · ${dayLabel(local.date)}${mcAllDay(m) ? '' : `, ${fmtTime(local.start)}`}`, data: clone(m) });
+  const entry = S.trash[0];
+  mcPlan(true).meetings = mcAll().filter((x) => x.id !== m.id);
+  mcDirty();
+  commit();
+  toast('Moved to the recycle bin.', { undo: () => { if (!binRestore(entry.id)) commit(); } });
+  return true;
+}

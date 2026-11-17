@@ -73,6 +73,13 @@ function binRestore(id) {
     const t = clone(d);
     t._v = {};
     S.tasks.push(t);
+  } else if (e.kind === 'event') {
+    if (typeof mcPlan !== 'function') return 'The Calendar is not available.';
+    if (mcAll().some((x) => x.id === d.id)) return 'It is already back.';
+    const m = mcNorm({ ...clone(d), at: Date.now() });
+    if (!m) return 'This event could not be restored.';
+    mcPlan(true).meetings = [...mcAll(), m];
+    mcDirty();
   } else if (e.kind === 'booking') {
     const t = taskById(d.tid);
     if (!t) return 'Its task has been deleted. Restore the task first.';
@@ -99,7 +106,7 @@ function binRestore(id) {
   return '';
 }
 
-const BIN_KIND = { task: ['Task', 'check'], booking: ['Time box', 'clock'], strow: ['S-Team row', 'table'], stitem: ['S-Team entry', 'table'] };
+const BIN_KIND = { event: ['Calendar event', 'meet'], task: ['Task', 'check'], booking: ['Time box', 'clock'], strow: ['S-Team row', 'table'], stitem: ['S-Team entry', 'table'] };
 function binPanelHTML() {
   const list = binList();
   if (!list.length) return `<div class="bin-empty">${icon('trash', 28)}<p>The recycle bin is empty.</p><p class="small muted">Drag a task, time box or S-Team Plan row onto the bin, or delete one, and it waits here so you can restore it.</p></div>`;
