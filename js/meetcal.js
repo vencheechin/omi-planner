@@ -1142,13 +1142,13 @@ function mcSchedHTML() {
   const cells = Array.from({ length: 42 }, (_, i) => mcAddDays(gridStart, i));
   const rows = cells.slice(35).some((d) => d.slice(0, 7) === ym) ? 6 : 5;
   const dots = (d) => {
-    const cols = [...holidaysOn(d).map(() => 'var(--muted)'), ...mcOn(shown, d).map((m) => m.color || MC_COLORS[0])];
+    const cols = mcOn(shown, d).map((m) => m.color || MC_COLORS[0]);
     return `<span class="sc-dots">${cols.slice(0, 3).map((c) => `<i style="background:${esc(c)}"></i>`).join('')}${cols.length > 3 ? '<b>+</b>' : ''}</span>`;
   };
   // The small month stays folded away until you tap the month name at the top.
-  const mini = !ui.mcMini ? '' : `<div class="sc-mini ${ui.mcSlide > 0 ? 'sc-in-r' : ui.mcSlide < 0 ? 'sc-in-l' : ''}"><div class="sc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
+  const mini = !ui.mcMini ? '' : `<div class="sc-mini ${ui.mcSlide > 0 ? 'sc-in-r' : ui.mcSlide < 0 ? 'sc-in-l' : ''}"><div class="sc-mh">${MC_DAY.map((d, i) => `<span class="${i > 4 ? 'wknd' : ''}">${d}</span>`).join('')}</div>
     <div class="sc-mg">${cells.slice(0, rows * 7).map((d) => d.slice(0, 7) !== ym ? '<span></span>'
-      : `<button class="sc-d ${d === today ? 'today' : ''} ${d === s.date ? 'sel' : ''}" data-act="mcSchDay" data-d="${d}"><span class="sc-n">${Number(d.slice(8))}</span>${dots(d)}</button>`).join('')}</div></div>`;
+      : `<button class="sc-d ${d === today ? 'today' : ''} ${d === s.date ? 'sel' : ''} ${mcDayKind(d)}" data-act="mcSchDay" data-d="${d}" ${mcHolTitle(d)}><span class="sc-n">${Number(d.slice(8))}</span>${dots(d)}</button>`).join('')}</div>${mcHolKey(cells.slice(0, rows * 7).filter((d) => d.slice(0, 7) === ym))}</div>`;
   // Month buttons: this month and the next eleven, with the year where it changes.
   const m0 = new Date(`${today.slice(0, 7)}-01T12:00:00`);
   const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(m0); d.setMonth(m0.getMonth() + i); return d.toISOString().slice(0, 7); });
@@ -1164,7 +1164,7 @@ function mcSchedHTML() {
     if (!hs.length && !ms.length && d !== today) continue;
     const dt = new Date(`${d}T12:00:00`);
     let nowDone = d !== today;
-    const items = [...hs.map((h) => `<div class="sc-ev sc-hol">${esc(holLabel(h))}</div>`)];
+    const items = [...hs.map((h) => `<div class="sc-ev sc-hol sc-${esc(h.kind)}">${esc(holLabel(h))}</div>`)];
     for (const m of ms) {
       const timed = !mcAllDay(m);
       if (!nowDone && timed && m.start > nowMin) { items.push('<div class="sc-now"><i></i></div>'); nowDone = true; }
@@ -1392,4 +1392,21 @@ function mcRepDeleteDlg(m) {
     $('[data-role=no]', d).onclick = () => d.close();
     $('form', d).onsubmit = (e) => { e.preventDefault(); pick = new FormData(e.target).get('w'); d.close(); };
   });
+}
+
+// ---------- Weekends and holidays in the small month ----------
+// Sat and Sun in their own colour; public holidays and school holidays each in theirs (same colours as the Week view).
+function mcDayKind(d) {
+  const hs = holidaysOn(d);
+  const wd = new Date(`${d}T12:00:00`).getDay();
+  return [wd === 0 || wd === 6 ? 'wknd' : '', hs.some((h) => h.kind === 'pub') ? 'pub' : '', hs.some((h) => h.kind === 'school') ? 'sch' : ''].join(' ');
+}
+const mcHolTitle = (d) => { const hs = holidaysOn(d).filter((h) => h.kind !== 'term'); return hs.length ? `title="${esc(hs.map(holLabel).join(' · '))}"` : ''; };
+/** A small key under the month when it has any holidays. */
+function mcHolKey(days) {
+  const all = days.flatMap((d) => holidaysOn(d));
+  const pub = all.some((h) => h.kind === 'pub');
+  const sch = all.some((h) => h.kind === 'school');
+  if (!pub && !sch) return '';
+  return `<div class="sc-key">${pub ? '<span><i class="k-pub"></i>Public holiday</span>' : ''}${sch ? '<span><i class="k-sch"></i>School holiday</span>' : ''}<span><i class="k-wk"></i>Weekend</span></div>`;
 }
