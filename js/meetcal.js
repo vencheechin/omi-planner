@@ -294,7 +294,7 @@ document.addEventListener('pointerup', (e) => {
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && !e.target.closest?.('[data-mc-ev]')) mcOpen(mcDraft(d.col.dataset.mcDay, mcMinAt(d.col, e.clientY)));
     return;
   }
-  if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && d.m) mcOpen(d.m._o || d.m); return; }
+  if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && d.m) mcPeek(d.m._o || d.m, d.m.date); return; }
   const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', stop, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50);
@@ -1216,4 +1216,89 @@ async function mcFabTask() {
     setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 60);
   });
   document.addEventListener('pointercancel', () => { sw = null; });
+}
+
+// ---------- Tapping an item: a clean read-only view (like Google Calendar) ----------
+// Only what the item has: title, when, repeat, place, call link, your notifications, guests, who made it,
+// its calendar, notes and files. Pencil to edit; ••• for Duplicate, Copy to… and Delete.
+function mcPeekHTML(m, d) {
+  const kind = mcKind(m);
+  const loc = mcLocal(m);
+  const day = d || loc.date;
+  const dt = new Date(`${day}T12:00:00`);
+  const dateTxt = dt.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+  const when = kind === 'birthday' ? dateTxt
+    : kind === 'reminder' ? `${dateTxt} · ${mcFmt(loc.start)}`
+    : `${dateTxt} · ${mcFmt(loc.start)} – ${mcFmt(loc.end)}`;
+  const rep = kind === 'birthday' ? `Repeats every year${m.by ? ` · turns ${mcAge(m, day)}` : ''}`
+    : m.rep === 'custom' ? mcRcText(m.rc, m.date)
+    : m.rep ? (MC_REPS.find(([v]) => v === m.rep) || [, ''])[1] : '';
+  const zone = kind !== 'birthday' && m.tz && m.tz !== tzNow() ? `${mcFmt(m.start)} in ${tzCity(m.tz)}` : '';
+  const row = (ic, html) => `<div class="mp-row"><span class="mp-ic">${icon(ic, 18)}</span><div>${html}</div></div>`;
+  const al = mcAlertsFor(m);
+  const org = personByKey(m.org);
+  const guests = m.att.filter((k) => k !== m.org).map((k) => personByKey(k)).filter(Boolean);
+  const cal = m.cal ? mcCalById(m.cal) : null;
+  const title = kind === 'birthday' ? mcAllDayText(m, day).replace(/ \(\d+\)$/, '') : (m.title || '(No title)');
+  const edit = mcCanEdit(m);
+  return `<div class="mp" data-id="${esc(m.id)}" data-d="${esc(day)}">
+    <div class="mp-top"><button class="mp-btn" data-act="closeDialog" aria-label="Close">${icon('close', 20)}</button>
+      <span class="mp-pill">${edit ? `<button class="mp-btn" data-act="mcPeekEdit" aria-label="Edit" title="Edit">${icon('pencil', 18)}</button>` : ''}<button class="mp-btn" data-act="mcPeekMore" aria-label="More options" title="More">${icon('more', 20)}</button></span></div>
+    <div class="mp-row mp-head"><span class="mp-ic"><i class="mp-sq" style="background:${esc(cal?.color || m.color || MC_COLORS[0])}"></i></span><div><h2>${esc(title)}</h2>
+      <p>${esc(when)}</p>${rep ? `<p>${esc(rep)}</p>` : ''}${zone ? `<p class="muted">${esc(zone)}</p>` : ''}</div></div>
+    ${m.loc ? row('pin', `<a href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener">${esc(m.loc)}</a>`) : ''}
+    ${m.link ? row('send', `<a class="btn primary sm" href="${esc(m.link)}" target="_blank" rel="noopener">Join call</a>`) : ''}
+    ${al.length ? row('bell', al.map((n) => `<p>${esc(mcAlLabel(n))}</p>`).join('')) : ''}
+    ${guests.length ? row('guests', `<p>${guests.length + 1} people</p>${[org, ...guests].filter(Boolean).map((p) => `<p class="mp-who">${avatar(p, 20)} ${esc(p.name)}${p === org ? ' <small class="muted">· organiser</small>' : ''}</p>`).join('')}`) : ''}
+    ${org ? row('user', `<p>Created by ${esc(org.name)}</p>${org.email ? `<p class="muted small">${esc(org.email)}</p>` : ''}`) : ''}
+    ${cal ? row('cal', `<p>${esc(cal.name)}</p>`) : ''}
+    ${m.notes ? row('note', `<p class="mp-notes">${esc(m.notes)}</p>`) : ''}
+    ${(m.files || []).length ? row('clip', m.files.map((f) => `<p><button type="button" class="linklike" data-act="mcFileOpen" data-id="${esc(f.id)}">${esc(f.name)}</button></p>`).join('')) : ''}
+  </div>`;
+}
+function mcPeek(m, d) {
+  $$('dialog.mc-dlg').forEach((x) => x.close());
+  const dlg = showDialog({ title: '', html: mcPeekHTML(m, d) });
+  dlg?.classList?.add('mc-dlg', 'mc-peek');
+  ui.mcPeek = { id: m.id, d };
+}
+const mcPeekItem = () => mcAll().find((x) => x.id === ui.mcPeek?.id);
+/** A copy of an item: new id, you as organiser, on the given calendar ('' = My calendar). */
+function mcCopyOf(m, cal) {
+  const c = clone(m);
+  c.id = uid();
+  c.org = pkey(S.meId);
+  c.att = [pkey(S.meId), ...(cal === m.cal ? m.att.filter((k) => k !== m.org && k !== pkey(S.meId)) : [])];
+  c.cal = cal;
+  c.al = { [pkey(S.meId)]: mcAlertsFor(m) };
+  c.at = Date.now();
+  return mcNorm(c);
+}
+Object.assign(actions, {
+  mcPeekEdit: () => { const m = mcPeekItem(); if (m) mcOpen(m); },
+  mcPeekMore: (el) => {
+    const m = mcPeekItem();
+    if (!m) return;
+    const items = [
+      { icon: 'copy', label: 'Duplicate', run: () => { const c = mcCopyOf(m, m.cal); c.title = m.title; mcOpen(c); } },
+    ];
+    const cals = mcMyCals();
+    if (cals.length) items.push({ icon: 'cal', label: 'Copy to…', sub: true, run: () => setTimeout(() => openMenu(el, [
+      ...(m.cal ? [{ icon: 'cal', label: 'My calendar', run: () => mcCopyTo(m, '') }] : []),
+      ...cals.filter((c) => c.id !== m.cal).map((c) => ({ icon: 'cal', label: c.name, run: () => mcCopyTo(m, c.id) })),
+    ]), 0) });
+    if (mcCanEdit(m)) items.push('-', { icon: 'trash', label: 'Delete', danger: true, run: () => mcToBin(m) });
+    openMenu(el, items);
+  },
+});
+/** Copy to…: saves a copy straight onto that calendar. */
+function mcCopyTo(m, cal) {
+  const c = mcCopyOf(m, cal);
+  if (!c) return;
+  mcPlan(true);
+  mcAll().push(c);
+  mcDirty();
+  $$('dialog.mc-dlg').forEach((x) => x.close());
+  commit();
+  toast(`Copied to ${cal ? mcCalById(cal)?.name || 'that calendar' : 'My calendar'}.`);
 }

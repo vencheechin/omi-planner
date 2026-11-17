@@ -2555,3 +2555,22 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 @keyframes sc-in-r { from { transform: translateX(28px); opacity: .4; } }
 @keyframes sc-in-l { from { transform: translateX(-28px); opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { .sc-mini { animation: none !important; } }
+
+/* Calendar: tapping an item shows a clean read-only view (pencil to edit, ••• for more) */
+dialog.mc-peek > header { display: none; }
+dialog.mc-peek .dlg-body { padding-top: 12px; }
+.mp { display: grid; gap: 18px; padding-bottom: 8px; }
+.mp-top { display: flex; justify-content: space-between; align-items: center; }
+.mp-pill { display: inline-flex; gap: 2px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); padding: 2px; }
+.mp-top > .mp-btn { border-radius: 50%; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.mp-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--ink); cursor: pointer; border-radius: 999px; }
+.mp-btn:hover { background: var(--hover); }
+.mp-row { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
+.mp-row p { margin: 0 0 2px; font-size: 16px; }
+.mp-ic { color: var(--muted); display: grid; justify-items: center; padding-top: 2px; }
+.mp-sq { width: 18px; height: 18px; border-radius: 5px; margin-top: 8px; display: block; }
+.mp-head h2 { margin: 0 0 6px; font-size: 24px; line-height: 1.2; overflow-wrap: anywhere; }
+.mp-who { display: flex; align-items: center; gap: 8px; }
+.mp-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mp a { color: var(--highlight); }
+.mp a.btn { color: var(--on-highlight, #fff); }
