@@ -127,7 +127,7 @@ function mcFormHTML(m) {
   const att = new Set(m.att);
   return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}">
     <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="Add title" aria-label="Title" autocomplete="off" data-focus="mc-title">
-    <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required><input type="time" name="start" value="${mcHHMM(m.start)}" step="300" aria-label="Start" required><span>–</span><input type="time" name="end" value="${mcHHMM(m.end)}" step="300" aria-label="End" required></div>
+    <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required>${wheelTimeHTML('start', m.start, 'Start')}<span>–</span>${wheelTimeHTML('end', m.end, 'End')}</div>
     <label class="pd-f"><span>Attendees</span><div class="mc-people">${S.people.map((x) => `<label class="mc-person"><input type="checkbox" name="att" value="${esc(pkey(x.id))}" ${att.has(pkey(x.id)) || (pkey(x.id) === me) ? 'checked' : ''} ${pkey(x.id) === (m.org || me) ? 'disabled' : ''}>${avatar(x, 22)} ${esc(x.name)}${pkey(x.id) === (m.org || me) ? ' <small class="muted">(organiser)</small>' : ''}</label>`).join('')}</div></label>
     <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
     <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
