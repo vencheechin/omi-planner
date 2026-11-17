@@ -326,8 +326,7 @@ render = function renderWithMeetCal() {
 function mcTzMenuHTML() {
   return `<div class="picker mc-tzpick"><h4>Time zones</h4>
     <p class="small">Now: <b>${esc(tzLabel(tzNow()))}</b> <span class="muted">(this device)</span></p>
-    <label class="pd-f"><span>Home time zone</span>${tzSelectHTML('home', tzHome(), 'data-change="mcHomeTz"')}</label>
-    <p class="small muted">Meetings show in the time zone you are in now. Each meeting keeps the zone it was set in, so it stays at the right moment when you travel.</p></div>`;
+    <label class="pd-f"><span>Home time zone</span>${tzSelectHTML('home', tzHome(), 'data-change="mcHomeTz"')}</label></div>`;
 }
 Object.assign(actions, {
   mcTzMenu: (el) => openPop(el, mcTzMenuHTML),
