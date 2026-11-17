@@ -52,6 +52,10 @@ function updateBell() {
   const n = unreadCount();
   badge.textContent = n > 99 ? '99+' : n;
   badge.hidden = !n;
+  // Phones have no bell (Settings sits there): the menu button gets a dot and the menu shows the count.
+  $('#topbar .nav-toggle')?.classList.toggle('has-unread', !!n);
+  const nc = $('#navBellCount');
+  if (nc) { nc.textContent = n > 99 ? '99+' : n; nc.hidden = !n; }
 }
 /** A dialog asking for an optional note. Resolves to { note } or null if cancelled. */
 function noteDlg(title, label, action) {
@@ -592,6 +596,8 @@ const actions = {
   },
   withdrawReview: (el) => { endReview(taskById(el.dataset.id)); commit(); },
   openInbox: (el) => openPop(el, inboxHTML),
+  // Phones: Notifications from the menu; closes the menu and opens under the menu button.
+  phoneInbox: () => { ui.navOpen = false; renderSidebar(); openPop($('#topbar .nav-toggle'), inboxHTML); },
   openNotice: (el) => openNotice(el.dataset.id),
   markAllRead: () => { S.inbox.forEach((n) => { n.read = true; }); refreshPop(); commit(); },
   enableNotifications: async () => {

@@ -1140,13 +1140,17 @@ input:disabled { opacity: .7; cursor: not-allowed; }
 
 /* Phones: tab bar at the bottom; the menu button stays for the full list of plans and people. */
 #tabbar { display: none; }
+.nav-item.nav-inbox { display: none; }
 @media (max-width: 760px) {
   #tabbar { display: flex; flex: none; justify-content: space-around; align-items: stretch; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-top: 0.5px solid var(--line); }
   #tabbar .tab { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font-size: 10.5px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 2px 0; }
   #tabbar .tab.on { color: var(--highlight); }
   #tabbar .tab em { position: absolute; top: -2px; left: calc(50% + 6px); font-style: normal; font-size: 10px; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; background: var(--danger); color: #fff; text-align: center; }
   #topbar { height: 48px; }
-  #topbar [data-act="openSettings"] { display: none; }
+  #topbar .bell { display: none; }
+  .icon-btn.nav-toggle { position: relative; }
+  .icon-btn.nav-toggle.has-unread::after { content: ''; position: absolute; top: 9px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--ochre); box-shadow: 0 0 0 2px var(--surface); }
+  .nav-item.nav-inbox { display: flex; width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; margin-bottom: 4px; }
   .dlg.settings .set-sec { margin: 8px 0; }
 }
 
