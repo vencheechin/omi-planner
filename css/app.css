@@ -2514,3 +2514,8 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .sc-now i { position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
 .sc-empty { margin: 8px 0; }
 .sc-more { justify-self: center; margin: 10px 0 20px; }
+
+/* Calendar › Calendars › My team */
+.mc-teamh { margin: 10px 0 2px; }
+.mc-calsmenu .avatar { flex: none; }
+.sc-who { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; opacity: .92; }

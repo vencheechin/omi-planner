@@ -163,6 +163,7 @@ const I18N_ZH = {
   'Add label': '添加标签', 'Assign to Time Box': '分配到时间盒', 'Check List': '清单', 'Notify me when ticked': '勾选时通知我', 'Notifying me when ticked': '勾选时会通知我', 'Log': '记录',
   'S-Team': 'S-Team', 'Notes': '笔记', 'Hold an item and drag it to the bottom bar': '按住一项，拖到底部栏即可添加',
   'Schedule': '日程', 'Nothing planned': '没有安排', 'Show later months': '显示之后的月份',
+  'My team': '我的团队', 'Everyone who reports to you. Tick to see their calendar with yours.': '所有向你汇报的人。勾选即可与你的日历一起查看。',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

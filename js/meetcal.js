@@ -58,7 +58,13 @@ function mcLocal(m) {
   const end = b.date === a.date ? b.min : 1440;
   return { ...m, date: a.date, start: a.min, end: Math.max(a.min + 15, end), _o: m };
 }
-const mcShown = () => mcAll().filter((m) => ((ui.mc?.all && stAdmin()) || mcMine(m)) && !mcHiddenCal(m)).map(mcLocal);
+const mcShown = () => mcAll().filter((m) => (mcMine(m) && !mcHiddenCal(m)) || mcTeamWho(m)).map(mcLocal);
+/** Everyone who reports to you, directly or further down (Albus → Ray → Ven: Ven gets both). */
+const mcTeam = () => (typeof hierarchyOn === 'function' && hierarchyOn() ? S.people.filter((p) => pkey(p.id) !== pkey(S.meId) && isAbove(S.meId, p.id)) : []);
+/** The team calendars you ticked in Calendars › My team (only people who still report to you). */
+const mcTeamOn = () => { const ok = new Set(mcTeam().map((p) => pkey(p.id))); return (Array.isArray(S.settings.mcTeam) ? S.settings.mcTeam : []).filter((k) => ok.has(k)); };
+/** For an item that isn't yours: the ticked team member it belongs to (organiser first), else null. */
+const mcTeamWho = (m) => { if (mcMine(m)) return null; const on = mcTeamOn(); if (!on.length) return null; const k = on.includes(m.org) ? m.org : m.att.find((a) => on.includes(a)); return k ? personByKey(k) || null : null; };
 const mcCanEdit = (m) => !m || mcMine(m) || stAdmin();
 const mcDirty = () => { S.sync.dirty = S.sync.dirty || {}; S.sync.dirty['st:meetings'] = 1; };
 const mcHHMM = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -71,7 +77,7 @@ const MC_DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MC_MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ---------- Views ----------
-function mcState() { return (ui.mc = ui.mc || { view: 'schedule', date: todayISO(), all: false }); }
+function mcState() { return (ui.mc = ui.mc || { view: 'schedule', date: todayISO() }); }
 function mcTitle() {
   const s = mcState();
   const d = new Date(`${s.date}T12:00:00`);
@@ -97,7 +103,7 @@ function mcEventHTML({ m, lane, n }) {
   const h = mcKind(m) === 'reminder' ? 22 : Math.max(18, ((m.end - m.start) / 60) * MC_H - 2);
   const who = m.att.length + (m.att.includes(m.org) ? 0 : 1);
   return `<button class="mc-ev ${h < 34 ? 'short' : ''}" data-mc-ev="${esc(m.id)}" style="top:${top}px;height:${h}px;left:calc(${(lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px);--ec:${m.color || MC_COLORS[0]}">
-    <b>${mcIconHTML(m)}${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? 'Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
+    <b>${mcIconHTML(m)}${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? 'Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}${mcTeamWho(m) ? ` · ${esc(mcTeamWho(m).name)}` : ''}</small></button>`;
 }
 function mcGridHTML(days) {
   const today = todayISO();
@@ -126,7 +132,7 @@ function mcMonthHTML() {
     <div class="mc-mgrid" style="--rows:${rows}">${cells.slice(0, rows * 7).map((d) => {
       const ms = mcOn(shown, d).sort((a, b) => (mcAllDay(b) - mcAllDay(a)) || a.start - b.start);
       const hs = holidaysOn(d);
-      const items = [...hs.map((h) => `<span class="mc-hol mc-${h.kind}" title="${esc(holLabel(h))}">${esc(holLabel(h))}</span>`), ...ms.map((m) => `<button class="mc-chip" data-mc-ev="${esc(m.id)}" style="--ec:${m.color || MC_COLORS[0]}"><i></i>${mcAllDay(m) ? esc(mcAllDayText(m, d)) : `${esc(mcFmt(m.start))} ${esc(mcIcon(m))}${esc(m.title || '(No title)')}`}</button>`)];
+      const items = [...hs.map((h) => `<span class="mc-hol mc-${h.kind}" title="${esc(holLabel(h))}">${esc(holLabel(h))}</span>`), ...ms.map((m) => `<button class="mc-chip" data-mc-ev="${esc(m.id)}" style="--ec:${m.color || MC_COLORS[0]}"><i></i>${mcAllDay(m) ? esc(mcAllDayText(m, d)) : `${esc(mcFmt(m.start))} ${esc(mcIcon(m))}${esc(m.title || '(No title)')}${mcTeamWho(m) ? ` · ${esc(mcTeamWho(m).name.split(/\s+/)[0])}` : ''}`}</button>`)];
       return `<div class="mc-mc ${d.slice(0, 7) !== s.date.slice(0, 7) ? 'other' : ''} ${d === today ? 'today' : ''} ${hs.some((h) => h.kind === 'pub') ? 'pubhol' : ''}" data-mc-mday="${d}">
         <button class="mc-mnum" data-act="mcGoDay" data-d="${d}">${Number(d.slice(8))}</button>
         ${items.slice(0, 4).join('')}${items.length > 4 ? `<button class="mc-more" data-act="mcGoDay" data-d="${d}">${items.length - 4} more</button>` : ''}</div>`;
@@ -145,7 +151,6 @@ function renderMeetCal() {
       <b class="mc-title">${esc(mcTitle())}</b>
       <button class="btn ghost sm mc-tz" data-act="mcTzMenu" title="Time zones">🕒 ${tzNow() === tzHome() ? esc(tzLabel(tzNow())) : `Now: ${esc(tzLabel(tzNow()))} · Home: ${esc(tzLabel(tzHome()))}`}</button>
       <span class="spacer"></span>
-      ${stAdmin() ? `<label class="mc-allbox small"><input type="checkbox" data-change="mcAll" ${s.all ? 'checked' : ''}> Everyone's</label>` : ''}
       <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
       <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
       <div class="seg">${[['schedule', 'Schedule'], ['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(([v, l]) => `<button class="${s.view === v ? 'on' : ''}" data-act="mcView" data-v="${v}">${l}</button>`).join('')}</div>
@@ -213,7 +218,7 @@ Object.assign(actions, {
     if (await mcToBin(m)) $$('dialog.mc-dlg').forEach((d) => d.close());
   },
 });
-Object.assign(changes, { mcAll: (el) => { mcState().all = el.checked; render(); } });
+
 Object.assign(submits, {
   mcSave: (form, data) => {
     const p = mcPlan(true);
@@ -783,7 +788,8 @@ function mcCalsMenuHTML() {
   return `<div class="picker mc-calsmenu"><h4>Calendars</h4>
     ${row('mine', 'My calendar', '#9aa3b2')}
     ${mcMyCals().map((c) => row(c.id, c.name, c.color, `<small class="muted">${c.members.length + 1} people</small>${c.owner === pkey(S.meId) || stAdmin() ? `<button class="icon-btn" data-act="mcCalEdit" data-id="${esc(c.id)}" aria-label="Edit ${esc(c.name)}" title="Edit">${icon('more', 14)}</button>` : ''}`)).join('')}
-    <button class="btn ghost sm" data-act="mcCalEdit">${icon('plus', 13)} New shared calendar</button></div>`;
+    <button class="btn ghost sm" data-act="mcCalEdit">${icon('plus', 13)} New shared calendar</button>
+    ${mcTeam().length ? `<h4 class="mc-teamh">My team</h4>${mcTeam().map((p) => `<div class="mc-calrow"><label><input type="checkbox" data-change="mcTeamShow" value="${esc(pkey(p.id))}" ${mcTeamOn().includes(pkey(p.id)) ? 'checked' : ''}>${avatar(p, 18)}<span>${esc(p.name)}</span></label></div>`).join('')}<p class="small muted">Everyone who reports to you. Tick to see their calendar with yours.</p>` : ''}</div>`;
 }
 function mcCalDialog(c) {
   const isNew = !c;
@@ -811,6 +817,7 @@ Object.assign(actions, {
   },
 });
 Object.assign(changes, {
+  mcTeamShow: (el) => { const t = new Set(Array.isArray(S.settings.mcTeam) ? S.settings.mcTeam : []); if (el.checked) t.add(el.value); else t.delete(el.value); S.settings.mcTeam = [...t]; Store.save(); render(); },
   mcCalShow: (el) => { const h = new Set(mcHidden()); if (el.checked) h.delete(el.value); else h.add(el.value); S.settings.mcHidden = [...h]; Store.save(); render(); },
   // Picking a calendar gives the event that calendar's colour.
   mcCalField: (el) => {
@@ -1129,7 +1136,7 @@ function mcSchedHTML() {
     for (const m of ms) {
       const timed = !mcAllDay(m);
       if (!nowDone && timed && m.start > nowMin) { items.push('<div class="sc-now"><i></i></div>'); nowDone = true; }
-      items.push(`<button class="sc-ev" data-mc-ev="${esc(m.id)}" style="--ec:${esc(m.color || MC_COLORS[0])};color:${esc(mcInk(m.color || MC_COLORS[0]))}"><b>${mcIconHTML(m)}${esc(mcAllDay(m) ? mcAllDayText(m, d) : (m.title || '(No title)'))}</b>${timed ? `<small>${esc(`${mcFmt(m.start)} – ${mcFmt(m.end)}`)}${m.loc ? ` · ${esc(m.loc)}` : ''}</small>` : ''}</button>`);
+      items.push(`<button class="sc-ev" data-mc-ev="${esc(m.id)}" style="--ec:${esc(m.color || MC_COLORS[0])};color:${esc(mcInk(m.color || MC_COLORS[0]))}"><b>${mcIconHTML(m)}${esc(mcAllDay(m) ? mcAllDayText(m, d) : (m.title || '(No title)'))}</b>${timed ? `<small>${esc(`${mcFmt(m.start)} – ${mcFmt(m.end)}`)}${m.loc ? ` · ${esc(m.loc)}` : ''}</small>` : ''}${mcTeamWho(m) ? `<span class="sc-who">${avatar(mcTeamWho(m), 16)} ${esc(mcTeamWho(m).name)}</span>` : ''}</button>`);
     }
     if (!nowDone) items.push('<div class="sc-now"><i></i></div>');
     if (!ms.length && !hs.length) items.push('<p class="sc-empty muted small">Nothing planned</p>');
