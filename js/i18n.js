@@ -172,6 +172,7 @@ const I18N_ZH = {
   'Delete recurring event': '删除重复活动', 'This event': '此活动', 'This and all following events': '此活动及之后所有活动', 'All events': '所有活动', 'This event deleted.': '已删除此活动。', 'This and all following events deleted.': '已删除此活动及之后所有活动。',
   'Public holiday': '公共假期', 'School holiday': '学校假期', 'Weekend': '周末',
   'Org Chart': '组织架构图', 'Not in the chart yet': '尚未加入架构图', 'Remove person?': '移除此人？',
+  'Your profile': '我的资料', 'People in the Admin Portal': '在管理后台管理人员',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

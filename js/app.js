@@ -394,7 +394,7 @@ const SETTINGS_TABS = [
   ['timebox', 'Time Box', ['Time boxing']],
   ['ringtone', 'Sounds', ["Time's up alert", 'Task complete sound', 'Reminder sound']],
   ['calendar', 'Schedule', ['Default notifications', 'Saved locations', 'Time to leave']],
-  ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
+  ['people', 'People', ['Your profile', 'People', 'Reporting Lines', 'Admin']],
   ['messages', 'Messages', ['Messages and Language']],
   ['sync', 'Sync & Data', ['Cloud sync', 'Team sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
 ];
@@ -420,10 +420,10 @@ function settingsHTML() {
   <section class="set-sec"><h3>Time to leave</h3>${typeof departSettingsHTML === 'function' ? departSettingsHTML() : ''}</section>
   <section class="set-sec"><h3>Reminder sound</h3>${typeof remSoundHTML === 'function' ? remSoundHTML() : ''}</section>
   <section class="set-sec"><h3>Time boxing</h3>${timeboxSettingsHTML()}</section>
-  <section class="set-sec"><h3>People</h3>
-    
-    <ul class="people-list">${S.people.map((p) => `<li>${p.id === S.meId ? `<button class="photo-pick" data-act="photoPick" aria-label="Change your profile photo" title="Change your profile photo">${avatar(p, 28)}<i>${icon('camera', 11)}</i></button>` : avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${p.id === S.meId ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="delPerson" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
-    <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form></section>
+  <section class="set-sec"><h3>Your profile</h3>
+    ${(() => { const p = person(S.meId); return p ? `<ul class="people-list"><li><button class="photo-pick" data-act="photoPick" aria-label="Change your profile photo" title="Change your profile photo">${avatar(p, 28)}<i>${icon('camera', 11)}</i></button><input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Your email"></li></ul>` : ''; })()}
+    <p class="small muted">${stAdmin() ? 'Adding and removing people is in the Admin Portal › Org Chart.' : 'An admin adds and removes people in the Admin Portal.'}</p>
+    ${stAdmin() ? `<button class="btn ghost sm" data-act="openAdmin">${icon('shield', 13)} People in the Admin Portal</button>` : ''}</section>
   <section class="set-sec"><h3>Reporting Lines</h3>${reportingLinesHTML()}</section>
   <section class="set-sec"><h3>Messages and Language</h3>${chatSettingsHTML()}</section>
   <section class="set-sec"><h3>Language</h3>${typeof langSettingsHTML === 'function' ? langSettingsHTML() : ''}</section>

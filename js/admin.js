@@ -205,7 +205,15 @@ function orgChartHTML() {
         : `<p class="oc-empty muted">No reporting lines yet. Tap a person below and choose who they report to, or add someone.</p>`}
       ${loose.length ? `<div class="oc-loose"><b class="small">Not in the chart yet</b><div class="oc-loose-list">${loose.map((p) => `<button class="oc-chip" data-act="ocEdit" data-id="${esc(p.id)}">${avatar(p, 22)}${esc(p.name)}</button>`).join('')}</div></div>` : ''}
     </section>
+    ${peopleAdminHTML()}
     <section class="dr-hub"><h2>Admins & Departments</h2>${adminSettingsHTML()}</section>`;
+}
+/** People: names and emails, add and remove (moved here from Settings). */
+function peopleAdminHTML() {
+  return `<section class="dr-hub"><h2>People</h2>
+    <ul class="people-list">${S.people.map((p) => `<li>${avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${isMeId(p.id) ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="ocRemove" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
+    <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form>
+  </section>`;
 }
 /** The add / change form. `p` is null for a new person; `boss` preselects their manager. */
 function ocFormHTML(p, boss = '') {
