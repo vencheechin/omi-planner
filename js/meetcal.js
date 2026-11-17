@@ -172,8 +172,8 @@ function mcFormHTML(m) {
     ${mcIsOrg(m) ? `<div class="pd-f mc-k-ev mc-gal"><span>Notify guests <small class="muted">(optional)</small></span><div class="mc-alerts" data-name="gal">${(m.gal || []).map((n) => mcAlertRow(n, 'gal')).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add guest notification</button></div>` : ''}
     <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
-    <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved place" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
-    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this place for next time">⭐ Save place</button></div>
+    <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved location" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
+    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcPlacePick" title="Choose one of your saved locations">📍 Saved Locations</button><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this location for next time">⭐ Save Location</button></div>
     <p class="mc-travel mc-k-ev small" hidden></p>
 
     <label class="pd-f mc-k-ev"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
@@ -667,9 +667,9 @@ document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-
 
 // Saved places: from an event (⭐ Save place) or Settings › Calendar.
 function mcPlacesHTML() {
-  return `<p class="small muted">Places you use often. They come up first when you type a Location.</p>
-    <div class="mc-places">${mcPlaces().map((p, i) => `<div class="mc-place"><input value="${esc(p.name)}" placeholder="Name, e.g. Office" data-change="mcPlaceSet" data-i="${i}" data-k="name" aria-label="Place name"><input value="${esc(p.addr)}" placeholder="Address" data-change="mcPlaceSet" data-i="${i}" data-k="addr" aria-label="Address"><input value="${esc(p.url || '')}" placeholder="Map link (optional)" data-change="mcPlaceSet" data-i="${i}" data-k="url" aria-label="Map link" type="url"><button class="icon-btn" data-act="mcPlaceDel" data-i="${i}" aria-label="Remove ${esc(p.name || 'place')}">${icon('close', 13)}</button></div>`).join('') || '<p class="small muted">No saved places yet.</p>'}</div>
-    <button class="btn ghost xs" data-act="mcPlaceAdd">${icon('plus', 12)} Add place</button>`;
+  return `<p class="small muted">Locations you use often. Pick them with 📍 Saved Locations in an event, and they come up first when you type a Location.</p>
+    <div class="mc-places">${mcPlaces().map((p, i) => `<div class="mc-place"><input value="${esc(p.name)}" placeholder="Name, e.g. Office" data-change="mcPlaceSet" data-i="${i}" data-k="name" aria-label="Place name"><input value="${esc(p.addr)}" placeholder="Address" data-change="mcPlaceSet" data-i="${i}" data-k="addr" aria-label="Address"><input value="${esc(p.url || '')}" placeholder="Map link (optional)" data-change="mcPlaceSet" data-i="${i}" data-k="url" aria-label="Map link" type="url"><button class="icon-btn" data-act="mcPlaceDel" data-i="${i}" aria-label="Remove ${esc(p.name || 'location')}">${icon('close', 13)}</button></div>`).join('') || '<p class="small muted">No saved locations yet.</p>'}</div>
+    <button class="btn ghost xs" data-act="mcPlaceAdd">${icon('plus', 12)} Add location</button>`;
 }
 const mcPlacesSave = (list) => { S.settings.places = list.slice(0, 50); commit(); if (typeof refreshSettings === 'function') refreshSettings(); };
 Object.assign(actions, {
@@ -677,7 +677,7 @@ Object.assign(actions, {
     const form = el.closest('form');
     const addr = form.querySelector('[name="loc"]').value.trim();
     if (!addr) { toast('Type or pick the location first.', { error: true }); return; }
-    const name = await promptDlg('Save this place', 'Name (e.g. Office, Central kitchen)', '', 'Save');
+    const name = await promptDlg('Save this location', 'Name (e.g. Office, Central kitchen)', '', 'Save');
     if (name === null || name === undefined) return;
     const url = form.querySelector('[name="mapUrl"]').value || (mcIsLink(addr) ? addr : '');
     const [lat, lon] = String(form.querySelector('[name="geo"]').value || '').split(',').map(Number);
@@ -1065,3 +1065,24 @@ async function mcToBin(m) {
   toast('Moved to the recycle bin.', { undo: () => { if (!binRestore(entry.id)) commit(); } });
   return true;
 }
+
+// "Saved Locations": pick one of your saved locations for this event.
+Object.assign(actions, {
+  mcPlacePick: (el) => {
+    const form = el.closest('form');
+    ui.mcPlaceForm = form;
+    openPop(el, () => `<div class="menu mc-placemenu" role="menu"><h4>Saved Locations</h4>${mcPlaces().filter((p) => p.name || p.addr || p.url).map((p) => `<button role="menuitem" data-act="mcPlaceUse" data-id="${esc(p.id)}"><span>⭐</span><span class="mc-pm"><b>${esc(p.name || p.addr || 'Map link')}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`).join('') || '<p class="small muted mc-gnone">No saved locations yet. Type a location, then tap ⭐ Save Location.</p>'}<button role="menuitem" data-act="mcPlaceManage">${icon('gear', 13)} Edit saved locations</button></div>`);
+  },
+  mcPlaceUse: (el) => {
+    const p = mcPlaces().find((x) => x.id === el.dataset.id);
+    const form = ui.mcPlaceForm;
+    closePop();
+    if (!p || !form) return;
+    form.querySelector('[name="loc"]').value = mcPlaceText(p) || p.url || '';
+    form.querySelector('[name="mapUrl"]').value = p.url || '';
+    form.querySelector('[name="geo"]').value = p.lat != null ? `${p.lat},${p.lon}` : '';
+    mcMapRefresh(form);
+    if (typeof departPreview === 'function') departPreview(form);
+  },
+  mcPlaceManage: () => { closePop(); actions.openSettings(); setTimeout(() => { const b = document.querySelector('[data-act="settingsTab"][data-v="calendar"]'); if (b) b.click(); }, 60); },
+});
