@@ -2364,3 +2364,5 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-rc-end input[type=number] { width: 80px; }
 
 .tb-block.tb-meetblk { cursor: pointer; z-index: 1; }
+
+.mc-kinds[hidden] { display: none !important; }

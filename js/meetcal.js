@@ -160,7 +160,7 @@ function mcFormHTML(m) {
   const att = new Set(m.att);
   const kind = mcKind(m);
   return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}" data-kind="${kind}">
-    <input type="hidden" name="kind" value="${kind}"><div class="seg mc-kinds" role="group" aria-label="Type">${MC_KINDS.map(([k, l, ic]) => `<button type="button" class="${k === kind ? 'on' : ''}" data-act="mcKind" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
+    <input type="hidden" name="kind" value="${kind}"><div class="seg mc-kinds" role="group" aria-label="Type" ${mcAll().some((x) => x.id === m.id) ? 'hidden' : ''}>${MC_KINDS.map(([k, l, ic]) => `<button type="button" class="${k === kind ? 'on' : ''}" data-act="mcKind" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
     ${mcCalPickHTML(m)}
     <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="${esc(MC_TITLE_HINT[kind])}" aria-label="Title" autocomplete="off" data-focus="mc-title">
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required><span class="mc-k-timed">${wheelTimeHTML('start', m.start, 'Start')}</span><span class="mc-k-ev">–</span><span class="mc-k-ev">${wheelTimeHTML('end', m.end, 'End')}</span><label class="mc-k-bd mc-by"><span>Year born</span><input name="by" inputmode="numeric" maxlength="4" value="${m.by || ''}" placeholder="optional"></label></div>
@@ -187,7 +187,7 @@ function mcFormHTML(m) {
 }
 function mcOpen(m) {
   $$('dialog.mc-dlg').forEach((d) => d.close());
-  const d = showDialog({ title: 'New', html: mcFormHTML(m) });
+  const d = showDialog({ title: mcAll().some((x) => x.id === m.id) ? '' : 'New', html: mcFormHTML(m) });
   d?.classList?.add('mc-dlg');
   mcBdLabels(d?.querySelector?.('form'));
   setTimeout(() => $('dialog.mc-dlg [name=title]')?.focus(), 30);
