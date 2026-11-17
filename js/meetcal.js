@@ -32,11 +32,12 @@ function mcNorm(m) {
     tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
     al: mcNormAl(m.al),
     map: ['google', 'amap'].includes(m.map) ? m.map : '',
+    cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
     files: (Array.isArray(m.files) ? m.files : []).filter((f) => f && typeof f.id === 'string').slice(0, 30).map((f) => ({ id: f.id.slice(0, 40), name: String(f.name || 'File').slice(0, 200), size: Number(f.size) || 0, type: String(f.type || '').slice(0, 100), ...(typeof f.thumb === 'string' && f.thumb.length < 60000 ? { thumb: f.thumb } : {}) })),
   };
 }
 const mcAll = () => { const p = mcPlan(); return p ? (p.meetings = Array.isArray(p.meetings) ? p.meetings : []) : []; };
-const mcMine = (m) => m.org === pkey(S.meId) || m.att.includes(pkey(S.meId));
+const mcMine = (m) => m.org === pkey(S.meId) || m.att.includes(pkey(S.meId)) || !!(m.cal && typeof mcCalById === 'function' && mcCalById(m.cal) && mcCalMember(mcCalById(m.cal)));
 /** A meeting on this device's clock (a copy, with _o pointing at the real one) when its zone differs. */
 const mcZone = (m) => m.tz || tzHome();
 function mcLocal(m) {
@@ -48,7 +49,7 @@ function mcLocal(m) {
   const end = b.date === a.date ? b.min : 1440;
   return { ...m, date: a.date, start: a.min, end: Math.max(a.min + 15, end), _o: m };
 }
-const mcShown = () => mcAll().filter((m) => (ui.mc?.all && stAdmin()) || mcMine(m)).map(mcLocal);
+const mcShown = () => mcAll().filter((m) => ((ui.mc?.all && stAdmin()) || mcMine(m)) && !mcHiddenCal(m)).map(mcLocal);
 const mcCanEdit = (m) => !m || mcMine(m) || stAdmin();
 const mcDirty = () => { S.sync.dirty = S.sync.dirty || {}; S.sync.dirty['st:meetings'] = 1; };
 const mcHHMM = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -136,6 +137,7 @@ function renderMeetCal() {
       <button class="btn ghost sm mc-tz" data-act="mcTzMenu" title="Time zones">🕒 ${tzNow() === tzHome() ? esc(tzLabel(tzNow())) : `Now: ${esc(tzLabel(tzNow()))} · Home: ${esc(tzLabel(tzHome()))}`}</button>
       <span class="spacer"></span>
       ${stAdmin() ? `<label class="mc-allbox small"><input type="checkbox" data-change="mcAll" ${s.all ? 'checked' : ''}> Everyone's</label>` : ''}
+      <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
       <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
       <div class="seg">${[['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(([v, l]) => `<button class="${s.view === v ? 'on' : ''}" data-act="mcView" data-v="${v}">${l}</button>`).join('')}</div>
     </header>
@@ -149,9 +151,10 @@ function mcFormHTML(m) {
   const me = pkey(S.meId);
   const att = new Set(m.att);
   return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}">
+    ${mcCalPickHTML(m)}
     <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="Add title" aria-label="Title" autocomplete="off" data-focus="mc-title">
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required>${wheelTimeHTML('start', m.start, 'Start')}<span>–</span>${wheelTimeHTML('end', m.end, 'End')}</div>
-    <label class="pd-f mc-tzf"><span>Time zone</span>${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label>
+    <details class="mc-tzd" ${(m.tz || tzNow()) !== tzNow() ? 'open' : ''}><summary>${icon('gear', 13)} Time zone · ${esc(tzCity(m.tz || tzNow()))}</summary><label class="pd-f mc-tzf">${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label></details>
     <div class="pd-f"><span>Notifications</span><div class="mc-alerts">${mcAlertsFor(m).map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
     <div class="pd-f mc-guests"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
@@ -208,7 +211,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', cal: data.get('cal') || '', files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -607,15 +610,93 @@ Object.assign(actions, {
 // Drag files anywhere onto the event form.
 document.addEventListener('dragover', (e) => {
   const form = e.target.closest?.('.mc-form');
-  if (!form || ![...(e.dataTransfer?.types || [])].includes('Files')) return;
+  if (!form || !form.querySelector('[name="files"]') || ![...(e.dataTransfer?.types || [])].includes('Files')) return;
   e.preventDefault();
   form.querySelector('[data-mc-drop]')?.classList.add('over');
 });
 document.addEventListener('dragleave', (e) => { if (!e.relatedTarget || !e.target.closest?.('.mc-form')?.contains(e.relatedTarget)) $$('[data-mc-drop].over').forEach((x) => x.classList.remove('over')); });
 document.addEventListener('drop', (e) => {
   const form = e.target.closest?.('.mc-form');
-  if (!form || !e.dataTransfer?.files?.length) return;
+  if (!form || !form.querySelector('[name="files"]') || !e.dataTransfer?.files?.length) return;
   e.preventDefault();
   $$('[data-mc-drop].over').forEach((x) => x.classList.remove('over'));
   mcFilesAdd(form, [...e.dataTransfer.files]);
+});
+
+// ---------- Shared calendars ----------
+// A shared calendar has a name, a colour and members. Every member sees every event in it (and can
+// edit them). Events not in a shared calendar are in "My calendar": only the organiser and guests see
+// them. Calendars can be shown or hidden from the Calendars button. Stored with the events (mc:<id>).
+function mcNormCal(c) {
+  if (!c || typeof c !== 'object' || typeof c.id !== 'string') return null;
+  return { id: c.id.slice(0, 40), name: String(c.name || 'Shared calendar').slice(0, 80), color: /^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : MC_COLORS[1],
+    owner: String(c.owner || '').slice(0, 120), members: (Array.isArray(c.members) ? c.members : []).filter((x) => typeof x === 'string').slice(0, 100), deleted: !!c.deleted, at: Number(c.at) || Date.now() };
+}
+const mcCalsAll = () => { const p = mcPlan(); return p ? (p.cals = Array.isArray(p.cals) ? p.cals : []) : []; };
+const mcCalById = (id) => mcCalsAll().find((c) => c.id === id && !c.deleted) || null;
+const mcCalMember = (c) => !!c && (c.owner === pkey(S.meId) || c.members.includes(pkey(S.meId)));
+const mcMyCals = () => mcCalsAll().filter((c) => !c.deleted && mcCalMember(c));
+const mcHidden = () => (Array.isArray(S.settings.mcHidden) ? S.settings.mcHidden : []);
+const mcHiddenCal = (m) => mcHidden().includes(m.cal && mcCalById(m.cal) ? m.cal : 'mine');
+
+function mcCalPickHTML(m) {
+  const cals = mcMyCals();
+  if (!cals.length && !m.cal) return '<input type="hidden" name="cal" value="">';
+  return `<label class="mc-calpick"><span class="mc-caldot" style="--ec:${esc(mcCalById(m.cal)?.color || '#9aa3b2')}"></span><select name="cal" data-change="mcCalField" aria-label="Calendar"><option value="">My calendar</option>${cals.map((c) => `<option value="${esc(c.id)}" ${m.cal === c.id ? 'selected' : ''}>${esc(c.name)} (shared)</option>`).join('')}</select></label>`;
+}
+function mcCalsMenuHTML() {
+  const row = (key, name, color, extra = '') => `<div class="mc-calrow"><label><input type="checkbox" data-change="mcCalShow" value="${esc(key)}" ${mcHidden().includes(key) ? '' : 'checked'}><span class="mc-caldot" style="--ec:${esc(color)}"></span><span>${esc(name)}</span></label>${extra}</div>`;
+  return `<div class="picker mc-calsmenu"><h4>Calendars</h4>
+    ${row('mine', 'My calendar', '#9aa3b2')}
+    ${mcMyCals().map((c) => row(c.id, c.name, c.color, `<small class="muted">${c.members.length + 1} people</small>${c.owner === pkey(S.meId) || stAdmin() ? `<button class="icon-btn" data-act="mcCalEdit" data-id="${esc(c.id)}" aria-label="Edit ${esc(c.name)}" title="Edit">${icon('more', 14)}</button>` : ''}`)).join('')}
+    <button class="btn ghost sm" data-act="mcCalEdit">${icon('plus', 13)} New shared calendar</button></div>`;
+}
+function mcCalDialog(c) {
+  const isNew = !c;
+  const cal = c || { id: uid(), name: '', color: MC_COLORS[1], owner: pkey(S.meId), members: [] };
+  const d = showDialog({ title: isNew ? 'New shared calendar' : 'Shared calendar', html: `<form class="mc-form mc-calform" data-submit="mcCalSave" data-id="${esc(cal.id)}">
+    <input class="mc-tin" name="name" value="${esc(cal.name)}" placeholder="Calendar name, e.g. Marketing" aria-label="Calendar name" autocomplete="off" required>
+    <div class="mc-colors" role="radiogroup" aria-label="Colour">${MC_COLORS.map((col, i) => `<label style="--ec:${col}"><input type="radio" name="color" value="${col}" ${cal.color === col ? 'checked' : ''} aria-label="Colour ${i + 1}"><i></i></label>`).join('')}</div>
+    <div class="pd-f mc-guests"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add people" autocomplete="off" aria-label="Add people: type a name or email" data-mc-guest></div>
+      <div class="mc-gchips">${cal.members.filter((k) => k !== cal.owner).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
+    <p class="small muted">Everyone here sees every event in this calendar and can add or change them.</p>
+    <div class="row">${isNew ? '' : `<button type="button" class="btn ghost sm danger" data-act="mcCalDelete" data-id="${esc(cal.id)}">${icon('trash', 13)} Delete calendar</button>`}<span class="spacer"></span><button class="btn primary">${isNew ? 'Create' : 'Save'}</button></div></form>` });
+  d?.classList?.add('mc-dlg');
+  setTimeout(() => $('dialog.mc-dlg [name=name]')?.focus(), 30);
+}
+Object.assign(actions, {
+  mcCalsMenu: (el) => openPop(el, mcCalsMenuHTML),
+  mcCalEdit: (el) => { closePop(); mcCalDialog(el.dataset.id ? mcCalById(el.dataset.id) : null); },
+  mcCalDelete: async (el) => {
+    const c = mcCalById(el.dataset.id);
+    if (!c || !await confirmDlg(`Delete ${c.name}?`, 'Its events stay with their organiser and guests, but members no longer see them.', 'Delete')) return;
+    Object.assign(c, { deleted: true, at: Date.now() });
+    mcDirty();
+    $$('dialog.mc-dlg').forEach((d) => d.close());
+    commit();
+  },
+});
+Object.assign(changes, {
+  mcCalShow: (el) => { const h = new Set(mcHidden()); if (el.checked) h.delete(el.value); else h.add(el.value); S.settings.mcHidden = [...h]; Store.save(); render(); },
+  // Picking a calendar gives the event that calendar's colour.
+  mcCalField: (el) => {
+    const c = mcCalById(el.value);
+    const f = el.closest('form');
+    const dot = f.querySelector('.mc-calpick .mc-caldot');
+    if (dot) dot.style.setProperty('--ec', c?.color || '#9aa3b2');
+    if (c) { const r = f.querySelector(`input[name="color"][value="${c.color}"]`); if (r) r.checked = true; }
+  },
+});
+Object.assign(submits, {
+  mcCalSave: (form, data) => {
+    const p = mcPlan(true);
+    const old = mcCalById(form.dataset.id);
+    const owner = old?.owner || pkey(S.meId);
+    const c = mcNormCal({ ...(old || {}), id: form.dataset.id, name: String(data.get('name') || '').trim() || 'Shared calendar', color: data.get('color'), owner, members: [...new Set(data.getAll('att'))].filter((k) => k !== owner), at: Date.now() });
+    if (old) Object.assign(old, c); else (p.cals = Array.isArray(p.cals) ? p.cals : []).push(c);
+    mcDirty();
+    $$('dialog.mc-dlg').forEach((d) => d.close());
+    commit();
+    toast(old ? 'Calendar saved.' : `${c.name} created${c.members.length ? ` and shared with ${c.members.length} ${c.members.length === 1 ? 'person' : 'people'}` : ''}.`, { keep: true });
+  },
 });

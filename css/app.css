@@ -2287,3 +2287,15 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-fchip .linklike { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-drop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border: 1.5px dashed var(--line-strong); border-radius: 12px; color: var(--muted); }
 .mc-drop.over { border-color: var(--highlight); background: color-mix(in srgb, var(--highlight) 10%, transparent); color: var(--ink); }
+
+/* Shared calendars and the tucked-away time zone */
+.mc-calpick { display: flex; align-items: center; gap: 8px; }
+.mc-calpick select { width: auto; padding: 4px 8px; font-size: .92em; }
+.mc-caldot { width: 12px; height: 12px; border-radius: 4px; background: var(--ec); flex: none; display: inline-block; }
+.mc-calsmenu { width: min(300px, calc(100vw - 24px)); display: grid; gap: 4px; }
+.mc-calrow { display: flex; align-items: center; gap: 8px; }
+.mc-calrow label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding: 4px 2px; }
+.mc-calrow label span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-tzd > summary { cursor: pointer; color: var(--muted); font-size: .9em; list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; }
+.mc-tzd > summary::-webkit-details-marker { display: none; }
+.mc-tzd[open] > summary { color: var(--ink); margin-bottom: 4px; }
