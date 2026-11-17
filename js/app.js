@@ -393,7 +393,7 @@ const SETTINGS_TABS = [
   ['general', 'General', ['Planner', 'Language', 'Appearance', 'Font', 'Colour Style', 'Pop-up messages']],
   ['timebox', 'Time Box', ['Time boxing']],
   ['ringtone', 'Sounds', ["Time's up alert", 'Task complete sound', 'Reminder sound']],
-  ['calendar', 'Calendar', ['Default notifications', 'Saved locations', 'Time to leave']],
+  ['calendar', 'Schedule', ['Default notifications', 'Saved locations', 'Time to leave']],
   ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
   ['messages', 'Messages', ['Messages and Language']],
   ['sync', 'Sync & Data', ['Cloud sync', 'Team sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],

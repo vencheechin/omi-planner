@@ -148,7 +148,7 @@ function renderMeetCal() {
       <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous month">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next month">${icon('chevR')}</button></span>
       <span class="spacer"></span>
       <button class="icon-btn mc-todaybtn" data-act="mcToday" aria-label="Today" title="Today"><span class="mc-tday">${Number(todayISO().slice(8))}</span></button>
-      <button class="icon-btn mc-set" data-act="mcSettings" aria-label="Calendar settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button>
+      <button class="icon-btn mc-set" data-act="mcSettings" aria-label="Schedule settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button>
     </header>
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
   </div>`;
@@ -928,7 +928,7 @@ function mcBusyHTML(iso, y, ppm) {
   // Drawn like a task block: the event's colour, title in the middle, length underneath.
   return mcBusyOn(iso).map((b) => {
     const h = Math.max(16, (b.end - b.start) * ppm - 1);
-    return `<div class="tb-block tb-meetblk ${h < 30 ? 'short' : ''}" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${h}px;left:1px;width:calc(100% - 2px);--c:color-mix(in srgb, ${b.color} 45%, #b9c6dc)" tabindex="0" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><div class="tb-b-title">${icon(b.meet ? 'guests' : 'cal', 12)} ${esc(b.title)}</div>${h >= 38 ? `<small class="tb-b-dur">(${b.end - b.start} min)</small>` : ''}</div>`;
+    return `<div class="tb-block tb-meetblk ${h < 30 ? 'short' : ''}" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${h}px;left:1px;width:calc(100% - 2px);--c:color-mix(in srgb, ${b.color} 45%, #b9c6dc)" tabindex="0" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Schedule)`)}"><div class="tb-b-title">${icon(b.meet ? 'guests' : 'cal', 12)} ${esc(b.title)}</div>${h >= 38 ? `<small class="tb-b-dur">(${b.end - b.start} min)</small>` : ''}</div>`;
   }).join('');
 }
 Object.assign(actions, { mcOpenId: (el, e) => { e?.stopPropagation?.(); const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcOpen(m); } });
@@ -1073,7 +1073,7 @@ async function mcToBin(m) {
   if (!m || !mcCanEdit(m)) return false;
   if (!await confirmDlg(`Delete “${m.title || 'this event'}”?`, 'It goes from everyone’s calendar. You can restore it from the recycle bin.', 'Delete')) return false;
   const local = mcLocal(m);
-  binAdd({ kind: 'event', title: m.title || (mcKind(m) === 'birthday' ? mcAllDayText(m, m.date) : 'Event'), where: `Calendar · ${dayLabel(local.date)}${mcAllDay(m) ? '' : `, ${fmtTime(local.start)}`}`, data: clone(m) });
+  binAdd({ kind: 'event', title: m.title || (mcKind(m) === 'birthday' ? mcAllDayText(m, m.date) : 'Event'), where: `Schedule · ${dayLabel(local.date)}${mcAllDay(m) ? '' : `, ${fmtTime(local.start)}`}`, data: clone(m) });
   const entry = S.trash[0];
   mcPlan(true).meetings = mcAll().filter((x) => x.id !== m.id);
   mcDirty();

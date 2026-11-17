@@ -23,7 +23,7 @@ function fnCatalog() {
     { label: 'Yearly Planner', words: 'year calendar events itinerary travel holiday trip hotel transport', ic: 'cal', go: '#/yearly' },
     { label: 'Progress Meeting', words: 'progress meeting dic department biweekly fortnightly catch up schedule', ic: 'pulse', go: '#/progress' },
     { label: 'Discussion Notes', words: 'notes discuss agenda one on one 1:1 catch up talk points', ic: 'note', go: '#/notes' },
-    { label: 'Calendar', words: 'event events meeting meetings calendar notification schedule invite attendees google outlook', ic: 'meet', go: '#/meet' },
+    { label: 'Schedule', words: 'calendar event events meeting meetings calendar notification schedule invite attendees google outlook', ic: 'meet', go: '#/meet' },
     { label: 'Public and school holidays', words: 'holiday school term vic nsw act victoria', ic: 'flag', run: () => { location.hash = '#/meet'; } },
     { label: 'Time Box', words: 'timebox schedule calendar day week block allocation', ic: 'clock', go: '#/timebox' },
     { label: 'Assignments', words: 'report delegated check review', ic: 'chart', go: '#/report' },

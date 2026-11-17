@@ -12,7 +12,7 @@ const DOCK_ITEMS = {
   pdplan: { label: 'PD Plan', ic: 'flag' },
   hub: { label: 'Planner', ic: 'home', on: ['hub', 'plan', 'person', 'req', 'from', 'history'], n: () => dueSoonCount() },
   yearly: { label: 'Yearly', ic: 'cal' },
-  meet: { label: 'Calendar', ic: 'meet' },
+  meet: { label: 'Schedule', ic: 'meet' },
   progress: { label: 'Progress', ic: 'pulse' },
   notes: { label: 'Notes', ic: 'note' },
   lease: { label: 'Leases', ic: 'lease' },

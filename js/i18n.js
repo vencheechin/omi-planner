@@ -167,6 +167,7 @@ const I18N_ZH = {
   'Calendar settings': '日历设置', 'Time zone, calendars and holidays': '时区、日历和假期',
   'New task': '新任务',
   'Duplicate': '复制一份', 'Copy to…': '复制到…', 'More options': '更多选项', 'organiser': '组织者', 'Join call': '加入通话', 'Repeats every year': '每年重复',
+  'Schedule settings': '日程设置',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

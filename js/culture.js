@@ -5,7 +5,7 @@
 // and the Calendar. Shared with everyone through the org record (field "quotes"). When no quotes
 // are set, the rest reminder keeps its built-in OMI culture lines and the pages show nothing.
 
-const CULTURE_PLACES = [['rest', 'Rest reminder'], ['reminder', 'Task reminders'], ['timebox', 'Time Box'], ['planner', 'Work Planner'], ['calendar', 'Calendar']];
+const CULTURE_PLACES = [['rest', 'Rest reminder'], ['reminder', 'Task reminders'], ['timebox', 'Time Box'], ['planner', 'Work Planner'], ['calendar', 'Schedule']];
 const CULTURE_MISSION = 'Creating a Happier Life for Everyone We Touch';
 function normalizeQuotes(list) {
   if (!Array.isArray(list)) return null;
