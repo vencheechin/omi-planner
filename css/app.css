@@ -2594,3 +2594,18 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 
 /* Search results: Schedule items */
 .mp-sq.sm { width: 14px; height: 14px; border-radius: 4px; margin: 0; flex: none; display: inline-block; }
+
+/* Schedule list: sizes and gaps like Google Calendar's Schedule */
+.sc-list { gap: 0; }
+.sc-day { grid-template-columns: 52px 1fr; gap: 6px; padding: 0 0 24px; }
+.sc-items { gap: 7px; align-content: start; }
+.sc-ev { padding: 7px 10px; border-radius: 6px; gap: 1px; min-height: 46px; align-content: center; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.sc-ev b { font-size: 14.5px; font-weight: 500; line-height: 1.3; }
+.sc-ev small { font-size: 14px; line-height: 1.3; opacity: .95; }
+.sc-ev.sc-hol { min-height: 28px; padding: 5px 10px; font-size: 14px; }
+.sc-date { gap: 2px; padding-top: 2px; }
+.sc-date small { font-size: 11.5px; letter-spacing: .02em; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.sc-date b { font-size: 20px; font-weight: 400; width: 34px; height: 34px; line-height: 34px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.sc-now { margin: 0; }
+.sc-mhead { margin: 4px 0 12px 58px; }
+@media (max-width: 760px) { .sc-day { grid-template-columns: 50px 1fr; } .sc-mhead { margin-left: 56px; } }
