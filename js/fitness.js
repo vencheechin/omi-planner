@@ -259,16 +259,28 @@ function nextRestLine() {
   try { localStorage.setItem('planner-rest-bag', JSON.stringify(bag)); } catch { /* fine: just less variety */ }
   return REST_LINES[i];
 }
+// Mini Pan Pan (OMI's mascot) keeps you company: usually Pan Pan, sometimes one of the flavour friends.
+const PANPAN = [
+  ['panpan', 'Pan Pan', 'Just a little side piece, trying my best.'],
+  ['matcha', 'Matcha', 'Only performing to myself.'],
+  ['soymilk', 'Soy milk', 'Soft doesn’t mean weak.'],
+  ['rose', 'Rose', 'For every heart that still blooms.'],
+  ['seasalt', 'Sea salt', 'Beach called. I answered.'],
+  ['sesame', 'Sesame', 'Open sesame, open your heart.'],
+  ['hojicha', 'Hojicha', 'Stay in my lane and glow.'],
+];
+const panPick = () => (Math.random() < 0.55 ? PANPAN[0] : PANPAN[1 + Math.floor(Math.random() * (PANPAN.length - 1))]);
 /** The rest reminder: a fun nudge, then Done (counts the break), Snooze 5 min or Skip. */
 async function restPopup(type) {
   const f = fit();
   ui.fitNudgeOpen = true;
   const [art, line, idea] = nextRestLine();
+  const [pid, pname, ptag] = panPick();
   if (typeof playTone === 'function' && alarmPrefs().on) playTone('zen-chimes', alarmPrefs().vol);
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
     try { new Notification(`${art} Time for a ${f.breaks.min}-minute rest`, { body: `${line} ${idea}.`, tag: 'rest' }); } catch { /* not supported */ }
   }
-  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-art" aria-hidden="true">${art}</div><p class="rest-line">${esc(line)}</p><p class="rest-idea">${esc(idea)}. <span class="muted">${esc(f.breaks.every)} minutes of focus done.</span></p>`,
+  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-pan"><img src="icons/panpan/${pid}.png" alt="${esc(pname)}" width="${pid === 'panpan' ? 120 : 96}"><div class="rest-bubble"><b>${esc(pname)}</b> <span class="muted">“${esc(ptag)}”</span><span class="rest-art-sm" aria-hidden="true">${art}</span></div></div><p class="rest-line">${esc(line)}</p><p class="rest-idea">${esc(idea)}. <span class="muted">${esc(f.breaks.every)} minutes of focus done.</span></p>`,
     [{ v: 'done', label: 'Rest now', primary: true }, { v: 'snooze', label: 'In 5 min' }, { v: 'skip', label: 'Skip' }]);
   ui.fitNudgeOpen = false;
   if (v === 'done') fitLogBreak(type);
@@ -352,13 +364,9 @@ Object.assign(actions, {
   restCustom: async (el) => {
     const k = el.dataset.k;
     closePop();
-    const v = await promptDlg(k === 'every' ? 'Work for how long?' : 'Rest for how long?', 'Minutes', String(fit().breaks[k]), 'Set');
-    if (v === null || v === undefined || v === '') return;
-    const n = Math.round(Number(String(v).replace(/[^\d.]/g, '')));
-    const [lo, hi] = k === 'every' ? [5, 240] : [1, 120];
-    if (!n || n < lo || n > hi) { toast(`Enter ${lo} to ${hi} minutes.`, { error: true }); return; }
-    fit().breaks[k] = n;
-    commit();
+    // A wheel to scroll, or type up to 2 numbers: it goes to the nearest choice.
+    const values = k === 'every' ? Array.from({ length: 48 }, (_, i) => (i + 1) * 5) : [...Array.from({ length: 30 }, (_, i) => i + 1), ...Array.from({ length: 18 }, (_, i) => 35 + i * 5)];
+    wheelPick($('.rest-btn') || document.body, { title: k === 'every' ? 'Work for how long?' : 'Rest for how long?', values, value: fit().breaks[k], unit: 'min', done: (n) => { fit().breaks[k] = n; commit(); } });
   },
   fitLogDel: (el) => { const f = fit(); const keep = f.log; f.log = keep.filter((l) => l.id !== el.dataset.id); commit(); toast('Removed.', { undo: () => { f.log = keep; commit(); } }); },
   fitTypeAdd: async () => {

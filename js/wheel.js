@@ -102,3 +102,25 @@ Object.assign(actions, {
   },
   twDone: () => closePop(),
 });
+
+// ---------- One-wheel number picker (scroll, or type up to 2 numbers) ----------
+function wheelPick(anchor, { title, values, value, unit = '', done }) {
+  const nearest = (n) => values.reduce((a, b) => (Math.abs(b - n) < Math.abs(a - n) ? b : a), values[0]);
+  const pop = openPop(anchor, () => `<div class="picker tw-pick wp-pick"><h4>${esc(title)}</h4>
+    <div class="tw-type"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="${esc(unit || 'number')}" aria-label="Type a number"><small class="muted">or scroll</small></div>
+    <div class="tw-wheels wp-wheels"><div class="tw-col">${values.map((v) => `<div class="tw-item" data-v="${v}">${v}</div>`).join('')}</div><div class="wp-unit">${esc(unit)}</div><div class="tw-band" aria-hidden="true"></div></div>
+    <div class="row tw-foot"><button type="button" class="btn ghost sm" data-act="twDone">Cancel</button><span class="spacer"></span><button type="button" class="btn primary sm" data-wp-ok>Set</button></div></div>`);
+  const col = pop.querySelector('.tw-col');
+  const items = [...col.children];
+  const mark = (v, smooth) => { const i = Math.max(0, values.indexOf(v)); items.forEach((x, j) => x.classList.toggle('on', j === i)); if (smooth) col.scrollTo({ top: i * TW_ROW, behavior: 'smooth' }); else col.scrollTop = i * TW_ROW; };
+  mark(nearest(value), false);
+  let t = null;
+  col.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => { const i = Math.max(0, Math.min(items.length - 1, Math.round(col.scrollTop / TW_ROW))); items.forEach((x, j) => x.classList.toggle('on', j === i)); }, 90); }, { passive: true });
+  col.addEventListener('click', (e) => { const it = e.target.closest('.tw-item'); if (it) mark(Number(it.dataset.v), true); });
+  const inp = pop.querySelector('.tw-type input');
+  inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 2); if (inp.value) mark(nearest(Number(inp.value)), true); });
+  const ok = () => { const on = col.querySelector('.tw-item.on'); closePop(); if (on) done(Number(on.dataset.v)); };
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ok(); } });
+  pop.querySelector('[data-wp-ok]').addEventListener('click', ok);
+  setTimeout(() => inp.focus(), 30);
+}
