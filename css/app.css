@@ -2574,3 +2574,15 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .mp-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mp a { color: var(--highlight); }
 .mp a.btn { color: var(--on-highlight, #fff); }
+
+/* Calendar: one slim bar on top (month ▾, ‹ ›, Today, gear) so the list fills the screen */
+.mc-page { padding-top: 6px; }
+.mc-bar { position: sticky; top: 0; z-index: 5; background: var(--bg); margin: 0 -4px 6px; padding: 4px; flex-wrap: nowrap; }
+.mc-bar .mc-title-btn { font-size: 22px; }
+.mc-tday { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid currentColor; border-top-width: 5px; border-radius: 6px; font-size: 11.5px; font-weight: 700; line-height: 1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+@media (max-width: 760px) {
+  .mc-page { padding: 4px 12px 24px; }
+  .mc-bar .mc-nav { display: none; }
+  .sc-day { grid-template-columns: 48px 1fr; }
+  .sc-mhead { margin-left: 56px; }
+}

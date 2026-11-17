@@ -143,12 +143,12 @@ function renderMeetCal() {
   const s = mcState();
   const days = s.view === 'day' ? [s.date] : Array.from({ length: 7 }, (_, i) => mcAddDays(mcWeekStart(s.date), i));
   return `<div class="page mc-page">
-    <header class="mc-top">
-      <div class="mc-h1row"><h1>Calendar</h1><button class="icon-btn mc-set" data-act="mcSettings" aria-label="Calendar settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button></div>
-      <button class="btn primary sm" data-act="mcNew">${icon('plus', 14)} Create</button>
-      <button class="btn ghost sm" data-act="mcToday">Today</button>
-      <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next">${icon('chevR')}</button></span>
+    <header class="mc-top mc-bar">
       <button class="mc-title mc-title-btn ${ui.mcMini ? 'open' : ''}" data-act="mcMiniToggle" aria-expanded="${!!ui.mcMini}" title="Show or hide the month">${esc(mcTitle())}${icon('chevD', 16)}</button>
+      <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous month">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next month">${icon('chevR')}</button></span>
+      <span class="spacer"></span>
+      <button class="icon-btn mc-todaybtn" data-act="mcToday" aria-label="Today" title="Today"><span class="mc-tday">${Number(todayISO().slice(8))}</span></button>
+      <button class="icon-btn mc-set" data-act="mcSettings" aria-label="Calendar settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button>
     </header>
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
   </div>`;
@@ -1151,9 +1151,9 @@ function mcSchedHTML() {
   }
   const list = groups.map((g) => (g.head ? `<h3 class="sc-mhead">${esc(MC_MON[Number(g.ym.slice(5)) - 1])} ${g.ym.slice(0, 4)}</h3>` : g.html)).join('')
     || '<p class="muted sc-none">Nothing planned. Tap <b>Create</b> to add something.</p>';
-  // A round add button at the bottom right; tap it for Reminder, Birthday, Task or Event (like Google Calendar).
-  const fab = `<div class="mc-fab ${ui.mcFab ? 'open' : ''}"><div class="mc-fab-dim" data-act="mcFab"></div><div class="mc-fab-menu">${[['reminder', 'Reminder', 'bell'], ['birthday', 'Birthday', 'cake'], ['task', 'Task', 'check'], ['event', 'Event', 'cal']].map(([k, l, ic]) => `<button class="mc-fab-it" data-act="mcFabNew" data-k="${k}">${icon(ic, 18)}<span>${l}</span></button>`).join('')}</div><button class="mc-fab-btn" data-act="mcFab" aria-label="Add" aria-expanded="${!!ui.mcFab}">${icon('plus', 26)}</button></div>`;
-  return `<div class="sc-wrap">${mini}${chips}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>${fab}`;
+  // A round add button at the bottom right; tap it for Reminder, Birthday or Event (like Google Calendar).
+  const fab = `<div class="mc-fab ${ui.mcFab ? 'open' : ''}"><div class="mc-fab-dim" data-act="mcFab"></div><div class="mc-fab-menu">${[['reminder', 'Reminder', 'bell'], ['birthday', 'Birthday', 'cake'], ['event', 'Event', 'cal']].map(([k, l, ic]) => `<button class="mc-fab-it" data-act="mcFabNew" data-k="${k}">${icon(ic, 18)}<span>${l}</span></button>`).join('')}</div><button class="mc-fab-btn" data-act="mcFab" aria-label="Add" aria-expanded="${!!ui.mcFab}">${icon('plus', 26)}</button></div>`;
+  return `<div class="sc-wrap">${mini}${ui.mcMini ? chips : ''}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>${fab}`;
 }
 /** Dark or light text, whichever reads better on the item's colour. */
 const mcInk = (c) => (typeof inkOn === 'function' && /^#[0-9a-f]{6}$/i.test(c) ? inkOn(c) : '#fff');
@@ -1173,22 +1173,12 @@ Object.assign(actions, {
     ui.mcFab = false;
     $('.mc-fab')?.classList.remove('open');
     const k = el.dataset.k;
-    if (k === 'task') { mcFabTask(); return; }
     mcOpen(mcDraft(mcState().date, Math.min(1380, (new Date().getHours() + 1) * 60)));
     // Switch the new item to the type you picked, the same as tapping it in the dialog.
     setTimeout(() => { const b = document.querySelector(`.mc-kinds [data-v="${k}"]`); if (b && k !== 'event') actions.mcKind(b); }, 0);
   },
 });
 
-/** + › Task: a new task in your own Planner, due on the day you're looking at, then opens it for the details. */
-async function mcFabTask() {
-  const title = String(await promptDlg('New task', 'Task name', '', 'Add task') || '').trim();
-  if (!title) return;
-  const p = personalPlan();
-  const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title, assignees: [S.meId], due: mcState().date });
-  commit();
-  openTask(t.id);
-}
 
 // Swipe the small month: left for the next month, right for the previous one (like the iPhone Calendar).
 {
