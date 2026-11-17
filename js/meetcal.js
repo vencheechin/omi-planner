@@ -149,7 +149,7 @@ function renderMeetCal() {
       <button class="btn primary sm" data-act="mcNew">${icon('plus', 14)} Create</button>
       <button class="btn ghost sm" data-act="mcToday">Today</button>
       <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next">${icon('chevR')}</button></span>
-      <b class="mc-title">${esc(mcTitle())}</b>
+      <button class="mc-title mc-title-btn ${ui.mcMini ? 'open' : ''}" data-act="mcMiniToggle" aria-expanded="${!!ui.mcMini}" title="Show or hide the month">${esc(mcTitle())}${icon('chevD', 16)}</button>
       <button class="btn ghost sm mc-tz" data-act="mcTzMenu" title="Time zones">🕒 ${tzNow() === tzHome() ? esc(tzLabel(tzNow())) : `Now: ${esc(tzLabel(tzNow()))} · Home: ${esc(tzLabel(tzHome()))}`}</button>
       <span class="spacer"></span>
       <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
@@ -208,7 +208,7 @@ function mcTzNote(date, start, tz) {
 
 Object.assign(actions, {
   mcView: (el) => { mcState().view = el.dataset.v; render(); if (el.dataset.v === 'schedule') mcSchScrollTo(todayISO()); },
-  mcToday: () => { mcState().date = todayISO(); render(); if (mcState().view === 'schedule') mcSchScrollTo(todayISO()); else mcScrollToNow(); },
+  mcToday: () => { mcState().date = todayISO(); render(); if (mcState().view !== 'schedule') mcScrollToNow(); },
   mcStep: (el) => { const s = mcState(); const n = Number(el.dataset.d); if (s.view === 'month' || s.view === 'schedule') { const d = new Date(`${s.date.slice(0, 7)}-01T12:00:00`); d.setMonth(d.getMonth() + n); s.date = d.toISOString().slice(0, 10); } else s.date = mcAddDays(s.date, n * (s.view === 'day' ? 1 : 7)); render(); },
   mcGoDay: (el) => { const s = mcState(); s.date = el.dataset.d; s.view = 'day'; render(); },
   mcNew: () => { const n = new Date(); mcOpen(mcDraft(mcState().view === 'month' ? todayISO() : mcState().date, Math.min(1380, (n.getHours() + 1) * 60))); },
@@ -1114,19 +1114,20 @@ function mcSchedHTML() {
     const cols = [...holidaysOn(d).map(() => 'var(--muted)'), ...mcOn(shown, d).map((m) => m.color || MC_COLORS[0])];
     return `<span class="sc-dots">${cols.slice(0, 3).map((c) => `<i style="background:${esc(c)}"></i>`).join('')}${cols.length > 3 ? '<b>+</b>' : ''}</span>`;
   };
-  const mini = `<div class="sc-mini"><div class="sc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
+  // The small month stays folded away until you tap the month name at the top.
+  const mini = !ui.mcMini ? '' : `<div class="sc-mini"><div class="sc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
     <div class="sc-mg">${cells.slice(0, rows * 7).map((d) => d.slice(0, 7) !== ym ? '<span></span>'
       : `<button class="sc-d ${d === today ? 'today' : ''} ${d === s.date ? 'sel' : ''}" data-act="mcSchDay" data-d="${d}"><span class="sc-n">${Number(d.slice(8))}</span>${dots(d)}</button>`).join('')}</div></div>`;
   // Month buttons: this month and the next eleven, with the year where it changes.
   const m0 = new Date(`${today.slice(0, 7)}-01T12:00:00`);
   const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(m0); d.setMonth(m0.getMonth() + i); return d.toISOString().slice(0, 7); });
   const chips = `<div class="sc-months">${months.map((m, i) => `${i && m.endsWith('-01') ? `<b class="sc-yr">${m.slice(0, 4)}</b>` : ''}<button class="sc-mo ${m === ym ? 'on' : ''}" data-act="mcSchDay" data-d="${m}-01">${esc(MC_MON[Number(m.slice(5)) - 1].slice(0, 3))}</button>`).join('')}</div>`;
-  // The list: from the start of the chosen month, for as many months as you've opened.
+  // The list: from the chosen day (today when you open the Calendar; the 1st when you pick a month), for as many months as you've opened.
   const span = s.span || 3;
   const end = (() => { const d = new Date(`${first}T12:00:00`); d.setMonth(d.getMonth() + span); return d.toISOString().slice(0, 10); })();
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const groups = [];
-  for (let d = first; d < end; d = mcAddDays(d, 1)) {
+  for (let d = s.date < first ? first : s.date; d < end; d = mcAddDays(d, 1)) {
     const hs = holidaysOn(d);
     const ms = mcOn(shown, d).sort((a, b) => (mcAllDay(b) - mcAllDay(a)) || a.start - b.start);
     if (!hs.length && !ms.length && d !== today) continue;
@@ -1160,7 +1161,8 @@ function mcSchScrollTo(d) {
   }, 30);
 }
 Object.assign(actions, {
-  mcSchDay: (el) => { const s = mcState(); s.date = el.dataset.d; render(); mcSchScrollTo(el.dataset.d); },
+  mcSchDay: (el) => { const s = mcState(); s.date = el.dataset.d; if (el.classList.contains('sc-d')) ui.mcMini = false; render(); },
+  mcMiniToggle: () => { ui.mcMini = !ui.mcMini; render(); },
   mcSchMore: () => { const s = mcState(); s.span = (s.span || 3) + 3; render(); },
   mcFab: () => { ui.mcFab = !ui.mcFab; const f = $('.mc-fab'); if (!f) return; f.classList.toggle('open', ui.mcFab); $('.mc-fab-btn', f).setAttribute('aria-expanded', ui.mcFab); },
   mcFabNew: (el) => {
