@@ -295,8 +295,11 @@ renderBrandPlan = function renderPdPlan() {
 };
 
 // ---------- Framework editor ----------
+/** While the framework window is open you edit a draft; nothing is saved or synced until Save. */
+const pdFwCur = (p) => ui.pdFwDraft || pdFw(p);
+const pdFwChanged = (p) => !!ui.pdFwDraft && JSON.stringify(ui.pdFwDraft) !== JSON.stringify(pdFw(p));
 function pdFrameworkHTML(p) {
-  const fw = pdFw(p);
+  const fw = pdFwCur(p);
   return `<div class="pd-fw">
     <p class="small muted">The departments, the checkpoints every product passes, and each department's work at each checkpoint. Work becomes a Planner task for the department's person in charge when a product reaches that checkpoint.</p>
     <h3>Departments</h3>
@@ -314,11 +317,13 @@ function pdFrameworkHTML(p) {
         <td><button class="icon-btn" data-act="pdFwDelCp" data-i="${i}" aria-label="Remove checkpoint">${icon('close', 13)}</button></td></tr>`).join('')}</tbody></table></div>
     <div class="row"><button class="btn ghost sm" data-act="pdFwAddCp">${icon('plus', 13)} Checkpoint</button><span class="spacer"></span>
       <button class="btn ghost sm" data-act="pdFwImport">${icon('upload', 13)} Import</button><button class="btn ghost sm" data-act="pdFwExport">${icon('download', 13)} Export</button></div>
+    <div class="dlg-foot pd-fw-foot"><button class="btn ghost" data-act="pdFwDiscard">Exit without saving</button><button class="btn primary" data-act="pdFwSave">${icon('check', 14)} Save</button></div>
   </div>`;
 }
 function pdFwEdit(fn) {
   const p = stCurrent();
   if (!p || !stCanEdit(p)) return;
+  if (ui.pdFwDraft) { const fw = pdNormFw(clone(ui.pdFwDraft)) || PD_DEFAULT_FW(); fn(fw, p); ui.pdFwDraft = pdNormFw(fw) || fw; pdRefresh(); return; }
   p.fw = pdNormFw(clone(pdFw(p))) || PD_DEFAULT_FW();
   fn(p.fw, p);
   p.fw = pdNormFw(p.fw) || p.fw;
@@ -392,20 +397,39 @@ Object.assign(actions, {
     const p = stCurrent();
     if (!p || !stCanEdit(p)) return;
     $$('dialog.pd-fw-dlg').forEach((d) => d.close());
-    const d = showDialog({ title: 'PD framework', html: pdFrameworkHTML(p), wide: true });
+    ui.pdFwDraft = clone(pdFw(p));
+    const d = showDialog({ title: 'PD framework', html: pdFrameworkHTML(p), wide: true, onClose: () => { ui.pdFwDraft = null; } });
     d?.classList?.add('pd-fw-dlg');
+    // The top cross and Escape ask before throwing changes away.
+    const x = $('header [data-act="closeDialog"]', d);
+    if (x) x.dataset.act = 'pdFwClose';
+    d?.addEventListener('cancel', (e) => { e.preventDefault(); actions.pdFwClose(); });
+  },
+  pdFwSave: () => {
+    const p = stCurrent();
+    if (p && ui.pdFwDraft && pdFwChanged(p)) { p.fw = pdNormFw(clone(ui.pdFwDraft)) || p.fw; pdDirty(p); commit(); toast('Framework saved.', { keep: true }); }
+    ui.pdFwDraft = null;
+    $('dialog.pd-fw-dlg')?.close();
+  },
+  pdFwDiscard: () => { ui.pdFwDraft = null; $('dialog.pd-fw-dlg')?.close(); },
+  pdFwClose: async () => {
+    const p = stCurrent();
+    if (!p || !pdFwChanged(p)) { actions.pdFwDiscard(); return; }
+    const v = await choiceDlg('Save your changes?', '<p>You changed the PD framework.</p>', [{ v: 'save', label: 'Save', primary: true }, { v: 'discard', label: 'Don’t save' }, { v: 'keep', label: 'Keep editing' }]);
+    if (v === 'save') actions.pdFwSave();
+    else if (v === 'discard') actions.pdFwDiscard();
   },
   pdFwAddDept: () => pdFwEdit((fw) => fw.depts.push({ id: uid(), name: 'Department', who: '' })),
   pdFwDelDept: async (el) => {
-    const d = pdFw(stCurrent()).depts[Number(el.dataset.i)];
+    const d = pdFwCur(stCurrent()).depts[Number(el.dataset.i)];
     if (d && await confirmDlg(`Remove ${d.name}?`, 'Its work at every checkpoint is removed too.', 'Remove')) pdFwEdit((fw) => { fw.depts.splice(Number(el.dataset.i), 1); });
   },
   pdFwAddCp: () => pdFwEdit((fw) => fw.cps.push({ id: uid(), stage: fw.cps.at(-1)?.stage || '', label: 'New checkpoint', lead: '', decision: '', work: {} })),
   pdFwDelCp: async (el) => {
     const p = stCurrent();
-    const c = pdFw(p).cps[Number(el.dataset.i)];
+    const c = pdFwCur(p).cps[Number(el.dataset.i)];
     if (!c) return;
-    if (pdFw(p).cps.length < 2) { toast('A framework needs at least one checkpoint.'); return; }
+    if (pdFwCur(p).cps.length < 2) { toast('A framework needs at least one checkpoint.'); return; }
     if (pdProducts(p).some((x) => x.status === 'active' && x.cp === c.id)) { toast('Move the products at this checkpoint on first.'); return; }
     if (await confirmDlg(`Remove ${c.label}?`, '', 'Remove')) pdFwEdit((fw) => { fw.cps.splice(Number(el.dataset.i), 1); });
   },
@@ -436,6 +460,7 @@ Object.assign(actions, {
       if (!await confirmDlg('Replace the framework?', `${fw.cps.length} checkpoints and ${fw.depts.length} departments.${stranded.length ? ` ${stranded.length} product(s) at a checkpoint that no longer exists go back to the first one.` : ''}`, 'Replace')) return;
       stranded.forEach((x) => { x.cp = fw.cps[0].id; x.enteredAt = Date.now(); });
       fw.base = old.base || 0;
+      if (ui.pdFwDraft) { ui.pdFwDraft = fw; pdRefresh(); toast('Framework imported. Pick the person in charge of each department, then Save.', { keep: true }); return; }
       p.fw = fw;
       pdDirty(p);
       commit();
