@@ -21,7 +21,9 @@ function twParts(min) { const h = Math.floor(min / 60); return { h: h % 12 === 0
 function twJoin(p) { return ((p.h % 12) + (p.ap ? 12 : 0)) * 60 + p.m; }
 
 function twPickerHTML(label) {
-  return `<div class="picker tw-pick"><h4>${esc(label)}</h4><div class="tw-wheels">${TW_COLS.map(([k, items]) => `<div class="tw-col" data-col="${k}">${items.map(([v, t]) => `<div class="tw-item" data-v="${v}">${t}</div>`).join('')}</div>`).join('')}<div class="tw-band" aria-hidden="true"></div></div>
+  return `<div class="picker tw-pick"><h4>${esc(label)}</h4>
+    <div class="tw-type" aria-label="Or type the time"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-tw="h" placeholder="hr" aria-label="Hour"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-tw="m" placeholder="min" aria-label="Minutes"><small class="muted">or scroll</small></div>
+    <div class="tw-wheels">${TW_COLS.map(([k, items]) => `<div class="tw-col" data-col="${k}">${items.map(([v, t]) => `<div class="tw-item" data-v="${v}">${t}</div>`).join('')}</div>`).join('')}<div class="tw-band" aria-hidden="true"></div></div>
     <div class="row tw-foot"><span class="spacer"></span><button type="button" class="btn primary sm" data-act="twDone">Done</button></div></div>`;
 }
 
@@ -66,6 +68,37 @@ Object.assign(actions, {
       col.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(read, 90); }, { passive: true });
       col.addEventListener('click', (e) => { const it = e.target.closest('.tw-item'); if (it) col.scrollTo({ top: items.indexOf(it) * TW_ROW, behavior: 'smooth' }); });
     });
+    // Or type it: up to 2 numbers per box, and the wheel rolls to the nearest one.
+    // Hours 13-23 (or 0) are read as 24-hour time and switch am/pm; minutes go to the nearest 5.
+    const colOf = (k) => cols.find((c) => c.dataset.col === k);
+    const roll = (k, v) => {
+      const col = colOf(k);
+      const items = [...col.children];
+      const i = Math.max(0, items.findIndex((x) => Number(x.dataset.v) === v));
+      items.forEach((x, j) => x.classList.toggle('on', j === i));
+      col.scrollTo({ top: i * TW_ROW, behavior: 'smooth' });
+    };
+    const now = () => Object.fromEntries(cols.map((c) => [c.dataset.col, Number(c.querySelector('.tw-item.on')?.dataset.v ?? c.children[0].dataset.v)]));
+    pop.querySelectorAll('.tw-type input').forEach((inp) => inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '').slice(0, 2);
+      if (!inp.value) return;
+      const n = Number(inp.value);
+      const p = now();
+      if (inp.dataset.tw === 'h') {
+        if (n === 0 || n > 23) { p.h = 12; p.ap = n === 0 ? 0 : p.ap; } else if (n > 12) { p.h = n - 12; p.ap = 1; } else p.h = n;
+        roll('h', p.h); roll('ap', p.ap);
+        // One digit that can't start a bigger hour (2-9), or two digits: on to the minutes.
+        if (inp.value.length === 2 || n > 2) pop.querySelector('.tw-type input[data-tw="m"]').focus();
+      } else {
+        p.m = Math.min(55, Math.round(n / 5) * 5);
+        roll('m', p.m);
+      }
+      twChanged(form, name, twJoin(p));
+    }));
+    pop.querySelectorAll('.tw-type input').forEach((inp) => inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); closePop(); }
+      if (/^[ap]$/i.test(e.key)) { e.preventDefault(); const p = now(); p.ap = /p/i.test(e.key) ? 1 : 0; roll('ap', p.ap); twChanged(form, name, twJoin(p)); }
+    }));
   },
   twDone: () => closePop(),
 });

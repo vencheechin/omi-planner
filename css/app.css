@@ -2247,3 +2247,7 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-al select { flex: 1; min-width: 0; }
 .mc-al-ic { font-size: 14px; }
 .mc-al-add { justify-self: start; margin-top: 4px; }
+
+.tw-type { display: flex; align-items: center; gap: 6px; }
+.tw-type input { width: 58px; text-align: center; font-size: 17px; padding: 6px 4px; font-variant-numeric: tabular-nums; }
+.tw-type small { margin-left: 2px; }
