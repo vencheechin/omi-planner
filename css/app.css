@@ -2609,3 +2609,7 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .sc-now { margin: 0; }
 .sc-mhead { margin: 4px 0 12px 58px; }
 @media (max-width: 760px) { .sc-day { grid-template-columns: 50px 1fr; } .sc-mhead { margin-left: 56px; } }
+
+/* Search box: one box. The outer box shows focus; the input inside has no box or ring of its own. */
+#topbar .search input, #topbar .search input:focus, #topbar .search input:focus-visible { outline: none; box-shadow: none; border: 0; background: none; -webkit-appearance: none; appearance: none; border-radius: 0; }
+#topbar .search:focus-within { outline: 2px solid var(--highlight); outline-offset: 0; }
