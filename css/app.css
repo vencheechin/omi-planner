@@ -2631,3 +2631,9 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   .mc-wnav .icon-btn { width: 24px; flex: none; }
   .mc-bar-r .icon-btn { width: 34px; }
 }
+
+/* Delete recurring event: three choices */
+.mc-repdel { display: grid; gap: 4px; }
+.mc-repdel-o { display: flex; align-items: center; gap: 12px; padding: 10px 4px; font-size: 16px; cursor: pointer; }
+.mc-repdel-o input { width: 20px; height: 20px; accent-color: var(--highlight); margin: 0; }
+.mc-repdel .dlg-foot { margin-top: 8px; }

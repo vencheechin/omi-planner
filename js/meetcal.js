@@ -40,6 +40,9 @@ function mcNorm(m) {
     ...(typeof m.block === 'boolean' ? { block: m.block } : (!m.kind || m.kind === 'meeting') ? { block: true } : {}),
     rep: MC_REPS.some(([v]) => v === m.rep) || m.rep === 'custom' ? m.rep : '',
     rc: m.rep === 'custom' ? mcNormRc(m.rc) : null,
+    // Repeating items: days taken out ("Delete this event") and the last day ("This and all following").
+    ex: (Array.isArray(m.ex) ? m.ex : []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-300),
+    until: /^\d{4}-\d{2}-\d{2}$/.test(m.until || '') ? m.until : '',
     by: Number.isInteger(Number(m.by)) && Number(m.by) > 1900 && Number(m.by) < 2200 ? Number(m.by) : null,
     files: (Array.isArray(m.files) ? m.files : []).filter((f) => f && typeof f.id === 'string').slice(0, 30).map((f) => ({ id: f.id.slice(0, 40), name: String(f.name || 'File').slice(0, 200), size: Number(f.size) || 0, type: String(f.type || '').slice(0, 100), ...(typeof f.thumb === 'string' && f.thumb.length < 60000 ? { thumb: f.thumb } : {}) })),
   };
@@ -212,7 +215,7 @@ Object.assign(actions, {
   mcDelete: async (el) => {
     const m = mcAll().find((x) => x.id === el.dataset.id);
     if (!m || !mcCanEdit(m)) return;
-    if (await mcToBin(m)) $$('dialog.mc-dlg').forEach((d) => d.close());
+    if (await mcToBin(m, ui.mcPeek?.id === m.id ? ui.mcPeek.d : null)) $$('dialog.mc-dlg').forEach((d) => d.close());
   },
 });
 
@@ -874,8 +877,9 @@ function mcAllDayText(m, d) {
 }
 /** Does this item happen on date d (repeats included)? */
 function mcOccurs(m, d) {
-  if (!m.rep || d === m.date) return d === m.date;
-  if (d < m.date) return false;
+  if (!m.rep) return d === m.date;
+  if (d < m.date || (m.until && d > m.until) || (m.ex || []).includes(d)) return false;
+  if (d === m.date) return true;
   if (m.rep === 'custom') return mcRcOccurs(m, d);
   const a = new Date(`${m.date}T12:00:00`);
   const b = new Date(`${d}T12:00:00`);
@@ -1071,9 +1075,28 @@ document.addEventListener('input', (e) => { if (e.target.matches?.('.mc-form [na
 
 // ---------- Recycle bin ----------
 /** Moves an event to the recycle bin (after asking), with Undo. Returns true when it went. */
-async function mcToBin(m) {
+async function mcToBin(m, day = null) {
   if (!m || !mcCanEdit(m)) return false;
+  // A repeating item: this one, this and all following, or all of them (like Google Calendar).
+  if (m.rep) {
+    const pick = await mcRepDeleteDlg(m);
+    if (!pick) return false;
+    const d = day || m.date;
+    if (pick === 'all' || (pick === 'after' && d <= m.date)) return mcBinNow(m);
+    const before = clone(m);
+    if (pick === 'one') m.ex = [...new Set([...(m.ex || []), d])];
+    else m.until = mcAddDays(d, -1);
+    m.at = Date.now();
+    mcDirty();
+    commit();
+    toast(pick === 'one' ? 'This event deleted.' : 'This and all following events deleted.', { undo: () => { Object.assign(m, before); if (!before.until) m.until = ''; if (!before.ex) m.ex = []; m.at = Date.now(); mcDirty(); commit(); } });
+    return true;
+  }
   if (!await confirmDlg(`Delete “${m.title || 'this event'}”?`, 'It goes from everyone’s calendar. You can restore it from the recycle bin.', 'Delete')) return false;
+  return mcBinNow(m);
+}
+/** Moves the whole item to the recycle bin (Undo puts it back). */
+function mcBinNow(m) {
   const local = mcLocal(m);
   binAdd({ kind: 'event', title: m.title || (mcKind(m) === 'birthday' ? mcAllDayText(m, m.date) : 'Event'), where: `Schedule · ${dayLabel(local.date)}${mcAllDay(m) ? '' : `, ${fmtTime(local.start)}`}`, data: clone(m) });
   const entry = S.trash[0];
@@ -1297,7 +1320,7 @@ Object.assign(actions, {
       ...(m.cal ? [{ icon: 'cal', label: 'My calendar', run: () => mcCopyTo(m, '') }] : []),
       ...cals.filter((c) => c.id !== m.cal).map((c) => ({ icon: 'cal', label: c.name, run: () => mcCopyTo(m, c.id) })),
     ]), 0) });
-    if (mcCanEdit(m)) items.push('-', { icon: 'trash', label: 'Delete', danger: true, run: () => mcToBin(m) });
+    if (mcCanEdit(m)) items.push('-', { icon: 'trash', label: 'Delete', danger: true, selfConfirm: true, run: async () => { if (await mcToBin(m, ui.mcPeek?.d)) $$('dialog.mc-dlg').forEach((x) => x.close()); } });
     openMenu(el, items);
   },
 });
@@ -1351,4 +1374,20 @@ Object.assign(actions, {
 /** A round add button at the bottom right; tap it for Reminder, Birthday or Event (like Google Calendar). */
 function mcFabHTML() {
   return `<div class="mc-fab ${ui.mcFab ? 'open' : ''}"><div class="mc-fab-dim" data-act="mcFab"></div><div class="mc-fab-menu">${[['reminder', 'Reminder', 'bell'], ['birthday', 'Birthday', 'cake'], ['event', 'Event', 'cal']].map(([k, l, ic]) => `<button class="mc-fab-it" data-act="mcFabNew" data-k="${k}">${icon(ic, 18)}<span>${l}</span></button>`).join('')}</div><button class="mc-fab-btn" data-act="mcFab" aria-label="Add" aria-expanded="${!!ui.mcFab}">${icon('plus', 26)}</button></div>`;
+}
+
+/** "Delete recurring event": This event / This and all following events / All events. Resolves to 'one', 'after', 'all' or null. */
+function mcRepDeleteDlg(m) {
+  return new Promise((resolve) => {
+    let pick = null;
+    const opts = [['one', 'This event'], ['after', 'This and all following events'], ['all', 'All events']];
+    const d = showDialog({
+      title: 'Delete recurring event',
+      html: `<form class="mc-repdel">${opts.map(([v, l], i) => `<label class="mc-repdel-o"><input type="radio" name="w" value="${v}" ${i ? '' : 'checked'}> <span>${l}</span></label>`).join('')}
+        <div class="dlg-foot"><button type="button" class="btn ghost" data-role="no">Cancel</button><button class="btn danger">Delete</button></div></form>`,
+      onClose: () => resolve(pick),
+    });
+    $('[data-role=no]', d).onclick = () => d.close();
+    $('form', d).onsubmit = (e) => { e.preventDefault(); pick = new FormData(e.target).get('w'); d.close(); };
+  });
 }
