@@ -2240,3 +2240,10 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-maps { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -4px; }
 .mc-tzpick { width: min(320px, calc(100vw - 24px)); display: grid; gap: 8px; }
 .mc-tzpick select { width: 100%; }
+
+/* Event notifications */
+.mc-alerts { display: grid; gap: 6px; }
+.mc-al { display: flex; align-items: center; gap: 6px; }
+.mc-al select { flex: 1; min-width: 0; }
+.mc-al-ic { font-size: 14px; }
+.mc-al-add { justify-self: start; margin-top: 4px; }

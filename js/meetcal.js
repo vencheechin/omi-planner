@@ -13,6 +13,13 @@ function mcPlan(create) {
   if (!p && create) { p = normalizeStPlan({ id: 'meetings', kind: 'dept', module: 'cal', name: 'Meeting Calendar', owner: S.meId, groups: [] }); stPlans().push(p); }
   return p || null;
 }
+/** Each person's notifications for an event: { personKey: [minutes before, ...] } (0 = at the time). */
+function mcNormAl(al) {
+  if (!al || typeof al !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(al)) if (typeof k === 'string' && Array.isArray(v)) out[k.slice(0, 120)] = [...new Set(v.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 20160))].sort((a, b) => a - b).slice(0, 8);
+  return out;
+}
 function mcNorm(m) {
   if (!m || typeof m !== 'object' || !m.id || !/^\d{4}-\d{2}-\d{2}$/.test(m.date || '')) return null;
   const mins = (v, d) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1440, Math.round(Number(v)))) : d);
@@ -23,6 +30,7 @@ function mcNorm(m) {
     loc: String(m.loc || '').slice(0, 200), link: String(m.link || '').slice(0, 500), notes: String(m.notes || '').slice(0, 4000),
     color: /^#[0-9a-f]{6}$/i.test(m.color || '') ? m.color : '', at: Number(m.at) || Date.now(),
     tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
+    al: mcNormAl(m.al),
   };
 }
 const mcAll = () => { const p = mcPlan(); return p ? (p.meetings = Array.isArray(p.meetings) ? p.meetings : []) : []; };
@@ -142,6 +150,7 @@ function mcFormHTML(m) {
     <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="Add title" aria-label="Title" autocomplete="off" data-focus="mc-title">
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required>${wheelTimeHTML('start', m.start, 'Start')}<span>–</span>${wheelTimeHTML('end', m.end, 'End')}</div>
     <label class="pd-f mc-tzf"><span>Time zone</span>${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label>
+    <div class="pd-f"><span>Notifications</span><div class="mc-alerts">${mcAlertsFor(m).map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
     <label class="pd-f"><span>Attendees</span><div class="mc-people">${S.people.map((x) => `<label class="mc-person"><input type="checkbox" name="att" value="${esc(pkey(x.id))}" ${att.has(pkey(x.id)) || (pkey(x.id) === me) ? 'checked' : ''} ${pkey(x.id) === (m.org || me) ? 'disabled' : ''}>${avatar(x, 22)} ${esc(x.name)}${pkey(x.id) === (m.org || me) ? ' <small class="muted">(organiser)</small>' : ''}</label>`).join('')}</div></label>
     <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
     <div class="mc-maps"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
@@ -154,7 +163,7 @@ function mcFormHTML(m) {
 }
 function mcOpen(m) {
   $$('dialog.mc-dlg').forEach((d) => d.close());
-  const d = showDialog({ title: mcAll().some((x) => x.id === m.id) ? 'Meeting' : 'New meeting', html: mcFormHTML(m) });
+  const d = showDialog({ title: mcAll().some((x) => x.id === m.id) ? 'Event' : 'New event', html: mcFormHTML(m) });
   d?.classList?.add('mc-dlg');
   setTimeout(() => $('dialog.mc-dlg [name=title]')?.focus(), 30);
 }
@@ -180,7 +189,7 @@ Object.assign(actions, {
     mcDirty();
     $$('dialog.mc-dlg').forEach((d) => d.close());
     commit();
-    toast('Meeting deleted.');
+    toast('Event deleted.');
   },
 });
 Object.assign(changes, { mcAll: (el) => { mcState().all = el.checked; render(); } });
@@ -193,14 +202,14 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
     $$('dialog.mc-dlg').forEach((d) => d.close());
     mcState().date = m.date;
     commit();
-    toast(old ? 'Meeting saved.' : `Meeting added${m.att.length > 1 ? ` for ${m.att.length} people` : ''}.`);
+    toast(old ? 'Event saved.' : `Event added${m.att.length > 1 ? ` for ${m.att.length} people` : ''}.`);
   },
 });
 function mcScrollToNow() {
@@ -307,3 +316,83 @@ Object.assign(changes, {
     if (note) note.textContent = mcTzNote(f.querySelector('[name="date"]').value, twMin(f.querySelector('[name="start"]').value), el.value);
   },
 });
+
+// ---------- Event notifications ----------
+// Each person sets their own: at the time of the event, or a while before. A new event starts with
+// "At time of event", plus the length you used last and the one you use most. Several per event.
+const MC_AL = [[0, 'At time of event'], [5, '5 minutes before'], [10, '10 minutes before'], [15, '15 minutes before'], [30, '30 minutes before'], [60, '1 hour before'], [120, '2 hours before'], [1440, '1 day before'], [2880, '2 days before'], [10080, '1 week before']];
+const mcAlLabel = (n) => MC_AL.find(([v]) => v === n)?.[1] || `${n} minutes before`;
+const mcAlHist = () => (S.settings.mcAlHist = S.settings.mcAlHist && typeof S.settings.mcAlHist === 'object' ? S.settings.mcAlHist : { n: {}, last: null });
+/** Suggestions in order: the one you picked last, then your most used (never "at time", never a repeat). */
+function mcAlSuggest(have) {
+  const h = mcAlHist();
+  const out = [];
+  if (Number.isInteger(h.last) && h.last > 0) out.push(h.last);
+  const most = Object.entries(h.n || {}).map(([k, c]) => [Number(k), c]).filter(([k]) => k > 0).sort((a, b) => b[1] - a[1]);
+  for (const [k] of most) { if (!out.includes(k)) { out.push(k); break; } }
+  return out.filter((x) => !have.includes(x));
+}
+function mcAlertsFor(m) {
+  const mine = m.al?.[pkey(S.meId)];
+  if (Array.isArray(mine)) return mine;
+  const isNew = !mcAll().some((x) => x.id === m.id);
+  return isNew ? [0, ...mcAlSuggest([0])] : [0];
+}
+function mcAlertRow(n) {
+  const list = MC_AL.some(([v]) => v === n) ? MC_AL : [...MC_AL, [n, mcAlLabel(n)]];
+  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">🔔</span><select name="al" aria-label="Notification">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}</select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
+}
+function mcAlertSave(vals) {
+  const list = [...new Set(vals.map(Number).filter((n) => Number.isInteger(n) && n >= 0))].sort((a, b) => a - b);
+  const h = mcAlHist();
+  list.filter((n) => n > 0).forEach((n) => { h.n[n] = (h.n[n] || 0) + 1; });
+  const picked = vals.map(Number).filter((n) => n > 0);
+  if (picked.length) h.last = picked[picked.length - 1];
+  return list;
+}
+Object.assign(actions, {
+  mcAlertAdd: (el) => {
+    const box = el.closest('.pd-f').querySelector('.mc-alerts');
+    const have = [...box.querySelectorAll('select')].map((s) => Number(s.value));
+    const next = [...mcAlSuggest(have), ...MC_AL.map(([v]) => v)].find((v) => !have.includes(v));
+    box.insertAdjacentHTML('beforeend', mcAlertRow(next ?? 10));
+  },
+  mcAlertDel: (el) => el.closest('.mc-al').remove(),
+});
+
+/** Sends each of your event notifications once, when its time comes (while Planner is open). */
+const MC_FIRED = 'planner-mc-fired';
+function mcCheckAlerts() {
+  if (typeof S === 'undefined' || !S || !mcPlan()) return;
+  let fired = {};
+  try { fired = JSON.parse(localStorage.getItem(MC_FIRED) || '{}'); } catch { fired = {}; }
+  const now = Date.now();
+  const me = pkey(S.meId);
+  let rang = false;
+  for (const m of mcAll()) {
+    if (!mcMine(m)) continue;
+    const list = Array.isArray(m.al?.[me]) ? m.al[me] : [0];
+    const startMs = tzToUtc(m.date, m.start, mcZone(m));
+    for (const n of list) {
+      const at = startMs - n * 60000;
+      const key = `${m.id}|${n}|${m.date}|${m.start}`;
+      if (fired[key] || at > now) continue;
+      fired[key] = now;
+      if (now - at > 60 * 60000) continue; // long gone (device was off): skip quietly
+      const local = mcLocal(m);
+      notify({ id: uid(), at: now, taskId: null, read: false, kind: 'review', route: '#/meet',
+        text: `${n === 0 ? 'Now' : `In ${mcAlLabel(n).replace(' before', '')}`}: ${m.title || 'Event'} · ${mcFmt(local.start)}${local.date !== todayISO() ? ` ${dayLabel(local.date)}` : ''}${m.loc ? ` · ${m.loc}` : ''}` });
+      rang = true;
+    }
+  }
+  // Forget keys older than two weeks.
+  for (const [k, t] of Object.entries(fired)) if (now - t > 14 * 864e5) delete fired[k];
+  try { localStorage.setItem(MC_FIRED, JSON.stringify(fired)); } catch { /* fine */ }
+  if (rang) {
+    if (typeof playReminderSound === 'function') playReminderSound();
+    Store.save();
+    if (typeof updateBell === 'function') updateBell();
+  }
+}
+setInterval(mcCheckAlerts, 30000);
+setTimeout(mcCheckAlerts, 4000);
