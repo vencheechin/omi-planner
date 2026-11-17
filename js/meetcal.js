@@ -250,7 +250,9 @@ document.addEventListener('pointerdown', (e) => {
   const col = e.target.closest?.('[data-mc-day]');
   if (ev) {
     const m = mcShown().find((x) => x.id === ev.dataset.mcEv) || mcAll().find((x) => x.id === ev.dataset.mcEv);
-    mcDrag = { el: ev, m, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse', grid: !!col };
+    // The day you tapped (a repeating item's own date is its first day, not this one).
+    const day = ev.dataset.d || ev.closest('[data-sch-day]')?.dataset.schDay || col?.dataset.mcDay || null;
+    mcDrag = { el: ev, m, day, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse', grid: !!col };
     if (m && (m.rep || mcAllDay(m))) mcDrag.grid = false;
     if (mcDrag.touch && mcDrag.grid && mcCanEdit(m)) mcDrag.hold = setTimeout(() => { if (mcDrag) { mcDrag.on = true; mcDrag.el.classList.add('dragging'); navigator.vibrate?.(10); } }, 300);
   } else if (col) {
@@ -300,7 +302,7 @@ document.addEventListener('pointerup', (e) => {
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && !e.target.closest?.('[data-mc-ev]')) mcOpen(mcDraft(d.col.dataset.mcDay, mcMinAt(d.col, e.clientY)));
     return;
   }
-  if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && d.m) mcPeek(d.m._o || d.m, d.m.date); return; }
+  if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && d.m) mcPeek(d.m._o || d.m, d.day || d.m.date); return; }
   const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', stop, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50);
