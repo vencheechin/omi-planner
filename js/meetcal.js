@@ -96,7 +96,7 @@ function mcEventHTML({ m, lane, n }) {
   const h = mcKind(m) === 'reminder' ? 22 : Math.max(18, ((m.end - m.start) / 60) * MC_H - 2);
   const who = m.att.length + (m.att.includes(m.org) ? 0 : 1);
   return `<button class="mc-ev ${h < 34 ? 'short' : ''}" data-mc-ev="${esc(m.id)}" style="top:${top}px;height:${h}px;left:calc(${(lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px);--ec:${m.color || MC_COLORS[0]}">
-    <b>${esc(mcIcon(m))}${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? '📍 Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
+    <b>${mcIconHTML(m)}${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? 'Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
 }
 function mcGridHTML(days) {
   const today = todayISO();
@@ -160,11 +160,11 @@ function mcFormHTML(m) {
   const att = new Set(m.att);
   const kind = mcKind(m);
   return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}" data-kind="${kind}">
-    <input type="hidden" name="kind" value="${kind}"><div class="seg mc-kinds" role="group" aria-label="Type" ${mcAll().some((x) => x.id === m.id) ? 'hidden' : ''}>${MC_KINDS.map(([k, l, ic]) => `<button type="button" class="${k === kind ? 'on' : ''}" data-act="mcKind" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
+    <input type="hidden" name="kind" value="${kind}"><div class="seg mc-kinds" role="group" aria-label="Type" ${mcAll().some((x) => x.id === m.id) ? 'hidden' : ''}>${MC_KINDS.map(([k, l, ic]) => `<button type="button" class="${k === kind ? 'on' : ''}" data-act="mcKind" data-v="${k}">${icon(ic, 14)} ${l}</button>`).join('')}</div>
     ${mcCalPickHTML(m)}
     <div class="mc-titlerow"><input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="${esc(MC_TITLE_HINT[kind])}" aria-label="Title" autocomplete="off" data-focus="mc-title"><a class="mc-mapbtn" href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener" title="Open the location in Google Maps" ${m.loc && mcKind(m) === 'event' ? '' : 'hidden'}>${icon('pin', 14)} Google Maps</a></div>
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required><span class="mc-k-timed">${wheelTimeHTML('start', m.start, 'Start')}</span><span class="mc-k-ev">–</span><span class="mc-k-ev">${wheelTimeHTML('end', m.end, 'End')}</span><label class="mc-k-bd mc-by"><span>Year born</span><input name="by" inputmode="numeric" maxlength="4" value="${m.by || ''}" placeholder="optional"></label></div>
-    <p class="mc-k-bd small muted mc-yearly">🎂 Repeats every year${m.by ? ` · turns ${mcAge(m, m.date)}` : ''}</p>
+    <p class="mc-k-bd small muted mc-yearly">${icon('cake', 12)} Repeats every year${m.by ? ` · turns ${mcAge(m, m.date)}` : ''}</p>
     <label class="mc-k-rep mc-rep"><span>Repeat</span><select name="rep" data-prev="${esc(m.rep || '')}">${MC_REPS.map(([v, l]) => `<option value="${v}" ${(m.rep || '') === v ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom" ${m.rep === 'custom' ? 'selected' : ''}>${m.rep === 'custom' ? esc(mcRcText(m.rc, m.date)) : 'Custom…'}</option></select><input type="hidden" name="rc" value="${esc(JSON.stringify(m.rc || null))}"></label>
     <label class="mc-k-ev mc-block"><input type="checkbox" name="block" value="1" ${mcBlocks(m) ? 'checked' : ''}> Block this time in my Time Box</label>
     <details class="mc-tzd mc-k-timed" ${(m.tz || tzNow()) !== tzNow() ? 'open' : ''}><summary>${icon('gear', 13)} Time zone · ${esc(tzCity(m.tz || tzNow()))}</summary><label class="pd-f mc-tzf">${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label></details>
@@ -173,7 +173,7 @@ function mcFormHTML(m) {
     <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved location" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
-    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcPlacePick" title="Choose one of your saved locations">📍 Saved Locations</button><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this location for next time">⭐ Save Location</button></div>
+    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcPlacePick" title="Choose one of your saved locations">${icon('pin', 12)} Saved Locations</button><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this location for next time">${icon('star', 12)} Save Location</button></div>
     <p class="mc-travel mc-k-ev small" hidden></p>
 
     <label class="pd-f mc-k-ev"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
@@ -376,7 +376,7 @@ function mcAlertsFor(m) {
 }
 function mcAlertRow(n, name = 'al') {
   const list = MC_AL.some(([v]) => v === n) ? MC_AL : [...MC_AL, [n, mcAlLabel(n)]].sort((a, b) => a[0] - b[0]);
-  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">🔔</span><select name="${name}" aria-label="${name === 'gal' ? 'Guest notification' : 'Notification'}" data-prev="${n}">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom">Custom…</option></select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
+  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">${icon('bell', 14)}</span><select name="${name}" aria-label="${name === 'gal' ? 'Guest notification' : 'Notification'}" data-prev="${n}">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom">Custom…</option></select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
 }
 function mcAlertSave(vals) {
   const list = [...new Set(vals.map(Number).filter((n) => Number.isInteger(n) && n >= 0))].sort((a, b) => a - b);
@@ -405,7 +405,7 @@ function mcAlAddRow(box, v) {
 function mcAlCustomHTML() {
   const nums = Array.from({ length: 99 }, (_, i) => i + 1);
   return `<div class="picker tw-pick mc-alc"><div class="mc-alc-head"><button type="button" class="icon-btn" data-act="mcAlCustomCancel" aria-label="Cancel">${icon('close', 15)}</button><b>Custom</b><button type="button" class="btn primary sm" data-act="mcAlCustomOk" aria-label="Done">${icon('check', 15)}</button></div>
-    <p class="mc-alc-sum">🔔 <span></span></p>
+    <p class="mc-alc-sum">${icon('bell', 14)} <span></span></p>
     <div class="tw-wheels mc-alc-w"><div class="tw-col" data-col="n">${nums.map((n) => `<div class="tw-item" data-v="${n}">${n}</div>`).join('')}</div><div class="tw-col" data-col="u">${MC_UNITS.map(([u, k]) => `<div class="tw-item" data-v="${k}">${u}</div>`).join('')}</div><div class="tw-band" aria-hidden="true"></div></div>
     <div class="tw-type"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-alc="n" placeholder="number" aria-label="Number"><small class="muted">or scroll</small></div></div>`;
 }
@@ -443,7 +443,7 @@ Object.assign(actions, {
     const box = el.parentElement.querySelector('.mc-alerts');
     const have = [...box.querySelectorAll('select')].map((x) => Number(x.value));
     ui.mcAlBox = box;
-    openPop(el, () => `<div class="menu mc-al-menu" role="menu"><h4>${box.dataset.name === 'gal' ? 'Notify guests' : 'Add notification'}</h4>${mcAlTop(have, 3, box.dataset.name === 'gal').map((v) => `<button role="menuitem" data-act="mcAlPick" data-v="${v}">🔔 ${esc(mcAlLabel(v))}</button>`).join('')}<button role="menuitem" data-act="mcAlPickCustom">${icon('plus', 13)} Custom…</button></div>`);
+    openPop(el, () => `<div class="menu mc-al-menu" role="menu"><h4>${box.dataset.name === 'gal' ? 'Notify guests' : 'Add notification'}</h4>${mcAlTop(have, 3, box.dataset.name === 'gal').map((v) => `<button role="menuitem" data-act="mcAlPick" data-v="${v}">${icon('bell', 13)} ${esc(mcAlLabel(v))}</button>`).join('')}<button role="menuitem" data-act="mcAlPickCustom">${icon('plus', 13)} Custom…</button></div>`);
   },
   mcAlPick: (el) => { closePop(); if (ui.mcAlBox) mcAlAddRow(ui.mcAlBox, Number(el.dataset.v)); },
   mcAlPickCustom: () => {
@@ -607,11 +607,11 @@ function mcPhotonText(f) {
 function mcLocShow(box, saved, found, q) {
   const sug = box.querySelector('.mc-locsug');
   const rows = [
-    ...saved.map((p) => `<button type="button" class="mc-gopt" data-loc="${esc(mcPlaceText(p))}" data-url="${esc(p.url || '')}" data-geo="${p.lat != null ? `${p.lat},${p.lon}` : ''}">⭐ <span><b>${esc(p.name || p.addr)}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`),
-    ...found.map(({ t, geo }) => `<button type="button" class="mc-gopt" data-loc="${esc(t)}" data-url="" data-geo="${esc(geo)}">📍 <span>${esc(t)}</span></button>`),
+    ...saved.map((p) => `<button type="button" class="mc-gopt" data-loc="${esc(mcPlaceText(p))}" data-url="${esc(p.url || '')}" data-geo="${p.lat != null ? `${p.lat},${p.lon}` : ''}">${icon('star', 14)} <span><b>${esc(p.name || p.addr)}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`),
+    ...found.map(({ t, geo }) => `<button type="button" class="mc-gopt" data-loc="${esc(t)}" data-url="" data-geo="${esc(geo)}">${icon('pin', 14)} <span>${esc(t)}</span></button>`),
   ];
   if (!rows.length && !q) { sug.hidden = true; return; }
-  sug.innerHTML = (rows.join('') || '<p class="small muted mc-gnone">Searching…</p>') + `<button type="button" class="mc-gopt mc-locmanual" data-loc="${esc(q)}" data-url="">✏️ <span>Use “${esc(q)}” as typed</span></button>`;
+  sug.innerHTML = (rows.join('') || '<p class="small muted mc-gnone">Searching…</p>') + `<button type="button" class="mc-gopt mc-locmanual" data-loc="${esc(q)}" data-url="">${icon('pin', 14)} <span>Use “${esc(q)}” as typed</span></button>`;
   sug.hidden = false;
 }
 function mcLocSearch(inp) {
@@ -667,7 +667,7 @@ document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-
 
 // Saved places: from an event (⭐ Save place) or Settings › Calendar.
 function mcPlacesHTML() {
-  return `<p class="small muted">Locations you use often. Pick them with 📍 Saved Locations in an event, and they come up first when you type a Location.</p>
+  return `<p class="small muted">Locations you use often. Pick them with Saved Locations in an event, and they come up first when you type a Location.</p>
     <div class="mc-places">${mcPlaces().map((p, i) => `<div class="mc-place"><input value="${esc(p.name)}" placeholder="Name, e.g. Office" data-change="mcPlaceSet" data-i="${i}" data-k="name" aria-label="Place name"><input value="${esc(p.addr)}" placeholder="Address" data-change="mcPlaceSet" data-i="${i}" data-k="addr" aria-label="Address"><input value="${esc(p.url || '')}" placeholder="Map link (optional)" data-change="mcPlaceSet" data-i="${i}" data-k="url" aria-label="Map link" type="url"><button class="icon-btn" data-act="mcPlaceDel" data-i="${i}" aria-label="Remove ${esc(p.name || 'location')}">${icon('close', 13)}</button></div>`).join('') || '<p class="small muted">No saved locations yet.</p>'}</div>
     <button class="btn ghost xs" data-act="mcPlaceAdd">${icon('plus', 12)} Add location</button>`;
 }
@@ -838,7 +838,10 @@ Object.assign(submits, {
 // Meeting: blocks its time in your Time Box by default (Event can, if you tick it).
 // Birthday: a date that repeats every year, all day; optional year born shows the age.
 // Reminder: one time (no end), can repeat; notifies at the time by default.
-const MC_KINDS = [['event', 'Event', '📌'], ['birthday', 'Birthday', '🎂'], ['reminder', 'Reminder', '🔔']];
+const MC_KINDS = [['event', 'Event', 'cal'], ['birthday', 'Birthday', 'cake'], ['reminder', 'Reminder', 'bell']];
+if (!ICON.cake) ICON.cake = 'M4 21h16M5 21v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M5 16c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0M12 12V8M12 5.5a1 1 0 0 0 1-1C13 3.5 12 2.5 12 2.5S11 3.5 11 4.5a1 1 0 0 0 1 1z';
+if (!ICON.car) ICON.car = 'M5 17h14M5 17v2M19 17v2M4 13l2-5a2 2 0 0 1 1.9-1.3h8.2A2 2 0 0 1 18 8l2 5v4H4v-4zM4 13h16M7.5 15h.01M16.5 15h.01';
+if (!ICON.repeat) ICON.repeat = 'M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3';
 const MC_REPS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every weekday (Mon–Fri)'], ['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']];
 const MC_TITLE_HINT = { event: 'Add title', meeting: 'Meeting title', birthday: 'Whose birthday? e.g. Ray', reminder: 'Remind me to…' };
 const MC_NOTE_HINT = { event: 'Notes', meeting: 'Agenda, documents', birthday: 'Gift ideas, how to celebrate', reminder: 'Details' };
@@ -847,12 +850,13 @@ const mcKind = (m) => (m?.kind === 'birthday' || m?.kind === 'reminder' ? m.kind
 const mcAllDay = (m) => mcKind(m) === 'birthday';
 const mcIsMeeting = (m) => (m.att || []).filter((k) => k !== m.org).length > 0 || !!m.link;
 const mcBlocks = (m) => (typeof m.block === 'boolean' ? m.block : mcIsMeeting(m));
-const mcIcon = (m) => ({ birthday: '🎂 ', reminder: '🔔 ', meeting: '', event: '' }[mcKind(m)] || '');
+const mcIcon = () => '';
+const mcIconHTML = (m) => (mcKind(m) === 'birthday' ? icon('cake', 11) : mcKind(m) === 'reminder' ? icon('bell', 11) : '');
 function mcAge(m, onDate) { return m.by ? Number(onDate.slice(0, 4)) - m.by : null; }
 function mcAllDayText(m, d) {
   const name = String(m.title || '').trim() || 'Someone';
   const age = mcAge(m, d);
-  return `🎂 ${/birthday/i.test(name) ? name : `${name}'s birthday`}${age && age > 0 ? ` (${age})` : ''}`;
+  return `${/birthday/i.test(name) ? name : `${name}'s birthday`}${age && age > 0 ? ` (${age})` : ''}`;
 }
 /** Does this item happen on date d (repeats included)? */
 function mcOccurs(m, d) {
@@ -912,7 +916,7 @@ function mcBusyHTML(iso, y, ppm) {
   // Drawn like a task block: the event's colour, title in the middle, length underneath.
   return mcBusyOn(iso).map((b) => {
     const h = Math.max(16, (b.end - b.start) * ppm - 1);
-    return `<div class="tb-block tb-meetblk ${h < 30 ? 'short' : ''}" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${h}px;left:1px;width:calc(100% - 2px);--c:color-mix(in srgb, ${b.color} 45%, #b9c6dc)" tabindex="0" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><div class="tb-b-title">${b.meet ? '👥' : '📌'} ${esc(b.title)}</div>${h >= 38 ? `<small class="tb-b-dur">(${b.end - b.start} min)</small>` : ''}</div>`;
+    return `<div class="tb-block tb-meetblk ${h < 30 ? 'short' : ''}" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${h}px;left:1px;width:calc(100% - 2px);--c:color-mix(in srgb, ${b.color} 45%, #b9c6dc)" tabindex="0" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><div class="tb-b-title">${icon(b.meet ? 'guests' : 'cal', 12)} ${esc(b.title)}</div>${h >= 38 ? `<small class="tb-b-dur">(${b.end - b.start} min)</small>` : ''}</div>`;
   }).join('');
 }
 Object.assign(actions, { mcOpenId: (el, e) => { e?.stopPropagation?.(); const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcOpen(m); } });
@@ -984,7 +988,7 @@ function mcRcPickerHTML(rc, date) {
   const r = mcNormRc(rc);
   const nums = Array.from({ length: 99 }, (_, i) => i + 1);
   return `<div class="picker tw-pick mc-rcp"><div class="mc-alc-head"><button type="button" class="icon-btn" data-act="mcRcCancel" aria-label="Back">${icon('chevL', 16)}</button><b>Custom repeat</b><button type="button" class="btn primary sm" data-act="mcRcOk" aria-label="Done">${icon('check', 15)}</button></div>
-    <p class="mc-alc-sum">🔁 <span>${esc(mcRcText(r, date))}</span></p>
+    <p class="mc-alc-sum">${icon('repeat', 14)} <span>${esc(mcRcText(r, date))}</span></p>
     <div class="tw-wheels mc-alc-w"><div class="tw-col" data-col="n">${nums.map((n) => `<div class="tw-item" data-v="${n}">${n}</div>`).join('')}</div><div class="tw-col" data-col="unit">${MC_RC_UNITS.map(([u]) => `<div class="tw-item" data-v="${u}">${u}</div>`).join('')}</div><div class="tw-band" aria-hidden="true"></div></div>
     <div class="mc-rc-days" ${r.unit === 'week' ? '' : 'hidden'}>${MC_WD.map((w, i) => `<button type="button" class="${(r.days.length ? r.days : [new Date(`${date}T12:00:00`).getDay()]).includes(i) ? 'on' : ''}" data-wd="${i}" aria-label="${MC_WD_LONG[i]}">${w}</button>`).join('')}</div>
     <div class="mc-rc-end"><span>Ends</span><select data-rc="type"><option value="never" ${r.end.type === 'never' ? 'selected' : ''}>Doesn't end</option><option value="on" ${r.end.type === 'on' ? 'selected' : ''}>On a date</option><option value="count" ${r.end.type === 'count' ? 'selected' : ''}>After a number of times</option></select>
@@ -1071,7 +1075,7 @@ Object.assign(actions, {
   mcPlacePick: (el) => {
     const form = el.closest('form');
     ui.mcPlaceForm = form;
-    openPop(el, () => `<div class="menu mc-placemenu" role="menu"><h4>Saved Locations</h4>${mcPlaces().filter((p) => p.name || p.addr || p.url).map((p) => `<button role="menuitem" data-act="mcPlaceUse" data-id="${esc(p.id)}"><span>⭐</span><span class="mc-pm"><b>${esc(p.name || p.addr || 'Map link')}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`).join('') || '<p class="small muted mc-gnone">No saved locations yet. Type a location, then tap ⭐ Save Location.</p>'}<button role="menuitem" data-act="mcPlaceManage">${icon('gear', 13)} Edit saved locations</button></div>`);
+    openPop(el, () => `<div class="menu mc-placemenu" role="menu"><h4>Saved Locations</h4>${mcPlaces().filter((p) => p.name || p.addr || p.url).map((p) => `<button role="menuitem" data-act="mcPlaceUse" data-id="${esc(p.id)}"><span>${icon('star', 14)}</span><span class="mc-pm"><b>${esc(p.name || p.addr || 'Map link')}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`).join('') || '<p class="small muted mc-gnone">No saved locations yet. Type a location, then tap Save Location.</p>'}<button role="menuitem" data-act="mcPlaceManage">${icon('gear', 13)} Edit saved locations</button></div>`);
   },
   mcPlaceUse: (el) => {
     const p = mcPlaces().find((x) => x.id === el.dataset.id);

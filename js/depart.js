@@ -57,17 +57,17 @@ async function departPreview(form) {
   const loc = form.querySelector('[name="loc"]')?.value || '';
   if (!depPrefs().on || !loc.trim() || mcIsLink(loc)) { box.hidden = true; return; }
   box.hidden = false;
-  box.textContent = '🚗 Working out the drive…';
+  box.textContent = 'Working out the drive…';
   const [lat, lon] = String(form.querySelector('[name="geo"]')?.value || '').split(',').map(Number);
   const to = Number.isFinite(lat) && Number.isFinite(lon) && form.querySelector('[name="geo"]').value ? { lat, lon } : await depGeocode(loc);
   const from = await depOrigin();
-  if (!to || !from) { box.textContent = from ? '🚗 Couldn’t find that address on the map.' : '🚗 Allow location (or pick a start point in Settings › Calendar) to see the drive time.'; return; }
+  if (!to || !from) { box.textContent = from ? 'Couldn’t find that address on the map.' : 'Allow location (or pick a start point in Settings › Calendar) to see the drive time.'; return; }
   const sec = await depDrive(from, to);
-  if (sec === null) { box.textContent = '🚗 Drive time unavailable right now.'; return; }
+  if (sec === null) { box.textContent = 'Drive time unavailable right now.'; return; }
   const min = Math.max(1, Math.round(sec / 60));
   const start = twMin(form.querySelector('[name="start"]')?.value);
   const leave = start !== null ? start - min - depPrefs().buffer : null;
-  box.innerHTML = `🚗 About <b>${esc(fmtDur(min))}</b> drive${depPrefs().from === 'here' ? ' from here' : ''}${leave !== null && leave >= 0 ? ` · leave by <b>${esc(fmtTime(leave))}</b> <span class="muted">(${depPrefs().buffer} min buffer)</span>` : ''}`;
+  box.innerHTML = `${icon('car', 13)} About <b>${esc(fmtDur(min))}</b> drive${depPrefs().from === 'here' ? ' from here' : ''}${leave !== null && leave >= 0 ? ` · leave by <b>${esc(fmtTime(leave))}</b> <span class="muted">(${depPrefs().buffer} min buffer)</span>` : ''}`;
 }
 if (typeof mcOpen === 'function') {
   const depOrigOpen = mcOpen;
@@ -107,12 +107,12 @@ async function departPopup(m, min, at) {
   const local = mcLocal(m);
   const left = Math.max(0, Math.round((at - Date.now()) / 60000));
   const text = `Time to head off for ${m.title || 'your event'} at ${fmtTime(local.start)}: about ${fmtDur(min)} drive to ${m.loc}.`;
-  notify({ id: uid(), at: Date.now(), taskId: null, read: false, kind: 'review', route: '#/meet', text: `🚗 ${text}` });
+  notify({ id: uid(), at: Date.now(), taskId: null, read: false, kind: 'review', route: '#/meet', text });
   if (typeof playReminderSound === 'function') playReminderSound();
   commit();
   const v = await choiceDlg('Time to head off!', `<div class="rest-pan"><img src="icons/panpan/panpan.png" alt="Pan Pan" width="110"><div class="rest-bubble"><b>Pan Pan</b><span>“Grab your things, let’s go! I’ll save you a seat.”</span></div></div>
     <p class="rest-line">${esc(m.title || 'Your event')} · ${esc(fmtTime(local.start))}</p>
-    <p class="rest-idea">📍 ${esc(m.loc)}<br>🚗 About <b>${esc(fmtDur(min))}</b> drive · starts in ${esc(fmtDur(left))} <span class="muted">(${depPrefs().buffer} min buffer)</span></p>`,
+    <p class="rest-idea">${icon('pin', 13)} ${esc(m.loc)}<br>${icon('car', 13)} About <b>${esc(fmtDur(min))}</b> drive · starts in ${esc(fmtDur(left))} <span class="muted">(${depPrefs().buffer} min buffer)</span></p>`,
   [{ v: 'go', label: 'Open Google Maps', primary: true }, { v: 'later', label: 'In 5 min' }, { v: 'ok', label: 'OK' }]);
   if (v === 'go') window.open(depDirections(m), '_blank', 'noopener');
   else if (v === 'later') setTimeout(() => departPopup(m, min, at), 5 * 60000);

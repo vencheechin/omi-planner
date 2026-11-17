@@ -2380,3 +2380,9 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 
 .page-head .hist-btn { margin-left: auto; }
 .hist-btn.on { color: var(--highlight); }
+
+/* Line icons in the Calendar (brand guide: no emoji) */
+.mc-kinds button .icon, .mc-maps .icon, .mc-al-ic .icon, .mc-gopt .icon, .mc-alc-sum .icon, .mc-yearly .icon, .mc-travel .icon { vertical-align: -2px; }
+.mc-kinds button { display: inline-flex; align-items: center; gap: 6px; }
+.mc-al-ic { color: var(--ochre, #b5894d); display: inline-flex; }
+.mc-ev b .icon, .tb-meetblk .tb-b-title .icon { vertical-align: -1px; margin-right: 3px; opacity: .9; }
