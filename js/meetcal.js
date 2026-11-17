@@ -106,7 +106,7 @@ function renderMeetCal() {
   const upcoming = mcShown().filter((m) => m.date >= todayISO()).sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start).slice(0, 1)[0];
   return `<div class="page mc-page">
     <header class="mc-top">
-      <h1>Meeting Calendar</h1>
+      <h1>Calendar</h1>
       <button class="btn primary sm" data-act="mcNew">${icon('plus', 14)} Create</button>
       <button class="btn ghost sm" data-act="mcToday">Today</button>
       <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next">${icon('chevR')}</button></span>
