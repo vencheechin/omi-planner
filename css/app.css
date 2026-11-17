@@ -2212,7 +2212,7 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 
 /* Mini Pan Pan in the rest reminder */
 .rest-pan { display: flex; align-items: center; gap: 12px; justify-content: center; margin: 0 0 10px; }
-.rest-pan img { border-radius: 16px; background: #fff; padding: 4px; box-shadow: 0 2px 10px rgba(0, 0, 0, .18); height: auto; flex: none; }
+.rest-pan img { height: auto; flex: none; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .25)); }
 .rest-bubble { position: relative; background: var(--surface-2); border-radius: 14px; padding: 8px 12px; max-width: 220px; display: grid; gap: 2px; font-size: calc(13px * var(--scale) * var(--type)); }
 .rest-bubble::before { content: ''; position: absolute; left: -7px; top: 50%; margin-top: -7px; border: 7px solid transparent; border-left: 0; border-right-color: var(--surface-2); }
 .rest-art-sm { font-size: 22px; letter-spacing: 3px; margin-top: 2px; }
@@ -2228,3 +2228,15 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .tw-item { height: 34px; line-height: 34px; text-align: center; scroll-snap-align: center; font-size: 19px; color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums; transition: color .12s, transform .12s; }
 .tw-item.on { color: var(--ink); font-weight: 600; transform: scale(1.06); }
 .tw-band { position: absolute; left: 4px; right: 4px; top: 68px; height: 34px; border-radius: 9px; background: color-mix(in srgb, var(--ink) 9%, transparent); pointer-events: none; }
+/* Pan Pan sways gently left and right (still for people who turn motion down) */
+@keyframes pan-sway { 0%, 100% { transform: translateX(-6px) rotate(-4deg); } 50% { transform: translateX(6px) rotate(4deg); } }
+.rest-pan img { animation: pan-sway 2.4s ease-in-out infinite; transform-origin: 50% 90%; }
+@media (prefers-reduced-motion: reduce) { .rest-pan img { animation: none; } }
+
+/* Calendar: time zones and map links */
+.mc-tz { white-space: nowrap; }
+.mc-tzf select { max-width: 100%; }
+.mc-tznote { display: block; margin-top: 4px; }
+.mc-maps { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -4px; }
+.mc-tzpick { width: min(320px, calc(100vw - 24px)); display: grid; gap: 8px; }
+.mc-tzpick select { width: 100%; }

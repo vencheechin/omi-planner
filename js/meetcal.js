@@ -22,11 +22,23 @@ function mcNorm(m) {
     org: String(m.org || '').slice(0, 120), att: (Array.isArray(m.att) ? m.att : []).filter((x) => typeof x === 'string').slice(0, 60),
     loc: String(m.loc || '').slice(0, 200), link: String(m.link || '').slice(0, 500), notes: String(m.notes || '').slice(0, 4000),
     color: /^#[0-9a-f]{6}$/i.test(m.color || '') ? m.color : '', at: Number(m.at) || Date.now(),
+    tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
   };
 }
 const mcAll = () => { const p = mcPlan(); return p ? (p.meetings = Array.isArray(p.meetings) ? p.meetings : []) : []; };
 const mcMine = (m) => m.org === pkey(S.meId) || m.att.includes(pkey(S.meId));
-const mcShown = () => mcAll().filter((m) => (ui.mc?.all && stAdmin()) || mcMine(m));
+/** A meeting on this device's clock (a copy, with _o pointing at the real one) when its zone differs. */
+const mcZone = (m) => m.tz || tzHome();
+function mcLocal(m) {
+  const from = mcZone(m);
+  const to = tzNow();
+  if (from === to) return m;
+  const a = tzConvert(m.date, m.start, from, to);
+  const b = tzConvert(m.date, m.end, from, to);
+  const end = b.date === a.date ? b.min : 1440;
+  return { ...m, date: a.date, start: a.min, end: Math.max(a.min + 15, end), _o: m };
+}
+const mcShown = () => mcAll().filter((m) => (ui.mc?.all && stAdmin()) || mcMine(m)).map(mcLocal);
 const mcCanEdit = (m) => !m || mcMine(m) || stAdmin();
 const mcDirty = () => { S.sync.dirty = S.sync.dirty || {}; S.sync.dirty['st:meetings'] = 1; };
 const mcHHMM = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -65,7 +77,7 @@ function mcEventHTML({ m, lane, n }) {
   const h = Math.max(18, ((m.end - m.start) / 60) * MC_H - 2);
   const who = m.att.length + (m.att.includes(m.org) ? 0 : 1);
   return `<button class="mc-ev ${h < 34 ? 'short' : ''}" data-mc-ev="${esc(m.id)}" style="top:${top}px;height:${h}px;left:calc(${(lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px);--ec:${m.color || MC_COLORS[0]}">
-    <b>${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m.loc ? ` · ${esc(m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
+    <b>${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
 }
 function mcGridHTML(days) {
   const today = todayISO();
@@ -111,6 +123,7 @@ function renderMeetCal() {
       <button class="btn ghost sm" data-act="mcToday">Today</button>
       <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next">${icon('chevR')}</button></span>
       <b class="mc-title">${esc(mcTitle())}</b>
+      <button class="btn ghost sm mc-tz" data-act="mcTzMenu" title="Time zones">🕒 ${tzNow() === tzHome() ? esc(tzLabel(tzNow())) : `Now: ${esc(tzLabel(tzNow()))} · Home: ${esc(tzLabel(tzHome()))}`}</button>
       <span class="spacer"></span>
       ${stAdmin() ? `<label class="mc-allbox small"><input type="checkbox" data-change="mcAll" ${s.all ? 'checked' : ''}> Everyone's</label>` : ''}
       <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
@@ -128,8 +141,10 @@ function mcFormHTML(m) {
   return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}">
     <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="Add title" aria-label="Title" autocomplete="off" data-focus="mc-title">
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required>${wheelTimeHTML('start', m.start, 'Start')}<span>–</span>${wheelTimeHTML('end', m.end, 'End')}</div>
+    <label class="pd-f mc-tzf"><span>Time zone</span>${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label>
     <label class="pd-f"><span>Attendees</span><div class="mc-people">${S.people.map((x) => `<label class="mc-person"><input type="checkbox" name="att" value="${esc(pkey(x.id))}" ${att.has(pkey(x.id)) || (pkey(x.id) === me) ? 'checked' : ''} ${pkey(x.id) === (m.org || me) ? 'disabled' : ''}>${avatar(x, 22)} ${esc(x.name)}${pkey(x.id) === (m.org || me) ? ' <small class="muted">(organiser)</small>' : ''}</label>`).join('')}</div></label>
     <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
+    <div class="mc-maps"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
     <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
     <label class="pd-f"><span>Notes</span><textarea name="notes" rows="3" placeholder="Agenda, documents">${esc(m.notes)}</textarea></label>
@@ -143,7 +158,13 @@ function mcOpen(m) {
   d?.classList?.add('mc-dlg');
   setTimeout(() => $('dialog.mc-dlg [name=title]')?.focus(), 30);
 }
-const mcDraft = (date, start) => mcNorm({ id: uid(), date, start, end: Math.min(1440, start + 60), org: pkey(S.meId), att: [pkey(S.meId)] });
+const mcDraft = (date, start) => mcNorm({ id: uid(), date, start, end: Math.min(1440, start + 60), org: pkey(S.meId), att: [pkey(S.meId)], tz: tzNow() });
+/** "= 3:00 pm Thu 19 Nov in Auckland (your time now)" when the meeting's zone isn't the one you're in. */
+function mcTzNote(date, start, tz) {
+  if (!date || start === null || !tz || tz === tzNow()) return '';
+  const l = tzConvert(date, start, tz, tzNow());
+  return `= ${mcFmt(l.min)}${l.date !== date ? ` ${dayLabel(l.date)}` : ''} in ${tzCity(tzNow())} (your time now)`;
+}
 
 Object.assign(actions, {
   mcView: (el) => { mcState().view = el.dataset.v; render(); },
@@ -172,7 +193,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -193,7 +214,7 @@ document.addEventListener('pointerdown', (e) => {
   const ev = e.target.closest?.('[data-mc-ev]');
   const col = e.target.closest?.('[data-mc-day]');
   if (ev) {
-    const m = mcAll().find((x) => x.id === ev.dataset.mcEv);
+    const m = mcShown().find((x) => x.id === ev.dataset.mcEv) || mcAll().find((x) => x.id === ev.dataset.mcEv);
     mcDrag = { el: ev, m, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse', grid: !!col };
     if (mcDrag.touch && mcDrag.grid && mcCanEdit(m)) mcDrag.hold = setTimeout(() => { if (mcDrag) { mcDrag.on = true; mcDrag.el.classList.add('dragging'); navigator.vibrate?.(10); } }, 300);
   } else if (col) {
@@ -236,17 +257,19 @@ document.addEventListener('pointerup', (e) => {
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && !e.target.closest?.('[data-mc-ev]')) mcOpen(mcDraft(d.col.dataset.mcDay, mcMinAt(d.col, e.clientY)));
     return;
   }
-  if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && d.m) mcOpen(d.m); return; }
+  if (!d.on) { if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6 && d.m) mcOpen(d.m._o || d.m); return; }
   const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', stop, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50);
   if (!d.to || (d.to.date === d.m.date && d.to.start === d.m.start)) { render(); return; }
-  const len = d.m.end - d.m.start;
-  const before = { date: d.m.date, start: d.m.start, end: d.m.end };
-  Object.assign(d.m, { date: d.to.date, start: d.to.start, end: d.to.start + len, at: Date.now() });
+  const real = d.m._o || d.m;
+  const len = real.end - real.start;
+  const before = { date: real.date, start: real.start, end: real.end };
+  const at = tzConvert(d.to.date, d.to.start, tzNow(), mcZone(real));
+  Object.assign(real, { date: at.date, start: at.min, end: Math.min(1440, at.min + len), at: Date.now() });
   mcDirty();
   commit();
-  toast(`Moved to ${dayLabel(d.m.date)}, ${mcFmt(d.m.start)}.`, { undo: () => { Object.assign(d.m, before, { at: Date.now() }); mcDirty(); commit(); } });
+  toast(`Moved to ${dayLabel(d.to.date)}, ${mcFmt(d.to.start)}.`, { undo: () => { Object.assign(real, before, { at: Date.now() }); mcDirty(); commit(); } });
 });
 document.addEventListener('pointercancel', () => { if (mcDrag) { clearTimeout(mcDrag.hold); mcDrag = null; render(); } });
 
@@ -259,3 +282,28 @@ render = function renderWithMeetCal() {
   if (ui.route?.view === 'meet') { if (first) { ui.mcShown = true; mcScrollToNow(); } } else ui.mcShown = false;
   return out;
 };
+
+// ---------- Time zone and map actions ----------
+function mcTzMenuHTML() {
+  return `<div class="picker mc-tzpick"><h4>Time zones</h4>
+    <p class="small">Now: <b>${esc(tzLabel(tzNow()))}</b> <span class="muted">(this device)</span></p>
+    <label class="pd-f"><span>Home time zone</span>${tzSelectHTML('home', tzHome(), 'data-change="mcHomeTz"')}</label>
+    <p class="small muted">Meetings show in the time zone you are in now. Each meeting keeps the zone it was set in, so it stays at the right moment when you travel.</p></div>`;
+}
+Object.assign(actions, {
+  mcTzMenu: (el) => openPop(el, mcTzMenuHTML),
+  mcMap: (el) => {
+    const q = String(el.closest('form')?.querySelector('[name="loc"]')?.value || '').trim();
+    if (!q) { toast('Type the place in Location first.', { error: true }); return; }
+    const url = el.dataset.svc === 'amap' ? `https://uri.amap.com/search?keyword=${encodeURIComponent(q)}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+    window.open(url, '_blank', 'noopener');
+  },
+});
+Object.assign(changes, {
+  mcHomeTz: (el) => { if (tzValid(el.value)) { S.settings.homeTz = el.value; Store.save(); closePop(); render(); } },
+  mcTzField: (el) => {
+    const f = el.closest('form');
+    const note = f.querySelector('.mc-tznote');
+    if (note) note.textContent = mcTzNote(f.querySelector('[name="date"]').value, twMin(f.querySelector('[name="start"]').value), el.value);
+  },
+});
