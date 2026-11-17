@@ -977,6 +977,7 @@ const actions = {
   },
   toggleFocus: (el) => { const t = taskById(el.dataset.id); t.workType = t.workType === 'focus' ? '' : 'focus'; commit(); },
   reviewSeen: (el) => { const t = taskById(el.dataset.id); if (t?.reviewResult) { t.reviewSeen = t.reviewResult.at; commit(); } },
+  pageHist: (el) => { ui.hist = ui.hist || {}; ui.hist[el.dataset.k] = !ui.hist[el.dataset.k]; render(); },
   reqGroup: (el) => { S.settings.reqGroup = el.dataset.v; Store.save(); render(); },
   pgStep: (el) => {
     const t = taskById(el.dataset.id);

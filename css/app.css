@@ -2377,3 +2377,6 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-placemenu { min-width: 240px; }
 .mc-placemenu button { display: flex; gap: 8px; align-items: center; }
 .mc-pm { display: grid; text-align: left; }
+
+.page-head .hist-btn { margin-left: auto; }
+.hist-btn.on { color: var(--highlight); }

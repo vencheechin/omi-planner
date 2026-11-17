@@ -250,19 +250,47 @@ function checkedResultsHTML() {
       <button class="btn ghost sm checked-close" data-act="reviewSeen" data-id="${esc(t.id)}">${icon('check', 13)} Close</button></div>`;
   }).join('')}</div></section>`;
 }
+// ---------- History for each request page ----------
+const histBtnHTML = (k) => `<button class="btn ghost sm hist-btn ${ui.hist?.[k] ? 'on' : ''}" data-act="pageHist" data-k="${esc(k)}">${ui.hist?.[k] ? `${icon('chevL', 13)} Back to open` : `${icon('clock', 13)} History`}</button>`;
+/** Decided requests: ones you decided (to you), or the answers to ones you sent (from you). */
+function reqHistoryHTML(kind, dir, key) {
+  const done = (r) => r && ['approved', 'rejected'].includes(r.status);
+  const list = S.tasks.filter((t) => { const r = reqOf(t, kind); return done(r) && (dir === 'to' ? isMeId(r.by) : isMeId(r.to)) && (!key || reqOther(t, kind) === key); })
+    .sort((a, b) => (reqOf(b, kind).decidedAt || 0) - (reqOf(a, kind).decidedAt || 0));
+  if (!list.length) return `<section class="dr-hub"><p class="muted small">Nothing decided yet.</p></section>`;
+  return `<section class="dr-hub"><div class="dr-cards">${list.map((t) => {
+    const r = reqOf(t, kind);
+    const ok = r.status === 'approved';
+    const other = person(dir === 'to' ? r.to : r.by)?.name || personByKey(reqOther(t, kind))?.name || 'someone';
+    return `<div class="dr-item"><div class="dr-who"><b class="${ok ? 'ok-text' : 'danger-text'}">${ok ? '✓ Approved' : '✗ Rejected'}</b> ${dir === 'to' ? `by <b>${esc(other)}</b>` : `· from <b>${esc(other)}</b>`} · ${esc(fmtDateTime(r.decidedAt || r.at))}${r.note ? ` · “${esc(r.note)}”` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`;
+  }).join('')}</div></section>`;
+}
+/** Checked tasks: ones you approved or sent back (Checking), or the answers to yours (Pending Checking). */
+function checkHistoryHTML(mine) {
+  const list = S.tasks.filter((t) => t.reviewResult && (mine ? isMeId(t.reviewResult.by) : isMeId(t.reviewResult.for))).sort((a, b) => b.reviewResult.at - a.reviewResult.at);
+  if (!list.length) return `<section class="dr-hub"><p class="muted small">Nothing checked yet.</p></section>`;
+  return `<section class="dr-hub"><div class="dr-cards">${list.map((t) => {
+    const r = t.reviewResult;
+    const ok = r.status === 'approved';
+    const who = person(mine ? r.for : r.by)?.name || 'someone';
+    return `<div class="dr-item"><div class="dr-who"><b class="${ok ? 'ok-text' : 'danger-text'}">${ok ? '✓ Approved' : '↩ Sent back'}</b> ${mine ? `· from <b>${esc(who)}</b>` : `by <b>${esc(who)}</b>`} · ${esc(fmtDateTime(r.at))}${r.note ? ` · “${esc(r.note)}”` : ''}</div>${cardHTML(t, { showPlan: true })}</div>`;
+  }).join('')}</div></section>`;
+}
 /** Tasks waiting for your check, or ones you submitted that are waiting for someone else's. */
 function renderChecking() {
   const mine = ui.route.dir !== 'sent';
+  const hk = `check:${mine ? 'me' : 'sent'}`;
+  const hist = !!ui.hist?.[hk];
   const list = (mine ? checkingForMe() : checkingSent()).sort((a, b) => a.review.at - b.review.at);
   const item = (t) => {
     const who = mine ? person(t.review.by)?.name || 'A teammate' : person(reviewerOf(t))?.name || 'the assigner';
     return `<div class="dr-item"><div class="dr-who">${mine ? `From <b>${esc(who)}</b>` : `Waiting for <b>${esc(who)}</b>`} · submitted ${esc(fmtDateTime(t.review.at))}</div>${cardHTML(t, { showPlan: true })}</div>`;
   };
   return `<div class="page">
-    <header class="page-head"><h1>${mine ? 'Checking' : 'Pending Checking'}</h1></header>
-    <div class="dr-tools"><div class="seg"><a class="${mine ? 'on' : ''}" href="#/check/me">For me to check</a><a class="${mine ? '' : 'on'}" href="#/check/sent">Waiting on others</a></div>${reqGroupBarHTML()}</div>
+    <header class="page-head"><h1>${mine ? 'Checking' : 'Pending Checking'}${hist ? ' · History' : ''}</h1><span class="spacer"></span>${histBtnHTML(hk)}</header>
+    ${hist ? checkHistoryHTML(mine) : `<div class="dr-tools">${reqGroupBarHTML()}</div>
     ${mine ? '' : checkedResultsHTML()}
-    <section class="dr-hub">${list.length ? reqGroupedHTML(list, (t) => (mine ? person(t.review.by) : person(reviewerOf(t))), item) : `<p class="muted small">${mine ? 'Nothing waiting for your check.' : 'Nothing you submitted is waiting.'}</p>`}</section>
+    <section class="dr-hub">${list.length ? reqGroupedHTML(list, (t) => (mine ? person(t.review.by) : person(reviewerOf(t))), item) : `<p class="muted small">${mine ? 'Nothing waiting for your check.' : 'Nothing you submitted is waiting.'}</p>`}</section>`}
   </div>`;
 }
 function reqNavHTML(r, kind, dir) {
@@ -414,6 +442,8 @@ function reqSorter(by, kind) {
 /** All your decision or approval requests in one place (or one person's), sortable. */
 function renderRequests() {
   const { kind, dir } = ui.route;
+  const hk = `req:${kind}:${dir || 'all'}`;
+  const hist = !!ui.hist?.[hk];
   const K = REQ_KINDS[kind];
   const key = ui.route.id || '';
   const who = key ? personByKey(key) : null;
@@ -431,14 +461,14 @@ function renderRequests() {
     ${list.length ? reqGroupedHTML(list, (t) => personByKey(reqOther(t, kind)), item) : `<p class="muted small">${empty}</p>`}</section>`;
   const href = (k, d) => `#/req/${k}/${d}${key ? `/${encodeURIComponent(key)}` : ''}`;
   return `<div class="page">
-    <header class="page-head"><h1>${K.mark} ${dir === 'from' ? (kind === 'decision' ? 'Decision Required' : 'Approval') : dir === 'to' ? (kind === 'decision' ? 'Pending Decision' : 'Pending Approval') : K.label}${who ? `: ${esc(who.name)}` : ''}</h1></header>
+    <header class="page-head"><h1>${K.mark} ${dir === 'from' ? (kind === 'decision' ? 'Decision Required' : 'Approval') : dir === 'to' ? (kind === 'decision' ? 'Pending Decision' : 'Pending Approval') : K.label}${who ? `: ${esc(who.name)}` : ''}${hist ? ' · History' : ''}</h1><span class="spacer"></span>${histBtnHTML(hk)}</header>
     <div class="dr-tools">
       ${reqGroupBarHTML()}
       <label class="mini">Sort by <select data-change="decSort">${DEC_SORTS.map(([v, l]) => `<option value="${v}" ${v === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
+    ${hist ? reqHistoryHTML(kind, dir, key) : `
     ${dir !== 'to' ? sec(`${K.label} From`, fromList, who ? `Nothing from ${esc(who.name)} waiting for you.` : 'Nothing waiting for you.') : ''}
-    ${dir !== 'from' ? sec(`${K.label} To`, toList, who ? `You haven’t sent ${esc(who.name)} one.` : 'You’re not waiting on anyone.') : ''}
-    ${dir !== 'to' ? (() => { const h = decidedByMe().filter(({ t, k }) => k === kind && (!key || pkey(reqOf(t, k).by) === key)); return h.length ? `<section class="dr-hub"><h2>Approval History <span class="count">${h.length}</span></h2>${historyListHTML(h)}</section>` : ''; })() : ''}
+    ${dir !== 'from' ? sec(`${K.label} To`, toList, who ? `You haven’t sent ${esc(who.name)} one.` : 'You’re not waiting on anyone.') : ''}`}
   </div>`;
 }
 /** Your own buckets for work one person delegated to you. Theirs stay as they are. */
