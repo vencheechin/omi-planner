@@ -2265,3 +2265,7 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-gopt span { display: grid; }
 .mc-gopt.on, .mc-gopt:hover { background: color-mix(in srgb, var(--highlight) 16%, transparent); }
 .mc-gnone { margin: 6px 8px; }
+
+.mc-maplink { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 10px; background: var(--surface-2); color: var(--highlight); text-decoration: none; justify-self: start; max-width: 100%; }
+.mc-maplink span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-maplink:hover { text-decoration: underline; }

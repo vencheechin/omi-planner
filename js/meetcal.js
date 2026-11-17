@@ -31,6 +31,7 @@ function mcNorm(m) {
     color: /^#[0-9a-f]{6}$/i.test(m.color || '') ? m.color : '', at: Number(m.at) || Date.now(),
     tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
     al: mcNormAl(m.al),
+    map: ['google', 'amap'].includes(m.map) ? m.map : '',
   };
 }
 const mcAll = () => { const p = mcPlan(); return p ? (p.meetings = Array.isArray(p.meetings) ? p.meetings : []) : []; };
@@ -155,6 +156,7 @@ function mcFormHTML(m) {
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
     <div class="mc-maps"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
+    <input type="hidden" name="map" value="${esc(m.map || '')}"><a class="mc-maplink" href="${esc(mcMapUrl(m.map, m.loc))}" target="_blank" rel="noopener" ${m.map && m.loc ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.map, m.loc))}</span></a>
     <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
     <label class="pd-f"><span>Notes</span><textarea name="notes" rows="3" placeholder="Agenda, documents">${esc(m.notes)}</textarea></label>
@@ -203,7 +205,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -303,10 +305,13 @@ function mcTzMenuHTML() {
 Object.assign(actions, {
   mcTzMenu: (el) => openPop(el, mcTzMenuHTML),
   mcMap: (el) => {
-    const q = String(el.closest('form')?.querySelector('[name="loc"]')?.value || '').trim();
+    const form = el.closest('form');
+    const q = String(form?.querySelector('[name="loc"]')?.value || '').trim();
     if (!q) { toast('Type the place in Location first.', { error: true }); return; }
-    const url = el.dataset.svc === 'amap' ? `https://uri.amap.com/search?keyword=${encodeURIComponent(q)}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
-    window.open(url, '_blank', 'noopener');
+    // Keep the map with the event (saved with it), so everyone can tap it, and open it now.
+    form.querySelector('[name="map"]').value = el.dataset.svc;
+    mcMapRefresh(form);
+    window.open(mcMapUrl(el.dataset.svc, q), '_blank', 'noopener');
   },
 });
 Object.assign(changes, {
@@ -455,3 +460,21 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('mousedown', (e) => { const o = e.target.closest?.('.mc-gopt'); if (o) { e.preventDefault(); mcGuestAdd(o.closest('.mc-guests'), o.dataset.k); } });
 document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-guest]')) setTimeout(() => { const s = e.target.closest('.mc-guests')?.querySelector('.mc-gsug'); if (s && !e.target.closest('.mc-guests').contains(document.activeElement)) s.hidden = true; }, 150); });
 Object.assign(actions, { mcGuestDel: (el) => el.closest('.mc-gchip').remove() });
+
+// ---------- The event's map link ----------
+function mcMapUrl(svc, loc) {
+  const q = encodeURIComponent(String(loc || '').trim());
+  if (!svc || !q) return '#';
+  return svc === 'amap' ? `https://uri.amap.com/search?keyword=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+const mcMapText = (svc, loc) => (svc && loc ? `${String(loc).trim()} · ${svc === 'amap' ? 'Amap 高德地图' : 'Google Maps'}` : '');
+function mcMapRefresh(form) {
+  const svc = form.querySelector('[name="map"]')?.value;
+  const loc = form.querySelector('[name="loc"]')?.value || '';
+  const a = form.querySelector('.mc-maplink');
+  if (!a) return;
+  a.hidden = !(svc && loc.trim());
+  a.href = mcMapUrl(svc, loc);
+  a.querySelector('span').textContent = mcMapText(svc, loc);
+}
+document.addEventListener('input', (e) => { if (e.target.matches?.('.mc-form [name="loc"]')) mcMapRefresh(e.target.closest('form')); });
