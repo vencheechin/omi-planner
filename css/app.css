@@ -165,7 +165,7 @@ a.day-title { flex-direction: row; align-items: center; gap: 8px; }
 .plan-page { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .plan-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px 4px; }
 .head-icon { width: 36px; height: 36px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; }
-.plan-title { font-size: calc(19px * var(--scale) * var(--type)); font-weight: 700; border-color: transparent; background: none; width: min(420px, 45vw); padding: 3px 6px; text-overflow: ellipsis; }
+.plan-title { font-size: calc(15.5px * var(--scale) * var(--type)); font-weight: 700; border-color: transparent; background: none; width: min(420px, 45vw); padding: 3px 6px; text-overflow: ellipsis; }
 .plan-title:hover { border-color: var(--line); }
 .toolbar { display: flex; align-items: center; gap: 4px; padding: 2px 18px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .tabs { display: flex; gap: 2px; }
