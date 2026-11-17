@@ -2586,3 +2586,8 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   .sc-day { grid-template-columns: 48px 1fr; }
   .sc-mhead { margin-left: 56px; }
 }
+
+/* Schedule bar: month in the middle, Today and the gear on the right */
+.mc-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.mc-bar .mc-title-btn { justify-self: center; }
+.mc-bar-r { justify-self: end; display: inline-flex; align-items: center; gap: 2px; }

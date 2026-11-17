@@ -144,11 +144,9 @@ function renderMeetCal() {
   const days = s.view === 'day' ? [s.date] : Array.from({ length: 7 }, (_, i) => mcAddDays(mcWeekStart(s.date), i));
   return `<div class="page mc-page">
     <header class="mc-top mc-bar">
+      <span></span>
       <button class="mc-title mc-title-btn ${ui.mcMini ? 'open' : ''}" data-act="mcMiniToggle" aria-expanded="${!!ui.mcMini}" title="Show or hide the month">${esc(mcTitle())}${icon('chevD', 16)}</button>
-      <span class="mc-nav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous month">${icon('chevL')}</button><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next month">${icon('chevR')}</button></span>
-      <span class="spacer"></span>
-      <button class="icon-btn mc-todaybtn" data-act="mcToday" aria-label="Today" title="Today"><span class="mc-tday">${Number(todayISO().slice(8))}</span></button>
-      <button class="icon-btn mc-set" data-act="mcSettings" aria-label="Schedule settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button>
+      <span class="mc-bar-r"><button class="icon-btn mc-todaybtn" data-act="mcToday" aria-label="Today" title="Today"><span class="mc-tday">${Number(todayISO().slice(8))}</span></button><button class="icon-btn mc-set" data-act="mcSettings" aria-label="Schedule settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button></span>
     </header>
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
   </div>`;
