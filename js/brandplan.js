@@ -39,6 +39,7 @@ function stCanSee(p) {
   if (stModOf(p) === 'pd') return stAdmin() || p.owner === S.meId || !!stAccessOf(p);
   if (stAdmin() || p.owner === S.meId || (p.viewers || []).includes(S.meId)) return true;
   const d = p.kind === 'dept' && deptById(p.dept);
+  if (d && stViewDepts().includes(d.id)) return true;
   return !!d && (d.dic === S.meId || (d.members || []).includes(S.meId));
 }
 /** Submitted, approved or waiting on a change request: locked for everyone but admins. */
@@ -97,6 +98,9 @@ function normalizeSugg(list) {
       ...(s.kind === 'cell' ? { m: s.m, value: cellItems({ items: Array.isArray(s.value) ? s.value : [] }), old: cellItems({ items: Array.isArray(s.old) ? s.old : [] }) } : { field: s.field, value: String(s.value || ''), old: String(s.old || '') }) }))
     .slice(-500);
 }
+const normStView = (v) => Object.fromEntries(Object.entries(v || {}).filter(([k, l]) => typeof k === 'string' && Array.isArray(l)).map(([k, l]) => [k, l.filter((x) => typeof x === 'string').slice(0, 50)]));
+/** The departments whose S-Team Plans this person may also see (Admin Portal › S-Team Access). */
+const stViewDepts = (key = pkey(S.meId)) => (org().stView && org().stView[key]) || [];
 function normalizeOrg(o) {
   if (!o || typeof o !== 'object') return { depts: [], admins: [] };
   return {
@@ -106,6 +110,7 @@ function normalizeOrg(o) {
     reportsTo: o.reportsTo && typeof o.reportsTo === 'object' ? Object.fromEntries(Object.entries(o.reportsTo).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')) : {},
     ...(Array.isArray(o.stages) && typeof normalizeStages === 'function' ? { stages: normalizeStages(o.stages) } : {}),
     ...(Array.isArray(o.quotes) && typeof normalizeQuotes === 'function' ? { quotes: normalizeQuotes(o.quotes) } : {}),
+    ...(o.stView && typeof o.stView === 'object' ? { stView: normStView(o.stView) } : {}),
   };
 }
 /** One key per person on every device: their email when known. */
@@ -393,7 +398,7 @@ function stFields(p) {
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
-const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null });
+const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null, stView: org().stView || {} });
 const orgWire = () => ({ ...orgRecord(), _v: clone(org()._v || {}) });
 function applyOrg(d) {
   if (!d || typeof d !== 'object') return false;
@@ -401,10 +406,10 @@ function applyOrg(d) {
   o._v = o._v || {};
   const sh = (S.sync.shadow.org = S.sync.shadow.org || {});
   let changed = false;
-  for (const f of ['depts', 'admins', 'reportsTo', 'stages', 'quotes']) {
+  for (const f of ['depts', 'admins', 'reportsTo', 'stages', 'quotes', 'stView']) {
     const rv = d._v?.[f];
     if (!rv || !newer(rv, o._v[f])) continue;
-    o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : f === 'quotes' ? (typeof normalizeQuotes === 'function' ? normalizeQuotes(d.quotes) : null) : normalizeOrg({ [f]: d[f] })[f];
+    o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : f === 'quotes' ? (typeof normalizeQuotes === 'function' ? normalizeQuotes(d.quotes) : null) : f === 'stView' ? normStView(d.stView) : normalizeOrg({ [f]: d[f] })[f];
     o._v[f] = rv;
     sh[f] = fieldHash(orgRecord()[f]);
     changed = true;

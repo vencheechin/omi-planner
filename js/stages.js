@@ -55,3 +55,34 @@ Object.assign(actions, {
 Object.assign(changes, {
   stageEdit: (el) => stagesEdit((l) => { const s = l[Number(el.dataset.i)]; if (s) s[el.dataset.k] = el.value.trim(); }),
 });
+
+// ---------- S-Team Access: who else may see which department's S-Team Plan ----------
+// Admins see every department. Department members and the person in charge see their own.
+// Tick a department here to let someone also see that department's plan (view only).
+function stViewAdminHTML() {
+  const depts = org().depts || [];
+  const people = adminPeople();
+  if (!depts.length) return `<section class="dr-hub"><h2>S-Team Access</h2><p class="muted">Add departments first (Admins & Departments).</p></section>`;
+  const admins = new Set((org().admins || []).map(pkey));
+  return `<section class="dr-hub stv"><h2>S-Team Access</h2>
+    <p class="small muted">Tick the departments each person may also see in S-Team Plan. Admins see every department; people always see their own department.</p>
+    <div class="stv-scroll"><table class="stv-tbl"><thead><tr><th>Person</th>${depts.map((d) => `<th>${esc(d.name)}</th>`).join('')}</tr></thead><tbody>
+    ${people.map((p) => {
+      const k = pkey(p.id);
+      const isAdm = admins.has(k) || (!admins.size && p.id === S.meId);
+      const own = (d) => d.dic === p.id || (d.members || []).includes(p.id);
+      return `<tr><th>${avatar(p, 20)} ${esc(p.name)}${isAdm ? ' <small class="muted">admin · all</small>' : ''}</th>${depts.map((d) => `<td>${isAdm || own(d) ? `<span class="stv-own" title="${isAdm ? 'Admins see every department' : 'Their own department'}">${icon('check', 12)}</span>` : `<input type="checkbox" data-change="stViewSet" data-k="${esc(k)}" data-d="${esc(d.id)}" ${stViewDepts(k).includes(d.id) ? 'checked' : ''} aria-label="${esc(`${p.name} can see ${d.name}`)}">`}</td>`).join('')}</tr>`;
+    }).join('')}</tbody></table></div></section>`;
+}
+Object.assign(changes, {
+  stViewSet: (el) => {
+    if (!stAdmin()) return;
+    const v = { ...(org().stView || {}) };
+    const list = new Set(v[el.dataset.k] || []);
+    if (el.checked) list.add(el.dataset.d); else list.delete(el.dataset.d);
+    v[el.dataset.k] = [...list];
+    org().stView = v;
+    commit();
+  },
+});
+if (!ADMIN_TABS.some(([k]) => k === 'stview')) ADMIN_TABS.splice(ADMIN_TABS.findIndex(([k]) => k === 'stages'), 0, ['stview', 'S-Team Access']);
