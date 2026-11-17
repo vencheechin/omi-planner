@@ -433,8 +433,6 @@ function renderRequests() {
   return `<div class="page">
     <header class="page-head"><h1>${K.mark} ${dir === 'from' ? (kind === 'decision' ? 'Decision Required' : 'Approval') : dir === 'to' ? (kind === 'decision' ? 'Pending Decision' : 'Pending Approval') : K.label}${who ? `: ${esc(who.name)}` : ''}</h1></header>
     <div class="dr-tools">
-      <div class="seg">${Object.entries(REQ_KINDS).map(([k, x]) => `<a class="${k === kind ? 'on' : ''}" href="${href(k, dir || 'all')}">${x.label.replace(' Request', '')}</a>`).join('')}</div>
-      <div class="seg">${[['all', 'All'], ['from', 'From'], ['to', 'To']].map(([d, l]) => `<a class="${(dir || 'all') === d ? 'on' : ''}" href="${href(kind, d)}">${l}</a>`).join('')}</div>
       ${reqGroupBarHTML()}
       <label class="mini">Sort by <select data-change="decSort">${DEC_SORTS.map(([v, l]) => `<option value="${v}" ${v === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     </div>
