@@ -17,7 +17,7 @@ function mcPlan(create) {
 function mcNormAl(al) {
   if (!al || typeof al !== 'object') return {};
   const out = {};
-  for (const [k, v] of Object.entries(al)) if (typeof k === 'string' && Array.isArray(v)) out[k.slice(0, 120)] = [...new Set(v.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 20160))].sort((a, b) => a - b).slice(0, 8);
+  for (const [k, v] of Object.entries(al)) if (typeof k === 'string' && Array.isArray(v)) out[k.slice(0, 120)] = [...new Set(v.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 86400))].sort((a, b) => a - b).slice(0, 8);
   return out;
 }
 function mcNorm(m) {
@@ -86,7 +86,7 @@ function mcEventHTML({ m, lane, n }) {
   const h = Math.max(18, ((m.end - m.start) / 60) * MC_H - 2);
   const who = m.att.length + (m.att.includes(m.org) ? 0 : 1);
   return `<button class="mc-ev ${h < 34 ? 'short' : ''}" data-mc-ev="${esc(m.id)}" style="top:${top}px;height:${h}px;left:calc(${(lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px);--ec:${m.color || MC_COLORS[0]}">
-    <b>${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
+    <b>${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? '📍 Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
 }
 function mcGridHTML(days) {
   const today = todayISO();
@@ -156,7 +156,7 @@ function mcFormHTML(m) {
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
     <div class="mc-maps"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
-    <input type="hidden" name="map" value="${esc(m.map || '')}"><a class="mc-maplink" href="${esc(mcMapUrl(m.map, m.loc))}" target="_blank" rel="noopener" ${m.map && m.loc ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.map, m.loc))}</span></a>
+    <input type="hidden" name="map" value="${esc(m.map || '')}"><a class="mc-maplink" href="${esc(mcMapUrl(m.map, m.loc))}" target="_blank" rel="noopener" ${(m.map && m.loc) || mcIsLink(m.loc) ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.map, m.loc))}</span></a>
     <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
     <label class="pd-f"><span>Notes</span><textarea name="notes" rows="3" placeholder="Agenda, documents">${esc(m.notes)}</textarea></label>
@@ -324,46 +324,127 @@ Object.assign(changes, {
 });
 
 // ---------- Event notifications ----------
-// Each person sets their own: at the time of the event, or a while before. A new event starts with
-// "At time of event", plus the length you used last and the one you use most. Several per event.
+// Each person sets their own: at the time of the event, or a while before, several per event.
+// New events start with your default notifications (Settings › Calendar). "Add notification" offers
+// your three most used, or Custom (a number and minutes / hours / days / weeks on wheels).
 const MC_AL = [[0, 'At time of event'], [5, '5 minutes before'], [10, '10 minutes before'], [15, '15 minutes before'], [30, '30 minutes before'], [60, '1 hour before'], [120, '2 hours before'], [1440, '1 day before'], [2880, '2 days before'], [10080, '1 week before']];
-const mcAlLabel = (n) => MC_AL.find(([v]) => v === n)?.[1] || `${n} minutes before`;
+const MC_UNITS = [['minutes', 1], ['hours', 60], ['days', 1440], ['weeks', 10080]];
+function mcAlLabel(n) {
+  const known = MC_AL.find(([v]) => v === n);
+  if (known) return known[1];
+  const [unit, size] = [...MC_UNITS].reverse().find(([, k]) => n % k === 0) || ['minutes', 1];
+  const q = n / size;
+  return `${q} ${q === 1 ? unit.slice(0, -1) : unit} before`;
+}
 const mcAlHist = () => (S.settings.mcAlHist = S.settings.mcAlHist && typeof S.settings.mcAlHist === 'object' ? S.settings.mcAlHist : { n: {}, last: null });
-/** Suggestions in order: the one you picked last, then your most used (never "at time", never a repeat). */
-function mcAlSuggest(have) {
-  const h = mcAlHist();
-  const out = [];
-  if (Number.isInteger(h.last) && h.last > 0) out.push(h.last);
-  const most = Object.entries(h.n || {}).map(([k, c]) => [Number(k), c]).filter(([k]) => k > 0).sort((a, b) => b[1] - a[1]);
-  for (const [k] of most) { if (!out.includes(k)) { out.push(k); break; } }
-  return out.filter((x) => !have.includes(x));
+/** Your default notifications for a new event (Settings › Calendar). */
+const mcAlDefault = () => (Array.isArray(S.settings.mcAlDefault) ? S.settings.mcAlDefault : [0]);
+/** Your most used notifications (fill-ins when there isn't enough history yet). */
+function mcAlTop(have, n = 3) {
+  const used = Object.entries(mcAlHist().n || {}).map(([k, c]) => [Number(k), c]).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  return [...new Set([...used, 10, 30, 60, 1440, 0])].filter((v) => !have.includes(v)).slice(0, n);
 }
 function mcAlertsFor(m) {
   const mine = m.al?.[pkey(S.meId)];
   if (Array.isArray(mine)) return mine;
-  const isNew = !mcAll().some((x) => x.id === m.id);
-  return isNew ? [0, ...mcAlSuggest([0])] : [0];
+  return mcAll().some((x) => x.id === m.id) ? [0] : [...mcAlDefault()];
 }
 function mcAlertRow(n) {
-  const list = MC_AL.some(([v]) => v === n) ? MC_AL : [...MC_AL, [n, mcAlLabel(n)]];
-  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">🔔</span><select name="al" aria-label="Notification">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}</select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
+  const list = MC_AL.some(([v]) => v === n) ? MC_AL : [...MC_AL, [n, mcAlLabel(n)]].sort((a, b) => a[0] - b[0]);
+  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">🔔</span><select name="al" aria-label="Notification" data-prev="${n}">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom">Custom…</option></select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
 }
 function mcAlertSave(vals) {
   const list = [...new Set(vals.map(Number).filter((n) => Number.isInteger(n) && n >= 0))].sort((a, b) => a - b);
   const h = mcAlHist();
-  list.filter((n) => n > 0).forEach((n) => { h.n[n] = (h.n[n] || 0) + 1; });
-  const picked = vals.map(Number).filter((n) => n > 0);
-  if (picked.length) h.last = picked[picked.length - 1];
+  list.forEach((n) => { h.n[n] = (h.n[n] || 0) + 1; });
+  if (list.length) h.last = list[list.length - 1];
   return list;
 }
+/** The default list in Settings is saved as soon as it changes. */
+function mcAlDefSave(box) {
+  if (!box?.classList.contains('mc-al-def')) return;
+  S.settings.mcAlDefault = [...new Set([...box.querySelectorAll('select')].map((x) => Number(x.value)).filter((n) => Number.isInteger(n) && n >= 0))].sort((a, b) => a - b);
+  Store.save();
+}
+function mcAlDefaultsHTML() {
+  return `<p class="small muted">New events start with these. You can still change them on each event.</p><div class="mc-alerts mc-al-def">${mcAlDefault().map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button>`;
+}
+function mcAlAddRow(box, v) {
+  const have = [...box.querySelectorAll('select')].map((x) => Number(x.value));
+  if (have.includes(v)) { toast('That notification is already there.', { keep: true }); return; }
+  box.insertAdjacentHTML('beforeend', mcAlertRow(v));
+  mcAlDefSave(box);
+}
+
+// Custom: a number wheel and a unit wheel.
+function mcAlCustomHTML() {
+  const nums = Array.from({ length: 99 }, (_, i) => i + 1);
+  return `<div class="picker tw-pick mc-alc"><div class="mc-alc-head"><button type="button" class="icon-btn" data-act="mcAlCustomCancel" aria-label="Cancel">${icon('close', 15)}</button><b>Custom</b><button type="button" class="btn primary sm" data-act="mcAlCustomOk" aria-label="Done">${icon('check', 15)}</button></div>
+    <p class="mc-alc-sum">🔔 <span></span></p>
+    <div class="tw-wheels mc-alc-w"><div class="tw-col" data-col="n">${nums.map((n) => `<div class="tw-item" data-v="${n}">${n}</div>`).join('')}</div><div class="tw-col" data-col="u">${MC_UNITS.map(([u, k]) => `<div class="tw-item" data-v="${k}">${u}</div>`).join('')}</div><div class="tw-band" aria-hidden="true"></div></div>
+    <div class="tw-type"><input inputmode="numeric" pattern="[0-9]*" maxlength="2" data-alc="n" placeholder="number" aria-label="Number"><small class="muted">or scroll</small></div></div>`;
+}
+function mcAlCustom(anchor, start, done) {
+  const pop = openPop(anchor, mcAlCustomHTML);
+  const cols = [...pop.querySelectorAll('.tw-col')];
+  const [unit, size] = [...MC_UNITS].reverse().find(([, k]) => start > 0 && start % k === 0) || ['minutes', 1];
+  const init = { n: start > 0 ? Math.min(99, start / size) : 30, u: size };
+  // The highlighted item is the choice (scrolling and typing both move it).
+  const val = () => Object.fromEntries(cols.map((c) => [c.dataset.col, Number((c.querySelector('.tw-item.on') || c.children[Math.max(0, Math.min(c.children.length - 1, Math.round(c.scrollTop / TW_ROW)))]).dataset.v)]));
+  const show = () => { const v = val(); pop.querySelector('.mc-alc-sum span').textContent = mcAlLabel(v.n * v.u); };
+  cols.forEach((col) => {
+    const items = [...col.children];
+    const i = Math.max(0, items.findIndex((x) => Number(x.dataset.v) === init[col.dataset.col]));
+    col.scrollTop = i * TW_ROW;
+    items.forEach((x, j) => x.classList.toggle('on', j === i));
+    let t = null;
+    col.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => { const idx = Math.round(col.scrollTop / TW_ROW); items.forEach((x, j) => x.classList.toggle('on', j === idx)); show(); }, 90); }, { passive: true });
+    col.addEventListener('click', (e) => { const it = e.target.closest('.tw-item'); if (it) col.scrollTo({ top: items.indexOf(it) * TW_ROW, behavior: 'smooth' }); });
+  });
+  pop.querySelector('[data-alc="n"]').addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 2);
+    const n = Math.max(1, Math.min(99, Number(e.target.value) || 1));
+    const col = cols[0];
+    [...col.children].forEach((x, j) => x.classList.toggle('on', j === n - 1));
+    col.scrollTop = (n - 1) * TW_ROW;
+    show();
+  });
+  show();
+  ui.mcAlc = { done, val };
+}
+
 Object.assign(actions, {
   mcAlertAdd: (el) => {
-    const box = el.closest('.pd-f').querySelector('.mc-alerts');
-    const have = [...box.querySelectorAll('select')].map((s) => Number(s.value));
-    const next = [...mcAlSuggest(have), ...MC_AL.map(([v]) => v)].find((v) => !have.includes(v));
-    box.insertAdjacentHTML('beforeend', mcAlertRow(next ?? 10));
+    const box = el.parentElement.querySelector('.mc-alerts');
+    const have = [...box.querySelectorAll('select')].map((x) => Number(x.value));
+    ui.mcAlBox = box;
+    openPop(el, () => `<div class="menu mc-al-menu" role="menu"><h4>Add notification</h4>${mcAlTop(have).map((v) => `<button role="menuitem" data-act="mcAlPick" data-v="${v}">🔔 ${esc(mcAlLabel(v))}</button>`).join('')}<button role="menuitem" data-act="mcAlPickCustom">${icon('plus', 13)} Custom…</button></div>`);
   },
-  mcAlertDel: (el) => el.closest('.mc-al').remove(),
+  mcAlPick: (el) => { closePop(); if (ui.mcAlBox) mcAlAddRow(ui.mcAlBox, Number(el.dataset.v)); },
+  mcAlPickCustom: () => {
+    const box = ui.mcAlBox;
+    const anchor = box?.parentElement.querySelector('.mc-al-add');
+    closePop();
+    if (box && anchor) mcAlCustom(anchor, 30, (v) => mcAlAddRow(box, v));
+  },
+  mcAlCustomOk: () => { const c = ui.mcAlc; closePop(); if (c) { const v = c.val(); c.done(v.n * v.u); } ui.mcAlc = null; },
+  mcAlCustomCancel: () => { const c = ui.mcAlc; closePop(); if (c?.cancel) c.cancel(); ui.mcAlc = null; },
+  mcAlertDel: (el) => { const box = el.closest('.mc-alerts'); el.closest('.mc-al').remove(); mcAlDefSave(box); },
+});
+// A row's "Custom…" opens the wheels; the row keeps its old choice if you cancel.
+document.addEventListener('change', (e) => {
+  const sel = e.target;
+  if (!sel.matches?.('.mc-al select')) return;
+  const box = sel.closest('.mc-alerts');
+  if (sel.value !== 'custom') { sel.dataset.prev = sel.value; mcAlDefSave(box); return; }
+  const prev = Number(sel.dataset.prev) || 0;
+  sel.value = String(prev);
+  mcAlCustom(sel, prev, (v) => {
+    if (![...sel.options].some((o) => o.value === String(v))) sel.insertAdjacentHTML('afterbegin', `<option value="${v}">${esc(mcAlLabel(v))}</option>`);
+    sel.value = String(v);
+    sel.dataset.prev = String(v);
+    mcAlDefSave(box);
+  });
 });
 
 /** Sends each of your event notifications once, when its time comes (while Planner is open). */
@@ -462,18 +543,20 @@ document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-
 Object.assign(actions, { mcGuestDel: (el) => el.closest('.mc-gchip').remove() });
 
 // ---------- The event's map link ----------
+const mcIsLink = (v) => /^https?:\/\/\S+$/i.test(String(v || '').trim());
 function mcMapUrl(svc, loc) {
+  if (mcIsLink(loc)) return String(loc).trim();
   const q = encodeURIComponent(String(loc || '').trim());
   if (!svc || !q) return '#';
   return svc === 'amap' ? `https://uri.amap.com/search?keyword=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
 }
-const mcMapText = (svc, loc) => (svc && loc ? `${String(loc).trim()} · ${svc === 'amap' ? 'Amap 高德地图' : 'Google Maps'}` : '');
+const mcMapText = (svc, loc) => (mcIsLink(loc) ? `Open map link (${new URL(String(loc).trim()).hostname.replace(/^www\./, '')})` : svc && loc ? `${String(loc).trim()} · ${svc === 'amap' ? 'Amap 高德地图' : 'Google Maps'}` : '');
 function mcMapRefresh(form) {
   const svc = form.querySelector('[name="map"]')?.value;
   const loc = form.querySelector('[name="loc"]')?.value || '';
   const a = form.querySelector('.mc-maplink');
   if (!a) return;
-  a.hidden = !(svc && loc.trim());
+  a.hidden = !((svc && loc.trim()) || mcIsLink(loc));
   a.href = mcMapUrl(svc, loc);
   a.querySelector('span').textContent = mcMapText(svc, loc);
 }
