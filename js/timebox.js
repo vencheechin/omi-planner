@@ -284,7 +284,8 @@ function warningChips(iso) {
 function placementIssues(t, iso, start, dur) {
   const end = start + dur;
   const issues = scheduledOn(iso).filter((x) => x.id !== t.id && x.slotStart < end && start < endOf(x))
-    .map((x) => `Overlaps “${x.title || 'Untitled task'}” (${fmtTime(x.slotStart)}–${fmtTime(endOf(x))}).`);
+    .map((x) => `Overlaps “${x.title || 'Untitled task'}” (${fmtTime(x.slotStart)}–${fmtTime(endOf(x))}).`)
+    .concat(typeof mcBusyOn === 'function' ? mcBusyOn(iso).filter((b) => b.start < end && start < b.end).map((b) => `Overlaps your meeting “${b.title}” (${fmtTime(b.start)}–${fmtTime(b.end)}).`) : []);
   const prot = blocksOn(iso).find((b) => b.protected && b.start < end && start < b.end);
   if (prot && !allowedInProtected(t)) issues.push(`${prot.name} (${fmtTime(prot.start)}–${fmtTime(prot.end)}) is protected for focus work. Only emergencies should interrupt it.`);
   if (!isWorkDay(iso)) issues.push(`${dayLabel(iso)} is not one of your working days.`);
@@ -322,7 +323,7 @@ function freeSlot(t, fromIso, fromMin = 0, dur = durOf(t), reserved = []) {
       const mine = reserved.filter((r) => r.date === iso);
       const planned = scheduledOn(iso).filter((x) => x.id !== t.id).reduce((n, x) => n + durOf(x), 0) + mine.reduce((n, r) => n + r.end - r.start, 0);
       if (planned + dur > capacityOf(iso)) continue;
-      const busy = [...scheduledOn(iso).filter((x) => x.id !== t.id).map((x) => [x.slotStart, endOf(x)]), ...mine.map((r) => [r.start, r.end])].sort((a, b) => a[0] - b[0]);
+      const busy = [...scheduledOn(iso).filter((x) => x.id !== t.id).map((x) => [x.slotStart, endOf(x)]), ...mine.map((r) => [r.start, r.end]), ...(typeof mcBusyOn === 'function' ? mcBusyOn(iso).map((b) => [b.start, b.end]) : [])].sort((a, b) => a[0] - b[0]);
       const after = i === 0 ? ceilSnap(fromMin) : 0;
       for (const [ws, we] of windowsFor(t, iso, preferred)) {
         let cur = Math.max(ws, after);
@@ -965,7 +966,7 @@ function timeGridHTML(dates, mode) {
     const off = isWorkDay(iso) ? '' : `<div class="tb-off" style="top:0;height:${height}px"></div>`;
     const blocks = tasks.map((t) => { const { lane, lanes: n } = lanes.get(t.id); return blockHTML(t, iso, ppm, y, lane, n); }).join('');
     const now = iso === today && nowMin() >= rs && nowMin() <= re ? `<div class="tb-now" style="top:${y(nowMin())}px"></div>` : '';
-    return `<div class="tb-col ${iso === today ? 'today' : ''} ${isWorkDay(iso) ? '' : 'weekend'}" data-tb-date="${iso}" data-rs="${rs}" data-ppm="${ppm}" data-act="tbAdd" style="height:${height}px;--rh:${rh}px">${off}${bands}${now}${blocks}</div>`;
+    return `<div class="tb-col ${iso === today ? 'today' : ''} ${isWorkDay(iso) ? '' : 'weekend'}" data-tb-date="${iso}" data-rs="${rs}" data-ppm="${ppm}" data-act="tbAdd" style="height:${height}px;--rh:${rh}px">${off}${bands}${typeof mcBusyHTML === 'function' ? mcBusyHTML(iso, y, ppm) : ''}${now}${blocks}</div>`;
   };
   const head = (iso) => {
     const planned = plannedMinutes(iso);

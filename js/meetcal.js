@@ -33,6 +33,10 @@ function mcNorm(m) {
     al: mcNormAl(m.al),
     map: ['google', 'amap'].includes(m.map) ? m.map : '',
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
+    kind: MC_KINDS.some(([k]) => k === m.kind) ? m.kind : 'meeting',
+    ...(typeof m.block === 'boolean' ? { block: m.block } : {}),
+    rep: MC_REPS.some(([v]) => v === m.rep) ? m.rep : '',
+    by: Number.isInteger(Number(m.by)) && Number(m.by) > 1900 && Number(m.by) < 2200 ? Number(m.by) : null,
     files: (Array.isArray(m.files) ? m.files : []).filter((f) => f && typeof f.id === 'string').slice(0, 30).map((f) => ({ id: f.id.slice(0, 40), name: String(f.name || 'File').slice(0, 200), size: Number(f.size) || 0, type: String(f.type || '').slice(0, 100), ...(typeof f.thumb === 'string' && f.thumb.length < 60000 ? { thumb: f.thumb } : {}) })),
   };
 }
@@ -41,6 +45,7 @@ const mcMine = (m) => m.org === pkey(S.meId) || m.att.includes(pkey(S.meId)) || 
 /** A meeting on this device's clock (a copy, with _o pointing at the real one) when its zone differs. */
 const mcZone = (m) => m.tz || tzHome();
 function mcLocal(m) {
+  if (mcAllDay(m)) return m;
   const from = mcZone(m);
   const to = tzNow();
   if (from === to) return m;
@@ -85,10 +90,10 @@ function mcLanes(list) {
 }
 function mcEventHTML({ m, lane, n }) {
   const top = (m.start / 60) * MC_H;
-  const h = Math.max(18, ((m.end - m.start) / 60) * MC_H - 2);
+  const h = mcKind(m) === 'reminder' ? 22 : Math.max(18, ((m.end - m.start) / 60) * MC_H - 2);
   const who = m.att.length + (m.att.includes(m.org) ? 0 : 1);
   return `<button class="mc-ev ${h < 34 ? 'short' : ''}" data-mc-ev="${esc(m.id)}" style="top:${top}px;height:${h}px;left:calc(${(lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px);--ec:${m.color || MC_COLORS[0]}">
-    <b>${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? '📍 Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
+    <b>${esc(mcIcon(m))}${esc(m.title || '(No title)')}</b><small>${esc(mcFmt(m.start))} – ${esc(mcFmt(m.end))}${m._o ? ` · ${esc(tzCity(mcZone(m._o)))} ${esc(mcFmt(m._o.start))}` : ''}${m.loc ? ` · ${esc(mcIsLink(m.loc) ? '📍 Map link' : m.loc)}` : ''}${who > 1 ? ` · ${who} people` : ''}</small></button>`;
 }
 function mcGridHTML(days) {
   const today = todayISO();
@@ -97,11 +102,11 @@ function mcGridHTML(days) {
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   return `<div class="mc-grid" style="--mc-days:${days.length}">
     <div class="mc-head"><div class="mc-gut"></div>${days.map((d) => { const dt = new Date(`${d}T12:00:00`); return `<button class="mc-dh ${d === today ? 'today' : ''}" data-act="mcGoDay" data-d="${d}"><small>${MC_DAY[mcDow(d)]}</small><b>${dt.getDate()}</b></button>`; }).join('')}</div>
-    <div class="mc-allday"><div class="mc-gut"><small>All day</small></div>${days.map((d, i) => `<div class="mc-ad">${hols[i].map((h) => `<span class="mc-hol mc-${h.kind}" title="${esc(holLabel(h))}">${esc(holLabel(h))}</span>`).join('')}</div>`).join('')}</div>
+    <div class="mc-allday"><div class="mc-gut"><small>All day</small></div>${days.map((d, i) => `<div class="mc-ad">${hols[i].map((h) => `<span class="mc-hol mc-${h.kind}" title="${esc(holLabel(h))}">${esc(holLabel(h))}</span>`).join('')}${mcOn(shown, d).filter(mcAllDay).map((m) => `<button class="mc-hol mc-bday" data-mc-ev="${esc(m.id)}" style="--ec:${m.color || MC_COLORS[7]}">${esc(mcAllDayText(m, d))}</button>`).join('')}</div>`).join('')}</div>
     <div class="mc-body" data-scroll="mc-body"><div class="mc-inner" style="height:${24 * MC_H}px">
       <div class="mc-gut mc-hours">${Array.from({ length: 24 }, (_, hr) => `<span style="top:${hr * MC_H}px">${hr ? fmtTime(hr * 60).replace(':00', '') : ''}</span>`).join('')}</div>
       ${days.map((d, i) => `<div class="mc-col ${d === today ? 'today' : ''} ${hols[i].some((h) => h.kind === 'pub') ? 'pubhol' : ''}" data-mc-day="${d}">
-        ${mcLanes(shown.filter((m) => m.date === d)).map(mcEventHTML).join('')}
+        ${mcLanes(mcOn(shown, d).filter((m) => !mcAllDay(m))).map(mcEventHTML).join('')}
         ${d === today ? `<i class="mc-now" style="top:${(nowMin / 60) * MC_H}px"></i>` : ''}</div>`).join('')}
     </div></div></div>`;
 }
@@ -115,9 +120,9 @@ function mcMonthHTML() {
   const rows = cells.slice(35).some((d) => d.slice(0, 7) === s.date.slice(0, 7)) ? 6 : 5;
   return `<div class="mc-month"><div class="mc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
     <div class="mc-mgrid" style="--rows:${rows}">${cells.slice(0, rows * 7).map((d) => {
-      const ms = shown.filter((m) => m.date === d).sort((a, b) => a.start - b.start);
+      const ms = mcOn(shown, d).sort((a, b) => (mcAllDay(b) - mcAllDay(a)) || a.start - b.start);
       const hs = holidaysOn(d);
-      const items = [...hs.map((h) => `<span class="mc-hol mc-${h.kind}" title="${esc(holLabel(h))}">${esc(holLabel(h))}</span>`), ...ms.map((m) => `<button class="mc-chip" data-mc-ev="${esc(m.id)}" style="--ec:${m.color || MC_COLORS[0]}"><i></i>${esc(mcFmt(m.start))} ${esc(m.title || '(No title)')}</button>`)];
+      const items = [...hs.map((h) => `<span class="mc-hol mc-${h.kind}" title="${esc(holLabel(h))}">${esc(holLabel(h))}</span>`), ...ms.map((m) => `<button class="mc-chip" data-mc-ev="${esc(m.id)}" style="--ec:${m.color || MC_COLORS[0]}"><i></i>${mcAllDay(m) ? esc(mcAllDayText(m, d)) : `${esc(mcFmt(m.start))} ${esc(mcIcon(m))}${esc(m.title || '(No title)')}`}</button>`)];
       return `<div class="mc-mc ${d.slice(0, 7) !== s.date.slice(0, 7) ? 'other' : ''} ${d === today ? 'today' : ''} ${hs.some((h) => h.kind === 'pub') ? 'pubhol' : ''}" data-mc-mday="${d}">
         <button class="mc-mnum" data-act="mcGoDay" data-d="${d}">${Number(d.slice(8))}</button>
         ${items.slice(0, 4).join('')}${items.length > 4 ? `<button class="mc-more" data-act="mcGoDay" data-d="${d}">${items.length - 4} more</button>` : ''}</div>`;
@@ -150,22 +155,27 @@ function renderMeetCal() {
 function mcFormHTML(m) {
   const me = pkey(S.meId);
   const att = new Set(m.att);
-  return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}">
+  const kind = mcKind(m);
+  return `<form class="mc-form" data-submit="mcSave" data-id="${esc(m.id)}" data-kind="${kind}">
+    <input type="hidden" name="kind" value="${kind}"><div class="seg mc-kinds" role="group" aria-label="Type">${MC_KINDS.map(([k, l, ic]) => `<button type="button" class="${k === kind ? 'on' : ''}" data-act="mcKind" data-v="${k}">${ic} ${l}</button>`).join('')}</div>
     ${mcCalPickHTML(m)}
-    <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="Add title" aria-label="Title" autocomplete="off" data-focus="mc-title">
-    <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required>${wheelTimeHTML('start', m.start, 'Start')}<span>–</span>${wheelTimeHTML('end', m.end, 'End')}</div>
-    <details class="mc-tzd" ${(m.tz || tzNow()) !== tzNow() ? 'open' : ''}><summary>${icon('gear', 13)} Time zone · ${esc(tzCity(m.tz || tzNow()))}</summary><label class="pd-f mc-tzf">${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label></details>
+    <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="${esc(MC_TITLE_HINT[kind])}" aria-label="Title" autocomplete="off" data-focus="mc-title">
+    <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required><span class="mc-k-timed">${wheelTimeHTML('start', m.start, 'Start')}</span><span class="mc-k-ev">–</span><span class="mc-k-ev">${wheelTimeHTML('end', m.end, 'End')}</span><label class="mc-k-bd mc-by"><span>Year born</span><input name="by" inputmode="numeric" maxlength="4" value="${m.by || ''}" placeholder="optional"></label></div>
+    <p class="mc-k-bd small muted mc-yearly">🎂 Repeats every year${m.by ? ` · turns ${mcAge(m, m.date)}` : ''}</p>
+    <label class="mc-k-rem mc-rep"><span>Repeat</span><select name="rep">${MC_REPS.map(([v, l]) => `<option value="${v}" ${(m.rep || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="mc-k-ev mc-block"><input type="checkbox" name="block" value="1" ${mcBlocks(m) ? 'checked' : ''}> Block this time in my Time Box</label>
+    <details class="mc-tzd mc-k-timed" ${(m.tz || tzNow()) !== tzNow() ? 'open' : ''}><summary>${icon('gear', 13)} Time zone · ${esc(tzCity(m.tz || tzNow()))}</summary><label class="pd-f mc-tzf">${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label></details>
     <div class="pd-f"><span>Notifications</span><div class="mc-alerts">${mcAlertsFor(m).map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
-    <div class="pd-f mc-guests"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
+    <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
-    <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
-    <div class="mc-maps"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
+    <label class="pd-f mc-k-ev"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
+    <div class="mc-maps mc-k-ev"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
     <input type="hidden" name="map" value="${esc(m.map || '')}"><a class="mc-maplink" href="${esc(mcMapUrl(m.map, m.loc))}" target="_blank" rel="noopener" ${(m.map && m.loc) || mcIsLink(m.loc) ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.map, m.loc))}</span></a>
-    <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
+    <label class="pd-f mc-k-ev"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
-    <div class="pd-f mc-files"><span>Attachments</span><input type="hidden" name="files" value="${esc(JSON.stringify(m.files || []))}"><div class="mc-flist">${(m.files || []).map(mcFileChip).join('')}</div>
+    <div class="pd-f mc-files mc-k-ev"><span>Attachments</span><input type="hidden" name="files" value="${esc(JSON.stringify(m.files || []))}"><div class="mc-flist">${(m.files || []).map(mcFileChip).join('')}</div>
       <div class="mc-drop" data-mc-drop>${icon('clip', 15)} <span>Drop files here or</span> <button type="button" class="btn ghost xs" data-act="mcFileAdd">${icon('upload', 12)} Upload</button></div></div>
-    <label class="pd-f"><span>Notes</span><textarea name="notes" rows="3" placeholder="Agenda, documents">${esc(m.notes)}</textarea></label>
+    <label class="pd-f"><span>Notes</span><textarea name="notes" rows="3" placeholder="${esc(MC_NOTE_HINT[kind])}">${esc(m.notes)}</textarea></label>
     <div class="mc-colors" role="radiogroup" aria-label="Colour">${MC_COLORS.map((c, i) => `<label style="--ec:${c}"><input type="radio" name="color" value="${c}" ${(m.color || MC_COLORS[0]) === c ? 'checked' : ''} aria-label="Colour ${i + 1}"><i></i></label>`).join('')}</div>
     <div class="row">${mcAll().some((x) => x.id === m.id) ? `<button type="button" class="btn ghost sm danger" data-act="mcDelete" data-id="${esc(m.id)}">${icon('trash', 13)} Delete</button>` : ''}<span class="spacer"></span><button class="btn primary">Save</button></div>
   </form>`;
@@ -174,9 +184,10 @@ function mcOpen(m) {
   $$('dialog.mc-dlg').forEach((d) => d.close());
   const d = showDialog({ title: mcAll().some((x) => x.id === m.id) ? 'Event' : 'New event', html: mcFormHTML(m) });
   d?.classList?.add('mc-dlg');
+  mcBdLabels(d?.querySelector?.('form'));
   setTimeout(() => $('dialog.mc-dlg [name=title]')?.focus(), 30);
 }
-const mcDraft = (date, start) => mcNorm({ id: uid(), date, start, end: Math.min(1440, start + 60), org: pkey(S.meId), att: [pkey(S.meId)], tz: tzNow() });
+const mcDraft = (date, start) => mcNorm({ id: uid(), kind: 'event', date, start, end: Math.min(1440, start + 60), org: pkey(S.meId), att: [pkey(S.meId)], tz: tzNow() });
 /** "= 3:00 pm Thu 19 Nov in Auckland (your time now)" when the meeting's zone isn't the one you're in. */
 function mcTzNote(date, start, tz) {
   if (!date || start === null || !tz || tz === tzNow()) return '';
@@ -211,7 +222,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', cal: data.get('cal') || '', files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), map: data.get('map') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -234,6 +245,7 @@ document.addEventListener('pointerdown', (e) => {
   if (ev) {
     const m = mcShown().find((x) => x.id === ev.dataset.mcEv) || mcAll().find((x) => x.id === ev.dataset.mcEv);
     mcDrag = { el: ev, m, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse', grid: !!col };
+    if (m && (m.rep || mcAllDay(m))) mcDrag.grid = false;
     if (mcDrag.touch && mcDrag.grid && mcCanEdit(m)) mcDrag.hold = setTimeout(() => { if (mcDrag) { mcDrag.on = true; mcDrag.el.classList.add('dragging'); navigator.vibrate?.(10); } }, 300);
   } else if (col) {
     mcDrag = { new: true, col, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== 'mouse' };
@@ -465,16 +477,17 @@ function mcCheckAlerts() {
   for (const m of mcAll()) {
     if (!mcMine(m)) continue;
     const list = Array.isArray(m.al?.[me]) ? m.al[me] : [0];
-    const startMs = tzToUtc(m.date, m.start, mcZone(m));
-    for (const n of list) {
+    const dates = m.rep ? Array.from({ length: 10 }, (_, i) => mcAddDays(todayISO(), i - 1)).filter((d) => mcOccurs(m, d)) : [m.date];
+    for (const occ of dates) for (const n of list) {
+      const startMs = mcAllDay(m) ? new Date(`${occ}T09:00:00`).getTime() : tzToUtc(occ, m.start, mcZone(m));
       const at = startMs - n * 60000;
-      const key = `${m.id}|${n}|${m.date}|${m.start}`;
+      const key = `${m.id}|${n}|${occ}|${m.start}`;
       if (fired[key] || at > now) continue;
       fired[key] = now;
       if (now - at > 60 * 60000) continue; // long gone (device was off): skip quietly
       const local = mcLocal(m);
       notify({ id: uid(), at: now, taskId: null, read: false, kind: 'review', route: '#/meet',
-        text: `${n === 0 ? 'Now' : `In ${mcAlLabel(n).replace(' before', '')}`}: ${m.title || 'Event'} · ${mcFmt(local.start)}${local.date !== todayISO() ? ` ${dayLabel(local.date)}` : ''}${m.loc ? ` · ${m.loc}` : ''}` });
+        text: mcAllDay(m) ? `${mcIcon(m)}${n < 1440 ? 'Today' : `In ${mcAlLabel(n).replace(' before', '')}`}: ${mcAllDayText(m, occ)}` : `${mcIcon(m)}${n === 0 ? 'Now' : `In ${mcAlLabel(n).replace(' before', '')}`}: ${m.title || 'Event'} · ${mcFmt(local.start)}${occ !== todayISO() ? ` ${dayLabel(occ)}` : ''}${m.loc ? ` · ${m.loc}` : ''}` });
       rang = true;
     }
   }
@@ -700,3 +713,87 @@ Object.assign(submits, {
     toast(old ? 'Calendar saved.' : `${c.name} created${c.members.length ? ` and shared with ${c.members.length} ${c.members.length === 1 ? 'person' : 'people'}` : ''}.`, { keep: true });
   },
 });
+
+// ---------- Types: Event, Meeting, Birthday, Reminder ----------
+// Meeting: blocks its time in your Time Box by default (Event can, if you tick it).
+// Birthday: a date that repeats every year, all day; optional year born shows the age.
+// Reminder: one time (no end), can repeat; notifies at the time by default.
+const MC_KINDS = [['event', 'Event', '📌'], ['meeting', 'Meeting', '👥'], ['birthday', 'Birthday', '🎂'], ['reminder', 'Reminder', '🔔']];
+const MC_REPS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every weekday (Mon–Fri)'], ['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']];
+const MC_TITLE_HINT = { event: 'Add title', meeting: 'Meeting title', birthday: 'Whose birthday? e.g. Ray', reminder: 'Remind me to…' };
+const MC_NOTE_HINT = { event: 'Notes', meeting: 'Agenda, documents', birthday: 'Gift ideas, how to celebrate', reminder: 'Details' };
+const MC_KIND_ALERTS = { birthday: [0, 10080], reminder: [0] };
+const mcKind = (m) => m?.kind || 'meeting';
+const mcAllDay = (m) => mcKind(m) === 'birthday';
+const mcBlocks = (m) => (typeof m.block === 'boolean' ? m.block : mcKind(m) === 'meeting');
+const mcIcon = (m) => ({ birthday: '🎂 ', reminder: '🔔 ', meeting: '', event: '' }[mcKind(m)] || '');
+function mcAge(m, onDate) { return m.by ? Number(onDate.slice(0, 4)) - m.by : null; }
+function mcAllDayText(m, d) {
+  const name = String(m.title || '').trim() || 'Someone';
+  const age = mcAge(m, d);
+  return `🎂 ${/birthday/i.test(name) ? name : `${name}'s birthday`}${age && age > 0 ? ` (${age})` : ''}`;
+}
+/** Does this item happen on date d (repeats included)? */
+function mcOccurs(m, d) {
+  if (!m.rep || d === m.date) return d === m.date;
+  if (d < m.date) return false;
+  const a = new Date(`${m.date}T12:00:00`);
+  const b = new Date(`${d}T12:00:00`);
+  if (m.rep === 'daily') return true;
+  if (m.rep === 'weekdays') return b.getDay() > 0 && b.getDay() < 6;
+  if (m.rep === 'weekly') return a.getDay() === b.getDay();
+  if (m.rep === 'monthly') return a.getDate() === b.getDate();
+  if (m.rep === 'yearly') {
+    if (a.getMonth() === 1 && a.getDate() === 29 && !(new Date(b.getFullYear(), 1, 29).getMonth() === 1)) return b.getMonth() === 1 && b.getDate() === 28;
+    return a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+  return false;
+}
+/** Items on a date: one-off ones on their day, repeating ones on each day they repeat. */
+const mcOn = (list, d) => list.filter((m) => (m.rep ? mcOccurs(m._o || m, d) : m.date === d)).map((m) => (m.rep && m.date !== d ? { ...m, date: d, _o: m._o || m } : m));
+
+Object.assign(actions, {
+  mcKind: (el) => {
+    const form = el.closest('form');
+    const k = el.dataset.v;
+    form.dataset.kind = k;
+    form.querySelector('[name="kind"]').value = k;
+    form.querySelectorAll('.mc-kinds button').forEach((b) => b.classList.toggle('on', b.dataset.v === k));
+    const t = form.querySelector('[name="title"]');
+    if (t) t.placeholder = MC_TITLE_HINT[k];
+    const n = form.querySelector('[name="notes"]');
+    if (n) n.placeholder = MC_NOTE_HINT[k];
+    const blk = form.querySelector('[name="block"]');
+    if (blk && !blk.dataset.touched) blk.checked = k === 'meeting';
+    // A new item takes that type's usual notifications (until you change them).
+    const box = form.querySelector('.mc-alerts');
+    const isNew = !mcAll().some((x) => x.id === form.dataset.id);
+    if (box && isNew && !box.dataset.touched) box.innerHTML = (MC_KIND_ALERTS[k] || mcAlDefault()).map(mcAlertRow).join('');
+    if (k === 'birthday') { const r = form.querySelector('input[name="color"][value="#9a5b6e"]'); if (r) r.checked = true; }
+    mcBdLabels(form);
+  },
+});
+document.addEventListener('change', (e) => {
+  if (e.target.matches?.('.mc-form [name="block"]')) e.target.dataset.touched = '1';
+  if (e.target.closest?.('.mc-form .mc-alerts')) e.target.closest('.mc-alerts').dataset.touched = '1';
+});
+
+// ---------- Meetings in the Time Box ----------
+/** Your events that block time on a date (on this device's clock): [{ id, start, end, title, color }]. */
+function mcBusyOn(iso) {
+  if (typeof mcPlan !== 'function' || !mcPlan()) return [];
+  return mcAll().filter((m) => mcMine(m) && !mcAllDay(m) && mcKind(m) !== 'reminder' && mcBlocks(m)).map(mcLocal)
+    .flatMap((m) => mcOn([m], iso)).map((m) => ({ id: m.id, start: m.start, end: m.end, title: m.title || 'Meeting', color: m.color || MC_COLORS[0] }));
+}
+function mcBusyHTML(iso, y, ppm) {
+  return mcBusyOn(iso).map((b) => `<button class="tb-meet" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${Math.max(16, (b.end - b.start) * ppm - 2)}px;--ec:${b.color}" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><b>👥 ${esc(b.title)}</b><small>${esc(fmtTime(b.start))} – ${esc(fmtTime(b.end))}</small></button>`).join('');
+}
+Object.assign(actions, { mcOpenId: (el, e) => { e?.stopPropagation?.(); const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcOpen(m); } });
+
+/** Birthdays are all day: "at the time" means 9:00 am on the day. */
+function mcBdLabels(form) {
+  if (!form) return;
+  const bd = form.dataset.kind === 'birthday';
+  form.querySelectorAll('.mc-al select option[value="0"]').forEach((o) => { o.textContent = bd ? 'On the day, 9:00 am' : 'At time of event'; });
+}
+document.addEventListener('click', (e) => { if (e.target.closest?.('.mc-al-menu, .mc-alc')) setTimeout(() => mcBdLabels($('dialog.mc-dlg form')), 50); });
