@@ -77,7 +77,8 @@ const MC_DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MC_MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ---------- Views ----------
-function mcState() { return (ui.mc = ui.mc || { view: 'schedule', date: todayISO() }); }
+// The calendar is Schedule only (Day, Week and Month were taken out); the older views' code stays unused.
+function mcState() { ui.mc = ui.mc || { date: todayISO() }; ui.mc.view = 'schedule'; return ui.mc; }
 function mcTitle() {
   const s = mcState();
   const d = new Date(`${s.date}T12:00:00`);
@@ -153,7 +154,6 @@ function renderMeetCal() {
       <span class="spacer"></span>
       <button class="btn ghost sm" data-act="mcCalsMenu" title="Your calendars and shared calendars">${icon('cal', 13)} Calendars</button>
       <button class="btn ghost sm" data-act="holPick" title="Public and school holidays">${icon('flag', 13)} Holidays</button>
-      <div class="seg">${[['schedule', 'Schedule'], ['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(([v, l]) => `<button class="${s.view === v ? 'on' : ''}" data-act="mcView" data-v="${v}">${l}</button>`).join('')}</div>
     </header>
     ${upcoming ? `<p class="small muted mc-next">Next: <b>${esc(upcoming.title || '(No title)')}</b> · ${esc(dayLabel(upcoming.date))}, ${esc(mcFmt(upcoming.start))}</p>` : ''}
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
