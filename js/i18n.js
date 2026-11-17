@@ -168,6 +168,7 @@ const I18N_ZH = {
   'New task': '新任务',
   'Duplicate': '复制一份', 'Copy to…': '复制到…', 'More options': '更多选项', 'organiser': '组织者', 'Join call': '加入通话', 'Repeats every year': '每年重复',
   'Schedule settings': '日程设置',
+  'Search plans, tasks and schedule': '搜索计划、任务和日程', 'Search plans, tasks, schedule and functions': '搜索计划、任务、日程和功能',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

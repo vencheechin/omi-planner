@@ -2591,3 +2591,6 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .mc-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
 .mc-bar .mc-title-btn { justify-self: center; }
 .mc-bar-r { justify-self: end; display: inline-flex; align-items: center; gap: 2px; }
+
+/* Search results: Schedule items */
+.mp-sq.sm { width: 14px; height: 14px; border-radius: 4px; margin: 0; flex: none; display: inline-block; }

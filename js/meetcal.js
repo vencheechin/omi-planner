@@ -1290,3 +1290,38 @@ function mcCopyTo(m, cal) {
   commit();
   toast(`Copied to ${cal ? mcCalById(cal)?.name || 'that calendar' : 'My calendar'}.`);
 }
+
+// ---------- Search: the top search box also finds Schedule items ----------
+// Matches title, place and notes of your items (and team members you ticked). Repeating items show their next date.
+function mcSearch(q) {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const today = todayISO();
+  const out = [];
+  for (const m of mcAll().filter((x) => mcMine(x) || mcTeamWho(x))) {
+    const text = `${m.title} ${m.loc} ${m.notes} ${mcKind(m) === 'birthday' ? 'birthday' : ''}`.toLowerCase();
+    if (!words.every((w) => text.includes(w))) continue;
+    let d = mcLocal(m).date;
+    if (m.rep && d < today) { for (let i = 0, x = today; i < 400; i++, x = mcAddDays(x, 1)) if (mcOccurs(m, x)) { d = x; break; } }
+    out.push({ m, d });
+  }
+  // Coming up first (soonest first), then past ones (most recent first).
+  return out.sort((a, b) => ((a.d < today) - (b.d < today)) || (a.d < today ? b.d.localeCompare(a.d) : a.d.localeCompare(b.d))).slice(0, 20);
+}
+const origRenderSearchMc = renderSearch;
+// eslint-disable-next-line no-global-assign
+renderSearch = function renderSearchWithSchedule() {
+  let html = origRenderSearchMc.apply(this, arguments);
+  const hits = mcSearch(ui.search.trim());
+  if (!hits.length) return html;
+  const block = `<h2 class="sub-head">Schedule</h2><ul class="day-list">${hits.map(({ m, d }) => {
+    const title = mcKind(m) === 'birthday' ? mcAllDayText(m, d).replace(/ \(\d+\)$/, '') : (m.title || '(No title)');
+    const when = `${dayLabel(d)}${mcAllDay(m) ? '' : `, ${mcFmt(mcLocal(m).start)}`}${m.loc ? ` · ${m.loc}` : ''}`;
+    return `<li class="day-row"><button class="day-title" data-act="mcSearchOpen" data-id="${esc(m.id)}" data-d="${esc(d)}"><i class="mp-sq sm" style="background:${esc(m.color || MC_COLORS[0])}"></i> <span><b>${esc(title)}</b><small>${esc(when)}</small></span></button></li>`;
+  }).join('')}</ul>`;
+  html = html.replace('<div class="empty"><h2>No matches</h2></div>', '');
+  return html.replace('</header>', `</header>${block}`);
+};
+Object.assign(actions, {
+  mcSearchOpen: (el) => { const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcPeek(m, el.dataset.d); },
+});

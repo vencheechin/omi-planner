@@ -89,6 +89,6 @@ Object.assign(actions, {
 (function relabel() {
   const s = document.getElementById('search');
   if (!s) { setTimeout(relabel, 200); return; }
-  s.placeholder = 'Search plans, tasks and functions';
-  s.setAttribute('aria-label', 'Search plans, tasks and functions');
+  s.placeholder = 'Search plans, tasks and schedule';
+  s.setAttribute('aria-label', 'Search plans, tasks, schedule and functions');
 }());
