@@ -37,7 +37,8 @@ function mcNorm(m) {
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
     kind: MC_KINDS.some(([k]) => k === m.kind) ? m.kind : 'meeting',
     ...(typeof m.block === 'boolean' ? { block: m.block } : {}),
-    rep: MC_REPS.some(([v]) => v === m.rep) ? m.rep : '',
+    rep: MC_REPS.some(([v]) => v === m.rep) || m.rep === 'custom' ? m.rep : '',
+    rc: m.rep === 'custom' ? mcNormRc(m.rc) : null,
     by: Number.isInteger(Number(m.by)) && Number(m.by) > 1900 && Number(m.by) < 2200 ? Number(m.by) : null,
     files: (Array.isArray(m.files) ? m.files : []).filter((f) => f && typeof f.id === 'string').slice(0, 30).map((f) => ({ id: f.id.slice(0, 40), name: String(f.name || 'File').slice(0, 200), size: Number(f.size) || 0, type: String(f.type || '').slice(0, 100), ...(typeof f.thumb === 'string' && f.thumb.length < 60000 ? { thumb: f.thumb } : {}) })),
   };
@@ -164,7 +165,7 @@ function mcFormHTML(m) {
     <input class="mc-tin" name="title" value="${esc(m.title)}" placeholder="${esc(MC_TITLE_HINT[kind])}" aria-label="Title" autocomplete="off" data-focus="mc-title">
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required><span class="mc-k-timed">${wheelTimeHTML('start', m.start, 'Start')}</span><span class="mc-k-ev">–</span><span class="mc-k-ev">${wheelTimeHTML('end', m.end, 'End')}</span><label class="mc-k-bd mc-by"><span>Year born</span><input name="by" inputmode="numeric" maxlength="4" value="${m.by || ''}" placeholder="optional"></label></div>
     <p class="mc-k-bd small muted mc-yearly">🎂 Repeats every year${m.by ? ` · turns ${mcAge(m, m.date)}` : ''}</p>
-    <label class="mc-k-rem mc-rep"><span>Repeat</span><select name="rep">${MC_REPS.map(([v, l]) => `<option value="${v}" ${(m.rep || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="mc-k-rep mc-rep"><span>Repeat</span><select name="rep" data-prev="${esc(m.rep || '')}">${MC_REPS.map(([v, l]) => `<option value="${v}" ${(m.rep || '') === v ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom" ${m.rep === 'custom' ? 'selected' : ''}>${m.rep === 'custom' ? esc(mcRcText(m.rc, m.date)) : 'Custom…'}</option></select><input type="hidden" name="rc" value="${esc(JSON.stringify(m.rc || null))}"></label>
     <label class="mc-k-ev mc-block"><input type="checkbox" name="block" value="1" ${mcBlocks(m) ? 'checked' : ''}> Block this time in my Time Box</label>
     <details class="mc-tzd mc-k-timed" ${(m.tz || tzNow()) !== tzNow() ? 'open' : ''}><summary>${icon('gear', 13)} Time zone · ${esc(tzCity(m.tz || tzNow()))}</summary><label class="pd-f mc-tzf">${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label></details>
     <div class="pd-f"><span>${mcIsOrg(m) ? 'Notifications' : 'Your notifications'}</span><div class="mc-alerts">${mcAlertsFor(m).map((n) => mcAlertRow(n)).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
@@ -226,7 +227,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', geo: (() => { const [lat, lon] = String(data.get('geo') || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) && data.get('geo') ? { lat, lon } : null; })(), cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? mcGalSave(data.getAll('gal').map(Number)) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', geo: (() => { const [lat, lon] = String(data.get('geo') || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) && data.get('geo') ? { lat, lon } : null; })(), cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : (data.get('rep') || ''), rc: (() => { try { return JSON.parse(data.get('rc') || 'null'); } catch { return null; } })(), by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? mcGalSave(data.getAll('gal').map(Number)) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -849,6 +850,7 @@ function mcAllDayText(m, d) {
 function mcOccurs(m, d) {
   if (!m.rep || d === m.date) return d === m.date;
   if (d < m.date) return false;
+  if (m.rep === 'custom') return mcRcOccurs(m, d);
   const a = new Date(`${m.date}T12:00:00`);
   const b = new Date(`${d}T12:00:00`);
   if (m.rep === 'daily') return true;
@@ -916,3 +918,112 @@ function mcGalSave(list) {
   list.filter((n) => Number.isInteger(n) && n >= 0).forEach((n) => { h[n] = (h[n] || 0) + 1; });
   return list;
 }
+
+// ---------- Custom repeat (like iPhone / Google Calendar) ----------
+// Every N days / weeks / months / years; for weeks, on which days; ends never, on a date, or after N times.
+const MC_RC_UNITS = [['day', 'day'], ['week', 'week'], ['month', 'month'], ['year', 'year']];
+const MC_WD = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MC_WD_LONG = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function mcNormRc(rc) {
+  const r = rc && typeof rc === 'object' ? rc : {};
+  const end = r.end && typeof r.end === 'object' ? r.end : {};
+  return {
+    n: Math.max(1, Math.min(99, Math.round(Number(r.n) || 1))),
+    unit: MC_RC_UNITS.some(([u]) => u === r.unit) ? r.unit : 'week',
+    days: (Array.isArray(r.days) ? r.days : []).map(Number).filter((x) => Number.isInteger(x) && x >= 0 && x <= 6),
+    end: { type: ['never', 'on', 'count'].includes(end.type) ? end.type : 'never', date: /^\d{4}-\d{2}-\d{2}$/.test(end.date || '') ? end.date : '', count: Math.max(1, Math.min(999, Math.round(Number(end.count) || 10))) },
+  };
+}
+function mcRcText(rc, date) {
+  const r = mcNormRc(rc);
+  const unit = `${r.unit}${r.n === 1 ? '' : 's'}`;
+  const days = r.unit === 'week' ? (r.days.length ? r.days : [new Date(`${date || todayISO()}T12:00:00`).getDay()]) : [];
+  const on = days.length ? ` on ${days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((x) => MC_WD_LONG[x]).join(', ')}` : '';
+  const end = r.end.type === 'on' && r.end.date ? `, until ${fmtDate(r.end.date)}` : r.end.type === 'count' ? `, ${r.end.count} times` : '';
+  return `Every ${r.n === 1 ? '' : `${r.n} `}${unit}${on}${end}`;
+}
+function mcRcMatch(m, d) {
+  const r = mcNormRc(m.rc);
+  const a = new Date(`${m.date}T12:00:00`);
+  const b = new Date(`${d}T12:00:00`);
+  if (r.unit === 'day') return Math.round((b - a) / 864e5) % r.n === 0;
+  if (r.unit === 'week') {
+    const days = r.days.length ? r.days : [a.getDay()];
+    if (!days.includes(b.getDay())) return false;
+    const weeks = Math.round((new Date(`${mcWeekStart(d)}T12:00:00`) - new Date(`${mcWeekStart(m.date)}T12:00:00`)) / (7 * 864e5));
+    return weeks % r.n === 0;
+  }
+  if (r.unit === 'month') { const months = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth(); return b.getDate() === a.getDate() && months % r.n === 0; }
+  return b.getMonth() === a.getMonth() && b.getDate() === a.getDate() && (b.getFullYear() - a.getFullYear()) % r.n === 0;
+}
+function mcRcOccurs(m, d) {
+  const r = mcNormRc(m.rc);
+  if (r.end.type === 'on' && r.end.date && d > r.end.date) return false;
+  if (!mcRcMatch(m, d)) return false;
+  if (r.end.type === 'count') {
+    let n = 0;
+    for (let x = m.date, i = 0; x <= d && i < 4000; x = mcAddDays(x, 1), i += 1) if (x === m.date || mcRcMatch(m, x)) n += 1;
+    return n <= r.end.count;
+  }
+  return true;
+}
+function mcRcPickerHTML(rc, date) {
+  const r = mcNormRc(rc);
+  const nums = Array.from({ length: 99 }, (_, i) => i + 1);
+  return `<div class="picker tw-pick mc-rcp"><div class="mc-alc-head"><button type="button" class="icon-btn" data-act="mcRcCancel" aria-label="Back">${icon('chevL', 16)}</button><b>Custom repeat</b><button type="button" class="btn primary sm" data-act="mcRcOk" aria-label="Done">${icon('check', 15)}</button></div>
+    <p class="mc-alc-sum">🔁 <span>${esc(mcRcText(r, date))}</span></p>
+    <div class="tw-wheels mc-alc-w"><div class="tw-col" data-col="n">${nums.map((n) => `<div class="tw-item" data-v="${n}">${n}</div>`).join('')}</div><div class="tw-col" data-col="unit">${MC_RC_UNITS.map(([u]) => `<div class="tw-item" data-v="${u}">${u}</div>`).join('')}</div><div class="tw-band" aria-hidden="true"></div></div>
+    <div class="mc-rc-days" ${r.unit === 'week' ? '' : 'hidden'}>${MC_WD.map((w, i) => `<button type="button" class="${(r.days.length ? r.days : [new Date(`${date}T12:00:00`).getDay()]).includes(i) ? 'on' : ''}" data-wd="${i}" aria-label="${MC_WD_LONG[i]}">${w}</button>`).join('')}</div>
+    <div class="mc-rc-end"><span>Ends</span><select data-rc="type"><option value="never" ${r.end.type === 'never' ? 'selected' : ''}>Doesn't end</option><option value="on" ${r.end.type === 'on' ? 'selected' : ''}>On a date</option><option value="count" ${r.end.type === 'count' ? 'selected' : ''}>After a number of times</option></select>
+      <input type="date" data-rc="date" value="${esc(r.end.date || mcAddDays(date, 90))}" ${r.end.type === 'on' ? '' : 'hidden'}><label ${r.end.type === 'count' ? '' : 'hidden'}><input type="number" data-rc="count" min="1" max="999" value="${r.end.count}"> times</label></div></div>`;
+}
+function mcRcOpen(sel) {
+  const form = sel.closest('form');
+  const date = form.querySelector('[name="date"]').value || todayISO();
+  let rc = (() => { try { return JSON.parse(form.querySelector('[name="rc"]').value || 'null'); } catch { return null; } })();
+  if (!rc) rc = { n: 1, unit: 'week', days: [new Date(`${date}T12:00:00`).getDay()], end: { type: 'never' } };
+  const pop = openPop(sel, () => mcRcPickerHTML(rc, date));
+  const cols = [...pop.querySelectorAll('.tw-col')];
+  const cur = { n: mcNormRc(rc).n, unit: mcNormRc(rc).unit };
+  const read = () => {
+    const r = { ...mcNormRc(rc) };
+    cols.forEach((c) => { const on = c.querySelector('.tw-item.on'); if (on) r[c.dataset.col] = c.dataset.col === 'n' ? Number(on.dataset.v) : on.dataset.v; });
+    r.days = [...pop.querySelectorAll('.mc-rc-days button.on')].map((b) => Number(b.dataset.wd));
+    r.end = { type: pop.querySelector('[data-rc="type"]').value, date: pop.querySelector('[data-rc="date"]').value, count: Number(pop.querySelector('[data-rc="count"]').value) || 10 };
+    return mcNormRc(r);
+  };
+  const show = () => { const r = read(); pop.querySelector('.mc-rc-days').hidden = r.unit !== 'week'; pop.querySelector('.mc-alc-sum span').textContent = mcRcText(r, date); };
+  cols.forEach((col) => {
+    const items = [...col.children];
+    const i = Math.max(0, items.findIndex((x) => x.dataset.v === String(cur[col.dataset.col])));
+    col.scrollTop = i * TW_ROW;
+    items.forEach((x, j) => x.classList.toggle('on', j === i));
+    let t = null;
+    col.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => { const idx = Math.round(col.scrollTop / TW_ROW); items.forEach((x, j) => x.classList.toggle('on', j === idx)); show(); }, 90); }, { passive: true });
+    col.addEventListener('click', (e) => { const it = e.target.closest('.tw-item'); if (!it) return; items.forEach((x) => x.classList.toggle('on', x === it)); col.scrollTo({ top: items.indexOf(it) * TW_ROW, behavior: 'smooth' }); show(); });
+  });
+  pop.querySelector('.mc-rc-days').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; b.classList.toggle('on'); if (!pop.querySelector('.mc-rc-days button.on')) b.classList.add('on'); show(); });
+  pop.querySelector('[data-rc="type"]').addEventListener('change', (e) => { pop.querySelector('[data-rc="date"]').hidden = e.target.value !== 'on'; pop.querySelector('[data-rc="count"]').closest('label').hidden = e.target.value !== 'count'; show(); });
+  pop.querySelectorAll('[data-rc="date"], [data-rc="count"]').forEach((x) => x.addEventListener('input', show));
+  ui.mcRc = { sel, form, read, date };
+}
+Object.assign(actions, {
+  mcRcOk: () => {
+    const c = ui.mcRc;
+    closePop();
+    if (!c) return;
+    const r = c.read();
+    c.form.querySelector('[name="rc"]').value = JSON.stringify(r);
+    const opt = c.sel.querySelector('option[value="custom"]');
+    opt.textContent = mcRcText(r, c.date);
+    c.sel.value = 'custom';
+    c.sel.dataset.prev = 'custom';
+    ui.mcRc = null;
+  },
+  mcRcCancel: () => { const c = ui.mcRc; closePop(); if (c) c.sel.value = c.sel.dataset.prev || ''; ui.mcRc = null; },
+});
+document.addEventListener('change', (e) => {
+  const sel = e.target;
+  if (!sel.matches?.('.mc-form [name="rep"]')) return;
+  if (sel.value === 'custom') mcRcOpen(sel); else sel.dataset.prev = sel.value;
+});
