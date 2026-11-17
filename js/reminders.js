@@ -55,8 +55,9 @@ function checkReminders() {
       const who = t.assignees.filter((a) => a !== S.meId).map((a) => person(a)?.name).filter(Boolean).join(', ');
       const late = r.when === 'after' || todayISO() > t.due;
       rang = true;
+      const cq = typeof cultureQuote === 'function' ? cultureQuote('reminder', { random: true }) : null;
       notify({
-        id: uid(), at: now, taskId: t.id, read: false, kind: late ? 'returned' : 'review',
+        id: uid(), at: now, taskId: t.id, read: false, kind: late ? 'returned' : 'review', ...(cq ? { note: `“${cq.text}”` } : {}),
         text: late ? `Overdue: “${t.title}” was due ${fmtDate(t.due)}${who ? ` (${who})` : ''} and isn't completed` : `Reminder: “${t.title}” is due ${t.due === todayISO() ? 'today' : fmtDate(t.due)}${who ? ` (${who})` : ''}`,
       });
       changed = true;

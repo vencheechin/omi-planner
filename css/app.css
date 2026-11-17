@@ -2386,3 +2386,13 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-kinds button { display: inline-flex; align-items: center; gap: 6px; }
 .mc-al-ic { color: var(--ochre, #b5894d); display: inline-flex; }
 .mc-ev b .icon, .tb-meetblk .tb-b-title .icon { vertical-align: -1px; margin-right: 3px; opacity: .9; }
+
+/* OMI culture quotes */
+.culture-strip { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--ochre, #b5894d) 10%, transparent); box-shadow: inset 3px 0 0 var(--ochre, #b5894d); }
+.culture-strip small { text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; font-weight: 700; color: var(--ochre, #b5894d); white-space: nowrap; }
+.culture-strip span { font-size: .95em; }
+.culture-row { display: flex; gap: 8px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.culture-fields { flex: 1; display: grid; gap: 6px; }
+.culture-fields input { max-width: 260px; }
+.culture-where { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.culture-mission { font-style: italic; margin-top: 10px; }

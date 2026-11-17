@@ -17,7 +17,7 @@ function renderAdmin() {
   return `<div class="page admin-page">
     <header class="page-head"><h1>Admin Portal</h1></header>
     <div class="dr-tools"><div class="seg">${ADMIN_TABS.map(([v, l]) => `<button class="${tab === v ? 'on' : ''}" data-act="adminTab" data-v="${v}">${l}</button>`).join('')}</div></div>
-    ${tab === 'usage' ? `<section class="dr-hub"><h2>Button Usage</h2><p class="small muted">Which buttons and pages get used, and suggestions for tidying the app.</p><div class="row"><button class="btn primary sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>` : tab === 'lines' ? adminLinesHTML() : tab === 'stages' ? stagesAdminHTML() : tab === 'team' ? `<section class="dr-hub">${adminSettingsHTML()}</section>` : adminDashHTML()}
+    ${tab === 'usage' ? `<section class="dr-hub"><h2>Button Usage</h2><p class="small muted">Which buttons and pages get used, and suggestions for tidying the app.</p><div class="row"><button class="btn primary sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>` : tab === 'lines' ? adminLinesHTML() : tab === 'stages' ? stagesAdminHTML() : tab === 'culture' && typeof cultureAdminHTML === 'function' ? cultureAdminHTML() : tab === 'team' ? `<section class="dr-hub">${adminSettingsHTML()}</section>` : adminDashHTML()}
   </div>`;
 }
 

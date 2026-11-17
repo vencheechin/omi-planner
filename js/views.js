@@ -177,8 +177,8 @@ const planLabel = (p) => {
 /** "Ven's Planner" once you've set your name in Settings; plain "Planner" until then. */
 /** A person's first name in a small pill in their colour (on task cards). */
 const nameChip = (p) => (p ? `<span class="name-chip" style="--pc:${esc(p.color || '#b5894d')}" title="${esc(p.name)}">${esc(String(p.name).trim().split(/\s+/)[0])}</span>` : '');
-// "Ven's Work Flow" (a saved name like "Ven's Planner" shows the same way).
-const plannerName = () => { const saved = String(S.settings.plannerName || '').trim(); if (saved) return /^planner$/i.test(saved) ? 'Work Flow' : saved.replace(/^(.+?'s?) Planner$/i, '$1 Work Flow'); const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n.split(/\s+/)[0]}'s Work Flow` : 'Work Flow'; };
+// "Ven's Work Planner" (a saved name like "Ven's Planner" shows the same way).
+const plannerName = () => { const saved = String(S.settings.plannerName || '').trim(); if (saved) return /^planner$/i.test(saved) ? 'Work Planner' : saved.replace(/^(.+?'s?) (Planner|Work Flow)$/i, '$1 Work Planner'); const n = (person(S.meId)?.name || '').trim(); return n && n !== 'Me' ? `${n.split(/\s+/)[0]}'s Work Planner` : 'Work Planner'; };
 /** Phones: a tab bar at the bottom, like iOS. */
 function renderTabbar() {
   const bar = $('#tabbar');

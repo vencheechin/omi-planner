@@ -104,6 +104,7 @@ function normalizeOrg(o) {
     admins: Array.isArray(o.admins) ? o.admins.filter((x) => typeof x === 'string') : [],
     reportsTo: o.reportsTo && typeof o.reportsTo === 'object' ? Object.fromEntries(Object.entries(o.reportsTo).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')) : {},
     ...(Array.isArray(o.stages) && typeof normalizeStages === 'function' ? { stages: normalizeStages(o.stages) } : {}),
+    ...(Array.isArray(o.quotes) && typeof normalizeQuotes === 'function' ? { quotes: normalizeQuotes(o.quotes) } : {}),
   };
 }
 /** One key per person on every device: their email when known. */
@@ -391,7 +392,7 @@ function stFields(p) {
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
-const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {}, stages: org().stages || null });
+const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null });
 const orgWire = () => ({ ...orgRecord(), _v: clone(org()._v || {}) });
 function applyOrg(d) {
   if (!d || typeof d !== 'object') return false;
@@ -399,10 +400,10 @@ function applyOrg(d) {
   o._v = o._v || {};
   const sh = (S.sync.shadow.org = S.sync.shadow.org || {});
   let changed = false;
-  for (const f of ['depts', 'admins', 'reportsTo', 'stages']) {
+  for (const f of ['depts', 'admins', 'reportsTo', 'stages', 'quotes']) {
     const rv = d._v?.[f];
     if (!rv || !newer(rv, o._v[f])) continue;
-    o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : normalizeOrg({ [f]: d[f] })[f];
+    o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : f === 'quotes' ? (typeof normalizeQuotes === 'function' ? normalizeQuotes(d.quotes) : null) : normalizeOrg({ [f]: d[f] })[f];
     o._v[f] = rv;
     sh[f] = fieldHash(orgRecord()[f]);
     changed = true;
