@@ -187,7 +187,7 @@ function mcFormHTML(m) {
 }
 function mcOpen(m) {
   $$('dialog.mc-dlg').forEach((d) => d.close());
-  const d = showDialog({ title: mcAll().some((x) => x.id === m.id) ? (MC_KINDS.find(([k]) => k === mcKind(m))?.[1] || 'Event') : 'New', html: mcFormHTML(m) });
+  const d = showDialog({ title: 'New', html: mcFormHTML(m) });
   d?.classList?.add('mc-dlg');
   mcBdLabels(d?.querySelector?.('form'));
   setTimeout(() => $('dialog.mc-dlg [name=title]')?.focus(), 30);
