@@ -1189,20 +1189,40 @@ Object.assign(actions, {
     if (!d) return;
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - d.t > 800) return;
-    const n = dx < 0 ? 1 : -1;
-    const s = mcState();
-    const m = new Date(`${s.date.slice(0, 7)}-01T12:00:00`);
-    m.setMonth(m.getMonth() + n);
-    s.date = m.toISOString().slice(0, 10);
-    ui.mcSlide = n;
-    render();
-    ui.mcSlide = 0;
+    mcSwipeMonth(dx < 0 ? 1 : -1);
     // The swipe shouldn't also pick the day it started on.
     const stop = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
     document.addEventListener('click', stop, { capture: true, once: true });
     setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 60);
   });
   document.addEventListener('pointercancel', () => { sw = null; });
+}
+/** Moves the small month by n months, sliding in from that side. */
+function mcSwipeMonth(n) {
+  const s = mcState();
+  const m = new Date(`${s.date.slice(0, 7)}-01T12:00:00`);
+  m.setMonth(m.getMonth() + n);
+  s.date = m.toISOString().slice(0, 10);
+  ui.mcSlide = n;
+  render();
+  ui.mcSlide = 0;
+}
+// Two-finger swipe on a Mac trackpad (or a sideways mouse wheel) over the small month does the same.
+{
+  let acc = 0, quietUntil = 0, reset = null;
+  document.addEventListener('wheel', (e) => {
+    if (!e.target.closest?.('.sc-mini') || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    clearTimeout(reset);
+    reset = setTimeout(() => { acc = 0; }, 250);
+    if (Date.now() < quietUntil) return;
+    acc += e.deltaX;
+    if (Math.abs(acc) < 60) return;
+    // Fingers moving left (content scrolls right) = next month, like the phone swipe.
+    mcSwipeMonth(acc > 0 ? 1 : -1);
+    acc = 0;
+    quietUntil = Date.now() + 600;
+  }, { passive: false });
 }
 
 // ---------- Tapping an item: a clean read-only view (like Google Calendar) ----------
