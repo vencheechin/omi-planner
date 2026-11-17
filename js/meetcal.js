@@ -31,6 +31,7 @@ function mcNorm(m) {
     color: /^#[0-9a-f]{6}$/i.test(m.color || '') ? m.color : '', at: Number(m.at) || Date.now(),
     tz: typeof m.tz === 'string' && typeof tzValid === 'function' && tzValid(m.tz) ? m.tz : '',
     al: mcNormAl(m.al),
+    gal: [...new Set((Array.isArray(m.gal) ? m.gal : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 86400))].sort((a, b) => a - b).slice(0, 8),
     mapUrl: /^https?:\/\/\S+$/i.test(String(m.mapUrl || '')) ? String(m.mapUrl).slice(0, 500) : '',
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
     kind: MC_KINDS.some(([k]) => k === m.kind) ? m.kind : 'meeting',
@@ -165,7 +166,8 @@ function mcFormHTML(m) {
     <label class="mc-k-rem mc-rep"><span>Repeat</span><select name="rep">${MC_REPS.map(([v, l]) => `<option value="${v}" ${(m.rep || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label class="mc-k-ev mc-block"><input type="checkbox" name="block" value="1" ${mcBlocks(m) ? 'checked' : ''}> Block this time in my Time Box</label>
     <details class="mc-tzd mc-k-timed" ${(m.tz || tzNow()) !== tzNow() ? 'open' : ''}><summary>${icon('gear', 13)} Time zone · ${esc(tzCity(m.tz || tzNow()))}</summary><label class="pd-f mc-tzf">${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label></details>
-    <div class="pd-f"><span>Notifications</span><div class="mc-alerts">${mcAlertsFor(m).map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
+    <div class="pd-f"><span>${mcIsOrg(m) ? 'Notifications' : 'Your notifications'}</span><div class="mc-alerts">${mcAlertsFor(m).map((n) => mcAlertRow(n)).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
+    ${mcIsOrg(m) ? `<div class="pd-f mc-k-ev mc-gal"><span>Notify guests <small class="muted">(optional)</small></span><div class="mc-alerts" data-name="gal">${(m.gal || []).map((n) => mcAlertRow(n, 'gal')).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add guest notification</button></div>` : ''}
     <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved place" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
@@ -222,7 +224,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? data.getAll('gal').map(Number) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -354,14 +356,16 @@ function mcAlTop(have, n = 3) {
   const used = Object.entries(mcAlHist().n || {}).map(([k, c]) => [Number(k), c]).sort((a, b) => b[1] - a[1]).map(([k]) => k);
   return [...new Set([...used, 10, 30, 60, 1440, 0])].filter((v) => !have.includes(v)).slice(0, n);
 }
+const mcIsOrg = (m) => !m.org || m.org === pkey(S.meId) || !mcAll().some((x) => x.id === m.id);
 function mcAlertsFor(m) {
   const mine = m.al?.[pkey(S.meId)];
   if (Array.isArray(mine)) return mine;
-  return mcAll().some((x) => x.id === m.id) ? [0] : [...mcAlDefault()];
+  if (!mcAll().some((x) => x.id === m.id)) return [...mcAlDefault()];
+  return m.org === pkey(S.meId) ? [0] : [...(m.gal || [])];
 }
-function mcAlertRow(n) {
+function mcAlertRow(n, name = 'al') {
   const list = MC_AL.some(([v]) => v === n) ? MC_AL : [...MC_AL, [n, mcAlLabel(n)]].sort((a, b) => a[0] - b[0]);
-  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">🔔</span><select name="al" aria-label="Notification" data-prev="${n}">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom">Custom…</option></select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
+  return `<div class="mc-al"><span class="mc-al-ic" aria-hidden="true">🔔</span><select name="${name}" aria-label="${name === 'gal' ? 'Guest notification' : 'Notification'}" data-prev="${n}">${list.map(([v, l]) => `<option value="${v}" ${v === n ? 'selected' : ''}>${l}</option>`).join('')}<option value="custom">Custom…</option></select><button type="button" class="icon-btn" data-act="mcAlertDel" aria-label="Remove notification">${icon('close', 12)}</button></div>`;
 }
 function mcAlertSave(vals) {
   const list = [...new Set(vals.map(Number).filter((n) => Number.isInteger(n) && n >= 0))].sort((a, b) => a - b);
@@ -377,12 +381,12 @@ function mcAlDefSave(box) {
   Store.save();
 }
 function mcAlDefaultsHTML() {
-  return `<p class="small muted">New events start with these. You can still change them on each event.</p><div class="mc-alerts mc-al-def">${mcAlDefault().map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button>`;
+  return `<p class="small muted">New events start with these. You can still change them on each event.</p><div class="mc-alerts mc-al-def">${mcAlDefault().map((n) => mcAlertRow(n)).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button>`;
 }
 function mcAlAddRow(box, v) {
   const have = [...box.querySelectorAll('select')].map((x) => Number(x.value));
   if (have.includes(v)) { toast('That notification is already there.', { keep: true }); return; }
-  box.insertAdjacentHTML('beforeend', mcAlertRow(v));
+  box.insertAdjacentHTML('beforeend', mcAlertRow(v, box.dataset.name || 'al'));
   mcAlDefSave(box);
 }
 
@@ -468,7 +472,8 @@ function mcCheckAlerts() {
   let rang = false;
   for (const m of mcAll()) {
     if (!mcMine(m)) continue;
-    const list = Array.isArray(m.al?.[me]) ? m.al[me] : [0];
+    // Organiser: their own list (at the time if none). Guests: their own if they set one, else the organiser's guest notifications (none by default).
+    const list = Array.isArray(m.al?.[me]) ? m.al[me] : m.org === me ? [0] : (m.gal || []);
     const dates = m.rep ? Array.from({ length: 10 }, (_, i) => mcAddDays(todayISO(), i - 1)).filter((d) => mcOccurs(m, d)) : [m.date];
     for (const occ of dates) for (const n of list) {
       const startMs = mcAllDay(m) ? new Date(`${occ}T09:00:00`).getTime() : tzToUtc(occ, m.start, mcZone(m));
@@ -866,7 +871,7 @@ Object.assign(actions, {
     // A new item takes that type's usual notifications (until you change them).
     const box = form.querySelector('.mc-alerts');
     const isNew = !mcAll().some((x) => x.id === form.dataset.id);
-    if (box && isNew && !box.dataset.touched) box.innerHTML = (MC_KIND_ALERTS[k] || mcAlDefault()).map(mcAlertRow).join('');
+    if (box && isNew && !box.dataset.touched) box.innerHTML = (MC_KIND_ALERTS[k] || mcAlDefault()).map((n) => mcAlertRow(n)).join('');
     if (k === 'birthday') { const r = form.querySelector('input[name="color"][value="#9a5b6e"]'); if (r) r.checked = true; }
     mcBdLabels(form);
   },

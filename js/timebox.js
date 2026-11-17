@@ -1155,13 +1155,11 @@ function renderPlanner() {
       ${mode === 'month' ? monthGridHTML(anchor) : timeGridHTML(dates, mode)}
       <aside class="tb-side"><div class="col-resizer tbside" data-resize="tbside" role="separator" aria-orientation="vertical" aria-label="Drag to resize Time Box Allocation" title="Drag to resize · double-click to reset"></div>
         <div class="tb-side-head"><h3>Time Box Allocation <span class="count">${queue.length}</span></h3>
-          ${queue.some(isScheduled) ? `<label class="mini tb-hide-alloc"><input type="checkbox" data-change="tbHideAlloc" ${S.settings.tbHideAlloc ? 'checked' : ''}> Hide allocated</label>` : ''}</div>
+</div>
         
         ${picked.length >= 2 ? `<button class="btn primary sm" data-act="tbCombine">Combine ${picked.length} into one time box</button>` : picked.length === 1 ? '' : ''}
         <div class="tb-queue" data-scroll="tb-queue">
-          ${queue.length ? `<p class="small muted tb-hint">Drag to set the order: 1 is most important. Your Top 3 become the day's 3 Most Important Outcomes when you give them a time. Drag an allocated task in again to give it another time box.</p>` : ''}
-          ${queue.filter((t) => !(S.settings.tbHideAlloc && isScheduled(t))).map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t), false, isScheduled(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
-          ${S.settings.tbHideAlloc && queue.some(isScheduled) ? `<p class="small muted">${queue.filter(isScheduled).length} allocated hidden.</p>` : ''}
+          ${queue.filter(() => true).map((t) => queueItemHTML(t, anchor, picked.includes(t.id), allocationNumber(t), false, isScheduled(t))).join('') || '<p class="muted small">Nothing waiting.</p>'}
           ${again.length ? `<h4 class="tb-sub tb-sub-row">Not finished <span class="count">${again.length}</span><button class="btn ghost xs" data-act="tbClearUnfinished">Clear all</button></h4><p class="small muted tb-hint">Booked but not ticked off. Drag one into the planner, or tap Add to Allocation to put it back on the list. For a workout you skipped, tap Rest. The earlier time box stays, and the time adds up.</p>${again.map((t) => queueItemHTML(t, anchor, false, 0, true)).join('')}` : ''}
           <button class="show-done" data-act="tbToggleOthers">${icon(ui.tbShowOthers ? 'chevD' : 'chevR', 12)} ${ui.tbShowOthers ? 'Hide' : 'Show'} my other open tasks</button>
           ${others.map((t) => queueItemHTML(t, anchor, false)).join('')}

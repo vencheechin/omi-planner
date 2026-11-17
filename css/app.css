@@ -2328,3 +2328,5 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-places { display: grid; gap: 8px; margin-bottom: 8px; }
 .mc-place { display: grid; grid-template-columns: 1fr 1.6fr 1.3fr auto; gap: 6px; align-items: center; }
 @media (max-width: 640px) { .mc-place { grid-template-columns: 1fr auto; } .mc-place input:nth-child(2), .mc-place input:nth-child(3) { grid-column: 1 / 2; } }
+
+.mc-gal > span small { font-weight: 400; }
