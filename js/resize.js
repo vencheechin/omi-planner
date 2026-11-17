@@ -74,6 +74,10 @@ function startNavDrag(y) {
   d.active = true;
   const r = d.it.getBoundingClientRect();
   d.offY = y - r.top;
+  d.offX = d.x - r.left;
+  // Phones: a main link can also go down onto the bottom bar, so it follows your finger both ways.
+  d.dock = d.kind === 'navkey' && innerWidth <= 760 && typeof dockHover === 'function';
+  if (d.dock) document.body.classList.add('dock-dragging');
   const ghost = d.it.cloneNode(true);
   ghost.classList.add('nav-ghost');
   ghost.removeAttribute('href');
@@ -98,6 +102,12 @@ document.addEventListener('pointermove', (e) => {
   }
   e.preventDefault();
   d.ghost.style.top = `${e.clientY - d.offY}px`;
+  if (d.dock) {
+    d.ghost.style.left = `${e.clientX - d.offX}px`;
+    d.overDock = dockHover(d.it.dataset.navkey, e.clientX, e.clientY);
+    d.ghost.classList.toggle('over-dock', d.overDock);
+    if (d.overDock) return;
+  }
   const box = d.it.parentElement;
   const others = [...box.querySelectorAll(`:scope > [data-${d.kind}]`)].filter((x) => x !== d.it);
   const before = others.find((x) => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
@@ -109,6 +119,19 @@ function endNavDrag(drop) {
   clearTimeout(d.hold);
   navDrag = null;
   if (!d.active) return;
+  document.body.classList.remove('dock-dragging');
+  if (d.dock && d.overDock && drop) {
+    // Dropped on the phone's bottom bar: add it there; the menu keeps its own order.
+    d.ghost.remove();
+    d.it.classList.remove('nav-placeholder');
+    document.body.classList.remove('col-resizing');
+    dockDrop();
+    const stop = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
+    document.addEventListener('click', stop, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 60);
+    return;
+  }
+  if (d.dock && typeof dockHoverClear === 'function') dockHoverClear();
   // Settle the lifted item into its gap, then save the new order.
   const to = d.it.getBoundingClientRect();
   d.ghost.style.transition = 'top .18s ease, box-shadow .18s ease, transform .18s ease';

@@ -161,6 +161,7 @@ const I18N_ZH = {
   'Quiet greys with a muted gold accent.': '安静的灰色，点缀柔和金色。', 'Bright and colourful: cobalt blue, emerald and tangerine.': '明亮多彩：钴蓝、翡翠绿和橘色。', 'Last backup: never': '上次备份：从未',
   'A folder on this computer works with any service that syncs it. OneDrive folders often hold back files that aren’t downloaded yet, so use the team server if sync stalls.': '本电脑上的文件夹可配合任何同步服务使用。OneDrive 文件夹常会保留尚未下载的文件，如果同步卡住，请使用团队服务器。',
   'Add label': '添加标签', 'Assign to Time Box': '分配到时间盒', 'Check List': '清单', 'Notify me when ticked': '勾选时通知我', 'Notifying me when ticked': '勾选时会通知我', 'Log': '记录',
+  'S-Team': 'S-Team', 'Notes': '笔记', 'Hold an item and drag it to the bottom bar': '按住一项，拖到底部栏即可添加',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

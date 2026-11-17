@@ -71,6 +71,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/notes.js` | Discussion Notes (`#/notes`): notes per person with points to discuss; tick when discussed, make a task for them (Delegate To) or for yourself. Shared with that person; stored as `dn:<id>` fields in the `meetings` record |
 | `js/progress.js` | Progress Meeting (`#/progress`): weeks × meeting-slot grid like the OMI meeting calendar; set up a repeating meeting with a department's DIC (every 2 weeks by default). Each is a Calendar event with `pm: deptId` |
 | `js/i18n.js` | App language (Settings › General › Language): English or 简体中文. A MutationObserver swaps screen text and placeholder/title/aria-label for Chinese from `I18N_ZH` (exact text) and `I18N_RX` (patterns); user content classes in `I18N_SKIP` are left alone. Add strings there to translate more |
+| `js/dock.js` | Phone bottom bar: up to 4 menu items plus Settings, saved in `S.settings.dock`. Hold a menu item and drag it onto the bar (hooks in resize.js's menu drag); hold a tab to reorder, drag it up to remove |
 | `js/remsound.js` | Reminder sound (Settings › Sounds): any task-complete sound or ringtone, played by `checkReminders` when a reminder fires (`S.settings.remSound`) |
 | `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/sttasks.js` | Every S-Team / PD Plan month entry gets its own Planner task (plan named after the S-Team Plan, bucket per brand, due month end, PIC assigned); progress syncs both ways; entries open their task |

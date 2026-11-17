@@ -367,6 +367,7 @@ function renderSidebar() {
   $('#sidebar').innerHTML = `
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
     <nav aria-label="Main">
+      <p class="dock-hint">Hold an item and drag it to the bottom bar</p>
       <div class="nav-main">${(() => {
         // The main links, in the order you dragged them into (new ones go at the end).
         const pdOn = stAdmin() || stPlans().some((x) => x.module === 'pd' && stCanSee(x));
