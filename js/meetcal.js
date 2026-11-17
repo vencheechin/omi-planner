@@ -35,8 +35,8 @@ function mcNorm(m) {
     mapUrl: /^https?:\/\/\S+$/i.test(String(m.mapUrl || '')) ? String(m.mapUrl).slice(0, 500) : '',
     geo: m.geo && Number.isFinite(Number(m.geo.lat)) && Number.isFinite(Number(m.geo.lon)) ? { lat: Number(m.geo.lat), lon: Number(m.geo.lon) } : null,
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
-    kind: MC_KINDS.some(([k]) => k === m.kind) ? m.kind : 'meeting',
-    ...(typeof m.block === 'boolean' ? { block: m.block } : {}),
+    kind: m.kind === 'birthday' || m.kind === 'reminder' ? m.kind : 'event',
+    ...(typeof m.block === 'boolean' ? { block: m.block } : (!m.kind || m.kind === 'meeting') ? { block: true } : {}),
     rep: MC_REPS.some(([v]) => v === m.rep) || m.rep === 'custom' ? m.rep : '',
     rc: m.rep === 'custom' ? mcNormRc(m.rc) : null,
     by: Number.isInteger(Number(m.by)) && Number(m.by) > 1900 && Number(m.by) < 2200 ? Number(m.by) : null,
@@ -547,6 +547,7 @@ function mcGuestAdd(box, k) {
   inp.value = '';
   mcGuestSuggest(box);
   inp.focus();
+  mcAutoBlock(box.closest('form'));
 }
 document.addEventListener('input', (e) => { if (e.target.matches?.('[data-mc-guest]')) mcGuestSuggest(e.target.closest('.mc-guests')); });
 document.addEventListener('keydown', (e) => {
@@ -561,7 +562,7 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('mousedown', (e) => { const o = e.target.closest?.('.mc-gopt'); if (o) { e.preventDefault(); mcGuestAdd(o.closest('.mc-guests'), o.dataset.k); } });
 document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-guest]')) setTimeout(() => { const s = e.target.closest('.mc-guests')?.querySelector('.mc-gsug'); if (s && !e.target.closest('.mc-guests').contains(document.activeElement)) s.hidden = true; }, 150); });
-Object.assign(actions, { mcGuestDel: (el) => el.closest('.mc-gchip').remove() });
+Object.assign(actions, { mcGuestDel: (el) => { const f = el.closest('form'); el.closest('.mc-gchip').remove(); mcAutoBlock(f); } });
 
 // ---------- The event's map link ----------
 const mcIsLink = (v) => /^https?:\/\/\S+$/i.test(String(v || '').trim());
@@ -831,14 +832,15 @@ Object.assign(submits, {
 // Meeting: blocks its time in your Time Box by default (Event can, if you tick it).
 // Birthday: a date that repeats every year, all day; optional year born shows the age.
 // Reminder: one time (no end), can repeat; notifies at the time by default.
-const MC_KINDS = [['event', 'Event', '📌'], ['meeting', 'Meeting', '👥'], ['birthday', 'Birthday', '🎂'], ['reminder', 'Reminder', '🔔']];
+const MC_KINDS = [['event', 'Event', '📌'], ['birthday', 'Birthday', '🎂'], ['reminder', 'Reminder', '🔔']];
 const MC_REPS = [['', 'Does not repeat'], ['daily', 'Every day'], ['weekdays', 'Every weekday (Mon–Fri)'], ['weekly', 'Every week'], ['monthly', 'Every month'], ['yearly', 'Every year']];
 const MC_TITLE_HINT = { event: 'Add title', meeting: 'Meeting title', birthday: 'Whose birthday? e.g. Ray', reminder: 'Remind me to…' };
 const MC_NOTE_HINT = { event: 'Notes', meeting: 'Agenda, documents', birthday: 'Gift ideas, how to celebrate', reminder: 'Details' };
 const MC_KIND_ALERTS = { birthday: [0, 10080], reminder: [0] };
-const mcKind = (m) => m?.kind || 'meeting';
+const mcKind = (m) => (m?.kind === 'birthday' || m?.kind === 'reminder' ? m.kind : 'event');
 const mcAllDay = (m) => mcKind(m) === 'birthday';
-const mcBlocks = (m) => (typeof m.block === 'boolean' ? m.block : mcKind(m) === 'meeting');
+const mcIsMeeting = (m) => (m.att || []).filter((k) => k !== m.org).length > 0 || !!m.link;
+const mcBlocks = (m) => (typeof m.block === 'boolean' ? m.block : mcIsMeeting(m));
 const mcIcon = (m) => ({ birthday: '🎂 ', reminder: '🔔 ', meeting: '', event: '' }[mcKind(m)] || '');
 function mcAge(m, onDate) { return m.by ? Number(onDate.slice(0, 4)) - m.by : null; }
 function mcAllDayText(m, d) {
@@ -878,7 +880,7 @@ Object.assign(actions, {
     const n = form.querySelector('[name="notes"]');
     if (n) n.placeholder = MC_NOTE_HINT[k];
     const blk = form.querySelector('[name="block"]');
-    if (blk && !blk.dataset.touched) blk.checked = k === 'meeting';
+    if (blk && !blk.dataset.touched) mcAutoBlock(form);
     // A new item takes that type's usual notifications (until you change them).
     const box = form.querySelector('.mc-alerts');
     const isNew = !mcAll().some((x) => x.id === form.dataset.id);
@@ -897,10 +899,10 @@ document.addEventListener('change', (e) => {
 function mcBusyOn(iso) {
   if (typeof mcPlan !== 'function' || !mcPlan()) return [];
   return mcAll().filter((m) => mcMine(m) && !mcAllDay(m) && mcKind(m) !== 'reminder' && mcBlocks(m)).map(mcLocal)
-    .flatMap((m) => mcOn([m], iso)).map((m) => ({ id: m.id, start: m.start, end: m.end, title: m.title || 'Meeting', color: m.color || MC_COLORS[0] }));
+    .flatMap((m) => mcOn([m], iso)).map((m) => ({ id: m.id, start: m.start, end: m.end, title: m.title || 'Event', color: m.color || MC_COLORS[0], meet: mcIsMeeting(m._o || m) }));
 }
 function mcBusyHTML(iso, y, ppm) {
-  return mcBusyOn(iso).map((b) => `<button class="tb-meet" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${Math.max(16, (b.end - b.start) * ppm - 2)}px;--ec:${b.color}" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><b>👥 ${esc(b.title)}</b><small>${esc(fmtTime(b.start))} – ${esc(fmtTime(b.end))}</small></button>`).join('');
+  return mcBusyOn(iso).map((b) => `<button class="tb-meet" data-act="mcOpenId" data-id="${esc(b.id)}" style="top:${y(b.start)}px;height:${Math.max(16, (b.end - b.start) * ppm - 2)}px;--ec:${b.color}" title="${esc(`${b.title}: ${fmtTime(b.start)}–${fmtTime(b.end)} (from your Calendar)`)}"><b>${b.meet ? '👥' : '📌'} ${esc(b.title)}</b><small>${esc(fmtTime(b.start))} – ${esc(fmtTime(b.end))}</small></button>`).join('');
 }
 Object.assign(actions, { mcOpenId: (el, e) => { e?.stopPropagation?.(); const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcOpen(m); } });
 
@@ -1027,3 +1029,13 @@ document.addEventListener('change', (e) => {
   if (!sel.matches?.('.mc-form [name="rep"]')) return;
   if (sel.value === 'custom') mcRcOpen(sel); else sel.dataset.prev = sel.value;
 });
+
+/** "Block this time" follows the event until you tick or untick it: on once it has guests or a video call link. */
+function mcAutoBlock(form) {
+  const blk = form?.querySelector('[name="block"]');
+  if (!blk || blk.dataset.touched || form.dataset.kind !== 'event') return;
+  const guests = form.querySelectorAll('.mc-guests input[name="att"]').length > 0;
+  const link = !!form.querySelector('[name="link"]')?.value.trim();
+  blk.checked = guests || link;
+}
+document.addEventListener('input', (e) => { if (e.target.matches?.('.mc-form [name="link"]')) mcAutoBlock(e.target.closest('form')); });

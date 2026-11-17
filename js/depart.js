@@ -47,7 +47,7 @@ async function depDrive(from, to) {
   return null;
 }
 const depDest = (m) => (m.geo ? Promise.resolve(m.geo) : depGeocode(m.loc));
-const depNeeds = (m) => m.loc && !mcIsLink(m.loc) && ['event', 'meeting'].includes(mcKind(m));
+const depNeeds = (m) => m.loc && !mcIsLink(m.loc) && mcKind(m) === 'event';
 const depDirections = (m) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(m.geo ? `${m.geo.lat},${m.geo.lon}` : m.loc)}&travelmode=driving`;
 
 /** In the event form: "About 25 min drive · leave by 1:05 pm". */
