@@ -150,7 +150,7 @@ async function timesUpPopup(t, end) {
     const head = `<p class="tu-title"><b>${esc(real.title || 'Untitled task')}</b><span class="muted"> · ${esc(fmtTime(box.slotStart))} – ${esc(fmtTime(stop))}</span></p>`;
     const choice = await choiceDlg(real.growBook ? 'Did you do your reading?' : ex ? 'Did you finish your exercise?' : 'Time’s up', `${head}${nextHTML}`, ex
       ? [{ v: 'yes', label: 'Yes, finished', primary: true }, { v: 'no', label: 'No' }, { v: 'more', label: '+5 min' }]
-      : [{ v: 'ok', label: next ? `OK, on to ${nextReal.title || 'the next one'}` : 'OK', primary: true }, { v: 'done', label: 'Mark done' }, { v: 'more', label: '+5 min' }]);
+      : [{ v: 'ok', label: next ? `OK, on to ${nextReal.title || 'the next one'}` : 'OK', primary: true }, { v: 'done', label: 'Task Completed' }, { v: 'more', label: '+5 min' }]);
     if (choice === 'more') extendBox(box);
     else if (choice === 'yes' || choice === 'done') {
       if (real.growBook) growSessionDone(real, durOf(box));
