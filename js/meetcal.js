@@ -151,7 +151,8 @@ function mcFormHTML(m) {
     <div class="mc-when"><input type="date" name="date" value="${esc(m.date)}" aria-label="Date" required>${wheelTimeHTML('start', m.start, 'Start')}<span>–</span>${wheelTimeHTML('end', m.end, 'End')}</div>
     <label class="pd-f mc-tzf"><span>Time zone</span>${tzSelectHTML('tz', m.tz || tzNow(), 'data-change="mcTzField"')}<small class="muted mc-tznote">${mcTzNote(m.date, m.start, m.tz || tzNow())}</small></label>
     <div class="pd-f"><span>Notifications</span><div class="mc-alerts">${mcAlertsFor(m).map(mcAlertRow).join('')}</div><button type="button" class="btn ghost xs mc-al-add" data-act="mcAlertAdd">${icon('plus', 12)} Add notification</button></div>
-    <label class="pd-f"><span>Attendees</span><div class="mc-people">${S.people.map((x) => `<label class="mc-person"><input type="checkbox" name="att" value="${esc(pkey(x.id))}" ${att.has(pkey(x.id)) || (pkey(x.id) === me) ? 'checked' : ''} ${pkey(x.id) === (m.org || me) ? 'disabled' : ''}>${avatar(x, 22)} ${esc(x.name)}${pkey(x.id) === (m.org || me) ? ' <small class="muted">(organiser)</small>' : ''}</label>`).join('')}</div></label>
+    <div class="pd-f mc-guests"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
+      <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <label class="pd-f"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Room or address" autocomplete="off"></label>
     <div class="mc-maps"><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="google">${icon('pin', 12)} Google Maps</button><button type="button" class="btn ghost xs" data-act="mcMap" data-svc="amap">${icon('pin', 12)} Amap 高德地图</button></div>
     <label class="pd-f"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
@@ -396,3 +397,61 @@ function mcCheckAlerts() {
 }
 setInterval(mcCheckAlerts, 30000);
 setTimeout(mcCheckAlerts, 4000);
+
+// ---------- Guests: type a name or email, pick the closest match ----------
+if (!ICON.guests) ICON.guests = 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.4c2.1.8 3.5 2.8 3.5 5.6';
+const mcGuestName = (k) => personByKey(k)?.name || (k.startsWith('e:') ? k.slice(2) : 'Guest');
+function mcGuestChip(k) {
+  const p = personByKey(k);
+  return `<span class="mc-gchip">${p ? avatar(p, 20) : `<span class="avatar" style="--s:20px;background:#6e7a8f">@</span>`}<span>${esc(mcGuestName(k))}</span><input type="hidden" name="att" value="${esc(k)}"><button type="button" class="chip-x" data-act="mcGuestDel" aria-label="Remove ${esc(mcGuestName(k))}">${icon('close', 11)}</button></span>`;
+}
+/** How close a person is to what was typed: start of a name word beats anywhere in it beats email; small typos still match. */
+function mcGuestScore(p, q) {
+  const name = String(p.name || '').toLowerCase();
+  const email = String(p.email || '').toLowerCase();
+  if (!q) return 1;
+  if (name.split(/\s+/).some((w) => w.startsWith(q))) return 100 - name.indexOf(q);
+  if (name.includes(q)) return 70;
+  if (email.startsWith(q)) return 60;
+  if (email.includes(q)) return 50;
+  // Typos: compare with each name word.
+  const dist = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; };
+  const best = Math.min(...name.split(/\s+/).map((w) => dist(q, w.slice(0, Math.max(q.length, 1)))));
+  return best <= Math.max(1, Math.floor(q.length / 3)) ? 40 - best * 10 : 0;
+}
+function mcGuestSuggest(box) {
+  const inp = box.querySelector('.mc-gq');
+  const sug = box.querySelector('.mc-gsug');
+  const q = inp.value.trim().toLowerCase();
+  const have = new Set([...box.querySelectorAll('input[name="att"]')].map((x) => x.value));
+  const org = pkey(S.meId);
+  if (!q) { sug.hidden = true; sug.innerHTML = ''; return; }
+  const list = S.people.filter((p) => !have.has(pkey(p.id)) && pkey(p.id) !== org).map((p) => [p, mcGuestScore(p, q)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([p]) => p);
+  const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q) && !S.people.some((p) => (p.email || '').toLowerCase() === q) ? q : '';
+  sug.innerHTML = list.map((p, i) => `<button type="button" class="mc-gopt ${i === 0 ? 'on' : ''}" data-k="${esc(pkey(p.id))}" role="option">${avatar(p, 22)}<span><b>${esc(p.name)}</b>${p.email ? `<small class="muted">${esc(p.email)}</small>` : ''}</span></button>`).join('')
+    + (email ? `<button type="button" class="mc-gopt ${list.length ? '' : 'on'}" data-k="e:${esc(email)}" role="option"><span class="avatar" style="--s:22px;background:#6e7a8f">@</span><span><b>Invite ${esc(email)}</b></span></button>` : '')
+    || '<p class="small muted mc-gnone">No one by that name. Type their email to invite them.</p>';
+  sug.hidden = false;
+}
+function mcGuestAdd(box, k) {
+  if (!k || box.querySelector(`input[name="att"][value="${CSS.escape(k)}"]`)) return;
+  box.querySelector('.mc-gchips').insertAdjacentHTML('beforeend', mcGuestChip(k));
+  const inp = box.querySelector('.mc-gq');
+  inp.value = '';
+  mcGuestSuggest(box);
+  inp.focus();
+}
+document.addEventListener('input', (e) => { if (e.target.matches?.('[data-mc-guest]')) mcGuestSuggest(e.target.closest('.mc-guests')); });
+document.addEventListener('keydown', (e) => {
+  if (!e.target.matches?.('[data-mc-guest]')) return;
+  const box = e.target.closest('.mc-guests');
+  const opts = [...box.querySelectorAll('.mc-gopt')];
+  const i = opts.findIndex((o) => o.classList.contains('on'));
+  if (e.key === 'Enter') { e.preventDefault(); if (opts[i]) mcGuestAdd(box, opts[i].dataset.k); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!opts.length) return; const j = (i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length; opts.forEach((o, n) => o.classList.toggle('on', n === j)); }
+  else if (e.key === 'Backspace' && !e.target.value) box.querySelector('.mc-gchip:last-child')?.remove();
+  else if (e.key === 'Escape') { box.querySelector('.mc-gsug').hidden = true; }
+});
+document.addEventListener('mousedown', (e) => { const o = e.target.closest?.('.mc-gopt'); if (o) { e.preventDefault(); mcGuestAdd(o.closest('.mc-guests'), o.dataset.k); } });
+document.addEventListener('focusout', (e) => { if (e.target.matches?.('[data-mc-guest]')) setTimeout(() => { const s = e.target.closest('.mc-guests')?.querySelector('.mc-gsug'); if (s && !e.target.closest('.mc-guests').contains(document.activeElement)) s.hidden = true; }, 150); });
+Object.assign(actions, { mcGuestDel: (el) => el.closest('.mc-gchip').remove() });

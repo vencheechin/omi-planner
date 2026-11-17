@@ -2251,3 +2251,17 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .tw-type { display: flex; align-items: center; gap: 6px; }
 .tw-type input { width: 58px; text-align: center; font-size: 17px; padding: 6px 4px; font-variant-numeric: tabular-nums; }
 .tw-type small { margin-left: 2px; }
+
+/* Calendar: Add guests */
+.mc-guests { position: relative; border-top: 1px solid var(--line); padding-top: 8px; }
+.mc-gin { display: flex; align-items: center; gap: 14px; color: var(--muted); }
+.mc-gin .mc-gq { flex: 1; border: 0; background: transparent; box-shadow: none; font-size: 1.05em; padding: 8px 0; color: var(--ink); }
+.mc-gin .mc-gq:focus { outline: 0; }
+.mc-gchips { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 32px; }
+.mc-gchips:empty { display: none; }
+.mc-gchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 4px; border-radius: 999px; background: var(--surface-2); font-size: .92em; }
+.mc-gsug { position: absolute; left: 28px; right: 0; top: 46px; z-index: 5; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-lg), 0 0 0 1px var(--line); padding: 4px; display: grid; max-height: 260px; overflow-y: auto; }
+.mc-gopt { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: 0; background: none; border-radius: 8px; text-align: left; color: var(--ink); font: inherit; cursor: pointer; }
+.mc-gopt span { display: grid; }
+.mc-gopt.on, .mc-gopt:hover { background: color-mix(in srgb, var(--highlight) 16%, transparent); }
+.mc-gnone { margin: 6px 8px; }
