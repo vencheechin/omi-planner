@@ -2613,3 +2613,21 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 /* Search box: one box. The outer box shows focus; the input inside has no box or ring of its own. */
 #topbar .search input, #topbar .search input:focus, #topbar .search input:focus-visible { outline: none; box-shadow: none; border: 0; background: none; -webkit-appearance: none; appearance: none; border-radius: 0; }
 #topbar .search:focus-within { outline: 2px solid var(--highlight); outline-offset: 0; }
+
+/* Schedule bar: Schedule / Week switch on the left; Week has ‹ › around its title */
+.mc-vseg { justify-self: start; }
+.mc-vseg button { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; padding: 5px 12px; }
+.mc-wnav { display: inline-flex; align-items: center; gap: 2px; justify-self: center; }
+.mc-wnav .mc-title { font-size: 18px; white-space: nowrap; }
+@media (max-width: 760px) {
+  .mc-vseg button { padding: 4px 9px; font-size: 12.5px; }
+  .mc-bar .mc-title-btn, .mc-wnav .mc-title { font-size: 17px; }
+  .mc-wnav .icon-btn { width: 28px; }
+}
+@media (max-width: 760px) {
+  .mc-bar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px; }
+  .mc-bar .mc-title-btn, .mc-wnav { min-width: 0; max-width: 100%; }
+  .mc-bar .mc-title-btn, .mc-wnav .mc-title { font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc-wnav .icon-btn { width: 24px; flex: none; }
+  .mc-bar-r .icon-btn { width: 34px; }
+}

@@ -77,8 +77,10 @@ const MC_DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MC_MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 // ---------- Views ----------
-// The calendar is Schedule only (Day, Week and Month were taken out); the older views' code stays unused.
-function mcState() { ui.mc = ui.mc || { date: todayISO() }; ui.mc.view = 'schedule'; return ui.mc; }
+// Two views: Schedule (the default) and Week, switched at the top left. Day and Month code stays unused.
+function mcState() { ui.mc = ui.mc || { date: todayISO() }; if (ui.mc.view !== 'week') ui.mc.view = 'schedule'; return ui.mc; }
+/** The bar's title; on a phone the month is shortened (Nov 2026) so it fits beside Schedule / Week. */
+const mcBarTitle = () => (innerWidth <= 760 ? mcTitle().replace(/^([A-Z][a-z]{2})[a-z]+/, '$1') : mcTitle());
 function mcTitle() {
   const s = mcState();
   const d = new Date(`${s.date}T12:00:00`);
@@ -144,11 +146,14 @@ function renderMeetCal() {
   const days = s.view === 'day' ? [s.date] : Array.from({ length: 7 }, (_, i) => mcAddDays(mcWeekStart(s.date), i));
   return `<div class="page mc-page">
     <header class="mc-top mc-bar">
-      <span></span>
-      <button class="mc-title mc-title-btn ${ui.mcMini ? 'open' : ''}" data-act="mcMiniToggle" aria-expanded="${!!ui.mcMini}" title="Show or hide the month">${esc(mcTitle())}${icon('chevD', 16)}</button>
+      <div class="seg mc-vseg" role="group" aria-label="View">${[['schedule', 'Schedule'], ['week', 'Week']].map(([v, l]) => `<button class="${s.view === v ? 'on' : ''}" data-act="mcView" data-v="${v}" aria-pressed="${s.view === v}">${l}</button>`).join('')}</div>
+      ${s.view === 'week'
+    ? `<span class="mc-wnav"><button class="icon-btn" data-act="mcStep" data-d="-1" aria-label="Previous week">${icon('chevL')}</button><b class="mc-title">${esc(mcBarTitle())}</b><button class="icon-btn" data-act="mcStep" data-d="1" aria-label="Next week">${icon('chevR')}</button></span>`
+    : `<button class="mc-title mc-title-btn ${ui.mcMini ? 'open' : ''}" data-act="mcMiniToggle" aria-expanded="${!!ui.mcMini}" title="Show or hide the month">${esc(mcBarTitle())}${icon('chevD', 16)}</button>`}
       <span class="mc-bar-r"><button class="icon-btn mc-todaybtn" data-act="mcToday" aria-label="Today" title="Today"><span class="mc-tday">${Number(todayISO().slice(8))}</span></button><button class="icon-btn mc-set" data-act="mcSettings" aria-label="Schedule settings" title="Time zone, calendars and holidays">${icon('gear', 20)}</button></span>
     </header>
     ${s.view === 'schedule' ? mcSchedHTML() : s.view === 'month' ? mcMonthHTML() : mcGridHTML(days)}
+    ${mcFabHTML()}
   </div>`;
 }
 
@@ -199,7 +204,7 @@ function mcTzNote(date, start, tz) {
 }
 
 Object.assign(actions, {
-  mcView: (el) => { mcState().view = el.dataset.v; render(); if (el.dataset.v === 'schedule') mcSchScrollTo(todayISO()); },
+  mcView: (el) => { const s = mcState(); s.view = el.dataset.v; if (s.view === 'week') s.date = s.date.slice(0, 7) === todayISO().slice(0, 7) ? todayISO() : s.date; render(); if (s.view === 'week') mcScrollToNow(); },
   mcToday: () => { mcState().date = todayISO(); render(); if (mcState().view !== 'schedule') mcScrollToNow(); },
   mcStep: (el) => { const s = mcState(); const n = Number(el.dataset.d); if (s.view === 'month' || s.view === 'schedule') { const d = new Date(`${s.date.slice(0, 7)}-01T12:00:00`); d.setMonth(d.getMonth() + n); s.date = d.toISOString().slice(0, 10); } else s.date = mcAddDays(s.date, n * (s.view === 'day' ? 1 : 7)); render(); },
   mcGoDay: (el) => { const s = mcState(); s.date = el.dataset.d; s.view = 'day'; render(); },
@@ -1148,9 +1153,7 @@ function mcSchedHTML() {
   }
   const list = groups.map((g) => (g.head ? `<h3 class="sc-mhead">${esc(MC_MON[Number(g.ym.slice(5)) - 1])} ${g.ym.slice(0, 4)}</h3>` : g.html)).join('')
     || '<p class="muted sc-none">Nothing planned. Tap <b>Create</b> to add something.</p>';
-  // A round add button at the bottom right; tap it for Reminder, Birthday or Event (like Google Calendar).
-  const fab = `<div class="mc-fab ${ui.mcFab ? 'open' : ''}"><div class="mc-fab-dim" data-act="mcFab"></div><div class="mc-fab-menu">${[['reminder', 'Reminder', 'bell'], ['birthday', 'Birthday', 'cake'], ['event', 'Event', 'cal']].map(([k, l, ic]) => `<button class="mc-fab-it" data-act="mcFabNew" data-k="${k}">${icon(ic, 18)}<span>${l}</span></button>`).join('')}</div><button class="mc-fab-btn" data-act="mcFab" aria-label="Add" aria-expanded="${!!ui.mcFab}">${icon('plus', 26)}</button></div>`;
-  return `<div class="sc-wrap">${mini}${ui.mcMini ? chips : ''}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>${fab}`;
+  return `<div class="sc-wrap">${mini}${ui.mcMini ? chips : ''}<div class="sc-list">${list}<button class="btn ghost sm sc-more" data-act="mcSchMore">Show later months</button></div></div>`;
 }
 /** Dark or light text, whichever reads better on the item's colour. */
 const mcInk = (c) => (typeof inkOn === 'function' && /^#[0-9a-f]{6}$/i.test(c) ? inkOn(c) : '#fff');
@@ -1344,3 +1347,8 @@ renderSearch = function renderSearchWithSchedule() {
 Object.assign(actions, {
   mcSearchOpen: (el) => { const m = mcAll().find((x) => x.id === el.dataset.id); if (m) mcPeek(m, el.dataset.d); },
 });
+
+/** A round add button at the bottom right; tap it for Reminder, Birthday or Event (like Google Calendar). */
+function mcFabHTML() {
+  return `<div class="mc-fab ${ui.mcFab ? 'open' : ''}"><div class="mc-fab-dim" data-act="mcFab"></div><div class="mc-fab-menu">${[['reminder', 'Reminder', 'bell'], ['birthday', 'Birthday', 'cake'], ['event', 'Event', 'cal']].map(([k, l, ic]) => `<button class="mc-fab-it" data-act="mcFabNew" data-k="${k}">${icon(ic, 18)}<span>${l}</span></button>`).join('')}</div><button class="mc-fab-btn" data-act="mcFab" aria-label="Add" aria-expanded="${!!ui.mcFab}">${icon('plus', 26)}</button></div>`;
+}
