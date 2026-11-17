@@ -1119,7 +1119,7 @@ function mcSchedHTML() {
     return `<span class="sc-dots">${cols.slice(0, 3).map((c) => `<i style="background:${esc(c)}"></i>`).join('')}${cols.length > 3 ? '<b>+</b>' : ''}</span>`;
   };
   // The small month stays folded away until you tap the month name at the top.
-  const mini = !ui.mcMini ? '' : `<div class="sc-mini"><div class="sc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
+  const mini = !ui.mcMini ? '' : `<div class="sc-mini ${ui.mcSlide > 0 ? 'sc-in-r' : ui.mcSlide < 0 ? 'sc-in-l' : ''}"><div class="sc-mh">${MC_DAY.map((d) => `<span>${d}</span>`).join('')}</div>
     <div class="sc-mg">${cells.slice(0, rows * 7).map((d) => d.slice(0, 7) !== ym ? '<span></span>'
       : `<button class="sc-d ${d === today ? 'today' : ''} ${d === s.date ? 'sel' : ''}" data-act="mcSchDay" data-d="${d}"><span class="sc-n">${Number(d.slice(8))}</span>${dots(d)}</button>`).join('')}</div></div>`;
   // Month buttons: this month and the next eleven, with the year where it changes.
@@ -1188,4 +1188,32 @@ async function mcFabTask() {
   const t = addTask({ planId: p.id, bucketId: p.buckets[0].id, title, assignees: [S.meId], due: mcState().date });
   commit();
   openTask(t.id);
+}
+
+// Swipe the small month: left for the next month, right for the previous one (like the iPhone Calendar).
+{
+  let sw = null;
+  document.addEventListener('pointerdown', (e) => {
+    const box = e.target.closest?.('.sc-mini');
+    sw = box && e.isPrimary ? { x: e.clientX, y: e.clientY, t: Date.now() } : null;
+  });
+  document.addEventListener('pointerup', (e) => {
+    const d = sw; sw = null;
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - d.t > 800) return;
+    const n = dx < 0 ? 1 : -1;
+    const s = mcState();
+    const m = new Date(`${s.date.slice(0, 7)}-01T12:00:00`);
+    m.setMonth(m.getMonth() + n);
+    s.date = m.toISOString().slice(0, 10);
+    ui.mcSlide = n;
+    render();
+    ui.mcSlide = 0;
+    // The swipe shouldn't also pick the day it started on.
+    const stop = (ev) => { ev.preventDefault(); ev.stopPropagation(); };
+    document.addEventListener('click', stop, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 60);
+  });
+  document.addEventListener('pointercancel', () => { sw = null; });
 }

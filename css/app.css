@@ -2547,3 +2547,11 @@ body.pd-dragging, body.pd-dragging * { cursor: grabbing !important; }
 .mc-h1row { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; }
 .mc-h1row h1 { flex: 1; }
 .mc-set { margin-left: auto; }
+
+/* Calendar › Schedule: swipe the small month to change month */
+.sc-mini { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.sc-mini.sc-in-r { animation: sc-in-r .22s ease-out; }
+.sc-mini.sc-in-l { animation: sc-in-l .22s ease-out; }
+@keyframes sc-in-r { from { transform: translateX(28px); opacity: .4; } }
+@keyframes sc-in-l { from { transform: translateX(-28px); opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .sc-mini { animation: none !important; } }
