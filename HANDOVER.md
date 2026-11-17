@@ -66,6 +66,7 @@ for f in js/*.js sw.js; do node --check "$f"; done
 | `js/rest.js` | Rest: Time Box › Not finished › Rest logs a skipped workout as rest (`fit().log` act `rest`); Fitness shows rest days, rests taken and the interval between sessions per activity |
 | `js/ownsound.js` | Your own sound for Time's up and Task complete: a file kept in IndexedDB (`planner-sounds`, this device) or a link (Dropbox / Drive share links made direct). Tone id `own` |
 | `js/photo.js` | Profile photo: Settings › People › tap your picture. Square 160px JPEG data URL in `person.photo` (synced via PERSON_FIELDS / team file); `avatar()` shows it |
+| `js/depart.js` | Time to leave: drive time (OSRM) from this device's location or a saved place to an event's place (Photon geocode), buffer from Settings › Calendar, Pan Pan pop-up and notification |
 | `js/remsound.js` | Reminder sound (Settings › Sounds): any task-complete sound or ringtone, played by `checkReminders` when a reminder fires (`S.settings.remSound`) |
 | `js/pdplan.js` | PD Plan: S-Team table for product development, per-person View/Suggest/Edit access, suggested edits, Excel download. |
 | `js/sttasks.js` | Every S-Team / PD Plan month entry gets its own Planner task (plan named after the S-Team Plan, bucket per brand, due month end, PIC assigned); progress syncs both ways; entries open their task |

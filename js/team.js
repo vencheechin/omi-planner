@@ -365,7 +365,7 @@ function notify(n) {
   S.inbox = S.inbox.slice(0, 200);
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      const sys = new Notification('Planner', { body: n.note ? `${n.text}: ${n.note}` : n.text, tag: n.id });
+      const sys = new Notification('Planner', { body: n.note ? `${n.text}: ${n.note}` : n.text, tag: n.id, icon: 'icons/panpan/panpan.png' });
       sys.onclick = () => { window.focus(); openNotice(n.id); };
     }
   } catch { /* the in-app bell still shows it */ }

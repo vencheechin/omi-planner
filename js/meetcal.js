@@ -33,6 +33,7 @@ function mcNorm(m) {
     al: mcNormAl(m.al),
     gal: [...new Set((Array.isArray(m.gal) ? m.gal : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 86400))].sort((a, b) => a - b).slice(0, 8),
     mapUrl: /^https?:\/\/\S+$/i.test(String(m.mapUrl || '')) ? String(m.mapUrl).slice(0, 500) : '',
+    geo: m.geo && Number.isFinite(Number(m.geo.lat)) && Number.isFinite(Number(m.geo.lon)) ? { lat: Number(m.geo.lat), lon: Number(m.geo.lon) } : null,
     cal: typeof m.cal === 'string' ? m.cal.slice(0, 40) : '',
     kind: MC_KINDS.some(([k]) => k === m.kind) ? m.kind : 'meeting',
     ...(typeof m.block === 'boolean' ? { block: m.block } : {}),
@@ -171,7 +172,8 @@ function mcFormHTML(m) {
     <div class="pd-f mc-guests mc-k-ev"><div class="mc-gin">${icon('guests', 18)}<input class="mc-gq" placeholder="Add guests" autocomplete="off" aria-label="Add guests: type a name or email" data-mc-guest></div>
       <div class="mc-gchips">${m.att.filter((k) => k !== (m.org || me)).map(mcGuestChip).join('')}</div><div class="mc-gsug" role="listbox" hidden></div></div>
     <div class="pd-f mc-k-ev mc-locf"><span>Location</span><input name="loc" value="${esc(m.loc)}" placeholder="Search an address, or pick a saved place" autocomplete="off" data-mc-loc><div class="mc-locsug" role="listbox" hidden></div></div>
-    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><div class="mc-maps mc-k-ev"><a class="mc-maplink" href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener" ${m.loc ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.mapUrl, m.loc))}</span></a><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this place for next time">⭐ Save place</button></div>
+    <input type="hidden" name="mapUrl" value="${esc(m.mapUrl || '')}"><input type="hidden" name="geo" value="${m.geo ? `${m.geo.lat},${m.geo.lon}` : ''}"><div class="mc-maps mc-k-ev"><a class="mc-maplink" href="${esc(mcMapUrl(m.mapUrl, m.loc))}" target="_blank" rel="noopener" ${m.loc ? '' : 'hidden'}>${icon('pin', 13)} <span>${esc(mcMapText(m.mapUrl, m.loc))}</span></a><button type="button" class="btn ghost xs" data-act="mcPlaceSave" title="Save this place for next time">⭐ Save place</button></div>
+    <p class="mc-travel mc-k-ev small" hidden></p>
 
     <label class="pd-f mc-k-ev"><span>Video call link</span><input name="link" type="url" value="${esc(m.link)}" placeholder="https://teams.microsoft.com/…" autocomplete="off"></label>
     ${m.link ? `<a class="btn ghost sm mc-join" href="${esc(m.link)}" target="_blank" rel="noopener">${icon('send', 13)} Join call</a>` : ''}
@@ -224,7 +226,7 @@ Object.assign(submits, {
     let end = mcMin(data.get('end'));
     if (end !== null && start !== null && end <= start) end = Math.min(1440, start + 30);
     const org = old?.org || pkey(S.meId);
-    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? mcGalSave(data.getAll('gal').map(Number)) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
+    const m = mcNorm({ ...(old || {}), id: form.dataset.id, title: String(data.get('title') || '').trim(), date: data.get('date'), start, end, org, att: [...new Set([org, ...data.getAll('att')])], tz: data.get('tz') || tzNow(), mapUrl: data.get('mapUrl') || '', geo: (() => { const [lat, lon] = String(data.get('geo') || '').split(',').map(Number); return Number.isFinite(lat) && Number.isFinite(lon) && data.get('geo') ? { lat, lon } : null; })(), cal: data.get('cal') || '', kind: data.get('kind') || 'event', block: data.get('block') === '1', rep: data.get('kind') === 'birthday' ? 'yearly' : data.get('kind') === 'reminder' ? (data.get('rep') || '') : '', by: data.get('kind') === 'birthday' ? data.get('by') : null, files: (() => { try { return JSON.parse(data.get('files') || '[]'); } catch { return []; } })(), al: { ...(old?.al || {}), [pkey(S.meId)]: mcAlertSave(data.getAll('al')) }, gal: (!old || old.org === pkey(S.meId)) ? mcGalSave(data.getAll('gal').map(Number)) : (old.gal || []), loc: data.get('loc'), link: data.get('link'), notes: data.get('notes'), color: data.get('color'), at: Date.now() });
     if (!m) { toast('Pick a date.'); return; }
     if (old) Object.assign(old, m); else mcAll().push(m);
     mcDirty();
@@ -597,8 +599,8 @@ function mcPhotonText(f) {
 function mcLocShow(box, saved, found, q) {
   const sug = box.querySelector('.mc-locsug');
   const rows = [
-    ...saved.map((p) => `<button type="button" class="mc-gopt" data-loc="${esc(mcPlaceText(p))}" data-url="${esc(p.url || '')}">⭐ <span><b>${esc(p.name || p.addr)}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`),
-    ...found.map((t) => `<button type="button" class="mc-gopt" data-loc="${esc(t)}" data-url="">📍 <span>${esc(t)}</span></button>`),
+    ...saved.map((p) => `<button type="button" class="mc-gopt" data-loc="${esc(mcPlaceText(p))}" data-url="${esc(p.url || '')}" data-geo="${p.lat != null ? `${p.lat},${p.lon}` : ''}">⭐ <span><b>${esc(p.name || p.addr)}</b>${p.name && p.addr ? `<small class="muted">${esc(p.addr)}</small>` : ''}</span></button>`),
+    ...found.map(({ t, geo }) => `<button type="button" class="mc-gopt" data-loc="${esc(t)}" data-url="" data-geo="${esc(geo)}">📍 <span>${esc(t)}</span></button>`),
   ];
   if (!rows.length && !q) { sug.hidden = true; return; }
   sug.innerHTML = (rows.join('') || '<p class="small muted mc-gnone">Searching…</p>') + `<button type="button" class="mc-gopt mc-locmanual" data-loc="${esc(q)}" data-url="">✏️ <span>Use “${esc(q)}” as typed</span></button>`;
@@ -620,7 +622,8 @@ function mcLocSearch(inp) {
       const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en${near}`);
       const j = await r.json();
       if (seq !== mcLocSeq) return;
-      const found = [...new Set((j.features || []).map(mcPhotonText).filter(Boolean))].slice(0, 5);
+      const seen = new Set();
+      const found = (j.features || []).map((f) => ({ t: mcPhotonText(f), geo: f.geometry?.coordinates ? `${f.geometry.coordinates[1]},${f.geometry.coordinates[0]}` : '' })).filter((x) => x.t && !seen.has(x.t) && seen.add(x.t)).slice(0, 5);
       mcLocShow(box, saved, found, q);
     } catch { /* offline or blocked: saved places still work */ }
   }, 300);
@@ -629,6 +632,7 @@ document.addEventListener('input', (e) => {
   if (!e.target.matches?.('[data-mc-loc]')) return;
   const form = e.target.closest('form');
   form.querySelector('[name="mapUrl"]').value = '';
+  form.querySelector('[name="geo"]').value = '';
   mcMapRefresh(form);
   mcLocSearch(e.target);
 });
@@ -640,6 +644,8 @@ document.addEventListener('mousedown', (e) => {
   const form = o.closest('form');
   form.querySelector('[name="loc"]').value = o.dataset.loc;
   form.querySelector('[name="mapUrl"]').value = o.dataset.url || '';
+  form.querySelector('[name="geo"]').value = o.dataset.geo || '';
+  if (typeof departPreview === 'function') departPreview(form);
   o.closest('.mc-locsug').hidden = true;
   mcMapRefresh(form);
 });
@@ -666,7 +672,8 @@ Object.assign(actions, {
     const name = await promptDlg('Save this place', 'Name (e.g. Office, Central kitchen)', '', 'Save');
     if (name === null || name === undefined) return;
     const url = form.querySelector('[name="mapUrl"]').value || (mcIsLink(addr) ? addr : '');
-    S.settings.places = [...mcPlaces().filter((p) => p.addr !== addr), { id: uid(), name: String(name).trim().slice(0, 60), addr: mcIsLink(addr) ? '' : addr, url }];
+    const [lat, lon] = String(form.querySelector('[name="geo"]').value || '').split(',').map(Number);
+    S.settings.places = [...mcPlaces().filter((p) => p.addr !== addr), { id: uid(), name: String(name).trim().slice(0, 60), addr: mcIsLink(addr) ? '' : addr, url, ...(Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : {}) }];
     commit();
     toast(`Saved “${String(name).trim() || addr}”.`, { keep: true });
   },

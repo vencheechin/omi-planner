@@ -389,7 +389,7 @@ const SETTINGS_TABS = [
   ['general', 'General', ['Planner', 'Appearance', 'Font', 'Colour Style', 'Pop-up messages']],
   ['timebox', 'Time Box', ['Time boxing']],
   ['ringtone', 'Sounds', ["Time's up alert", 'Task complete sound', 'Reminder sound']],
-  ['calendar', 'Calendar', ['Default notifications', 'Saved places']],
+  ['calendar', 'Calendar', ['Default notifications', 'Saved places', 'Time to leave']],
   ['people', 'People', ['People', 'Reporting Lines', 'Admin']],
   ['messages', 'Messages', ['Messages and Language']],
   ['sync', 'Sync & Data', ['Cloud sync', 'Team sync', 'Shared folder', 'Import from Microsoft Planner', 'Backup', 'Reset']],
@@ -413,6 +413,7 @@ function settingsHTML() {
   <section class="set-sec"><h3>Task complete sound</h3>${doneSoundHTML()}</section>
   <section class="set-sec"><h3>Default notifications</h3>${typeof mcAlDefaultsHTML === 'function' ? mcAlDefaultsHTML() : ''}</section>
   <section class="set-sec"><h3>Saved places</h3>${typeof mcPlacesHTML === 'function' ? mcPlacesHTML() : ''}</section>
+  <section class="set-sec"><h3>Time to leave</h3>${typeof departSettingsHTML === 'function' ? departSettingsHTML() : ''}</section>
   <section class="set-sec"><h3>Reminder sound</h3>${typeof remSoundHTML === 'function' ? remSoundHTML() : ''}</section>
   <section class="set-sec"><h3>Time boxing</h3>${timeboxSettingsHTML()}</section>
   <section class="set-sec"><h3>People</h3>
