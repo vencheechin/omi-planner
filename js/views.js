@@ -370,7 +370,7 @@ function renderSidebar() {
       <div class="nav-main">${(() => {
         // The main links, in the order you dragged them into (new ones go at the end).
         const pdOn = stAdmin() || stPlans().some((x) => x.module === 'pd' && stCanSee(x));
-        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Master Plan', 'flag')]] : []), ['hub', link('hub', myPlannerLabel(), 'home', dueSoonCount())], ['yearly', link('yearly', 'Yearly Planner', 'cal')], ['meet', link('meet', 'Calendar', 'meet')],
+        const items = [['halfplan', link('halfplan', 'S-Team Plan', 'table')], ...(pdOn ? [['pdplan', link('pdplan', 'PD Master Plan', 'flag')]] : []), ['hub', link('hub', myPlannerLabel(), 'home', dueSoonCount())], ['yearly', link('yearly', 'Yearly Planner', 'cal')], ['meet', link('meet', 'Calendar', 'meet')], ['notes', link('notes', 'Discussion Notes', 'note')],
           ['timebox', link('timebox', 'Time Box', 'clock', timeboxQueue().length)], ['report', link('report', 'Assignments', 'chart', toCheck)],
           ['fitness', link('fitness', 'Fitness', 'pulse')], ['growth', link('growth', 'Growth', 'book', typeof recsForMe === 'function' ? recsForMe().length : 0)],
           ...(stAdmin() ? [['admin', link('admin', 'Admin Portal', 'shield')]] : [])];
@@ -858,5 +858,6 @@ function renderMain() {
   if (r.view === 'halfplan' || r.view === 'pdplan') return renderBrandPlan();
   if (r.view === 'yearly') return renderYearly();
   if (r.view === 'meet') return renderMeetCal();
+  if (r.view === 'notes') return renderNotes();
   return renderHub();
 }

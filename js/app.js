@@ -2443,7 +2443,7 @@ function route() {
   Usage.track(`page:${a || 'hub'}`);
   ui.route = a === 'plan' && b ? { view: 'plan', id: b } : a === 'person' && b ? { view: 'person', id: b } : a === 'decisions' ? { view: 'req', kind: 'decision', dir: '', id: b ? decodeURIComponent(b) : '' }
     : a === 'req' && REQ_KINDS[b] ? { view: 'req', kind: b, dir: ['from', 'to'].includes(c) ? c : '', id: d ? decodeURIComponent(d) : '' }
-    : a === 'check' ? { view: 'check', dir: b === 'sent' ? 'sent' : 'me' } : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : a === 'growth' ? { view: 'growth' } : ['report', 'timebox', 'halfplan', 'pdplan', 'yearly', 'meet'].includes(a) ? { view: a } : { view: 'hub' };
+    : a === 'check' ? { view: 'check', dir: b === 'sent' ? 'sent' : 'me' } : a === 'from' && b ? { view: 'from', id: decodeURIComponent(b) } : a === 'history' ? { view: 'history' } : a === 'admin' ? { view: 'admin' } : a === 'fitness' ? { view: 'fitness' } : a === 'growth' ? { view: 'growth' } : ['report', 'timebox', 'halfplan', 'pdplan', 'yearly', 'meet', 'notes'].includes(a) ? { view: a } : { view: 'hub' };
   // Planner opens your own planner straight away (other plans are in the sidebar).
   const own = ownPlanner();
   if (ui.route.view === 'hub' && !query && own) {

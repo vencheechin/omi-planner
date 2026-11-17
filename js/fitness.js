@@ -305,7 +305,8 @@ async function restPopup(type) {
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
     try { new Notification(`${art} Time for a ${f.breaks.min}-minute rest`, { body: `${line} ${idea}.`, tag: 'rest' }); } catch { /* not supported */ }
   }
-  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-pan"><img src="icons/panpan/${pid}.png" alt="${esc(pname)}" width="${pid === 'panpan' ? 120 : 96}"><div class="rest-bubble"><b>${esc(pname)}</b> <span class="muted">“${esc(ptag)}”</span><span class="rest-art-sm" aria-hidden="true">${art}</span></div></div><p class="rest-line">${esc(line)}</p><p class="rest-idea">${esc(idea)}. <span class="muted">${esc(f.breaks.every)} minutes of focus done.</span></p><div class="rest-culture"><small>OMI Culture · ${esc(cul[0])}</small><p>${esc(cul[1])}</p><em>Creating a Happier Life for Everyone We Touch</em></div>`,
+  // Kept simple: Mini Pan Pan and one culture line.
+  const v = await choiceDlg(`Time for a ${f.breaks.min}-minute rest`, `<div class="rest-simple"><img src="icons/panpan/${pid}.png" alt="${esc(pname)}" width="${pid === 'panpan' ? 130 : 110}"><p class="rest-quote">${esc(cul[1])}</p></div>`,
     [{ v: 'done', label: 'Rest now', primary: true }, { v: 'snooze', label: 'In 5 min' }, { v: 'skip', label: 'Skip' }]);
   ui.fitNudgeOpen = false;
   if (v === 'done') fitLogBreak(type);
