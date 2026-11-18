@@ -439,3 +439,26 @@ document.addEventListener('dblclick', (e) => {
     document.addEventListener('touchmove', (e) => { const t = e.touches[0]; if (t) hover(t); }, { passive: true });
   });
 })();
+
+// ---------- Phone: press and hold the plan's name to rename it ----------
+(function holdToRename() {
+  let timer = null;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  async function rename() {
+    const inp = document.querySelector('#main .plan-head input.plan-title[data-id]');
+    const p = inp && planById(inp.dataset.id);
+    if (!p) return;
+    navigator.vibrate?.(15);
+    const name = String(await promptDlg('Rename plan', 'Plan name', p.name, 'Rename') || '').trim();
+    if (!name || name === p.name) return;
+    p.name = name;
+    commit();
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest?.('#topbar .top-name')) return;
+    cancel();
+    timer = setTimeout(() => { timer = null; rename(); }, 500);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => document.addEventListener(t, cancel));
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('#topbar .top-name')) e.preventDefault(); });
+})();

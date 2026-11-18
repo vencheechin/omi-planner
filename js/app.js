@@ -138,16 +138,20 @@ async function createPlan() {
   Store.save();
   location.hash = `#/plan/${plan.id}`;
 }
-function duplicatePlan(plan) {
+async function duplicatePlan(plan) {
+  // Ask for the copy's name; the copy is pinned so it shows in the side menu.
+  const name = String(await promptDlg('Copy plan', 'Name of the copy', `Copy of ${plan.name}`, 'Copy plan') || '').trim();
+  if (!name) return;
   const bucketMap = new Map(plan.buckets.map((b) => [b.id, uid()]));
   const copy = {
-    ...JSON.parse(JSON.stringify(plan)), id: uid(), name: `Copy of ${plan.name}`, pinned: false, personal: false, lastOpened: Date.now(), created: Date.now(),
+    ...JSON.parse(JSON.stringify(plan)), id: uid(), name, pinned: true, personal: false, lastOpened: Date.now(), created: Date.now(),
     buckets: plan.buckets.map((b) => ({ id: bucketMap.get(b.id), name: b.name })),
   };
   S.plans.push(copy);
   tasksOf(plan.id).forEach((t) => S.tasks.push(copyTask(t, { planId: copy.id, bucketId: bucketMap.get(t.bucketId), progress: t.progress, completedAt: t.completedAt })));
   Store.save();
   location.hash = `#/plan/${copy.id}`;
+  toast(`“${name}” is pinned in the side menu.`);
 }
 function planMenu(anchor) {
   const plan = currentPlan();

@@ -2846,3 +2846,6 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .bucket-drop .bd-item.here span::after { content: ' · now'; font-weight: 400; font-size: 13px; }
 .bucket-drop .bd-item.on { border-color: var(--highlight); background: color-mix(in srgb, var(--highlight) 22%, var(--surface-2)); transform: scale(1.02); }
 .bucket-drop .bd-item[data-locked] { opacity: .45; }
+
+/* Phone: the plan name in the top bar can be held to rename it */
+#topbar .top-name { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: default; }
