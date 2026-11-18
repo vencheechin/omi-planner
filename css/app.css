@@ -2776,3 +2776,15 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   .board .card-tb, .board .card-more { width: 26px; height: 26px; }
   .bj-chip { font-size: clamp(13px, calc(13px * var(--scale) * var(--type)), 15px); padding: 5px 11px; }
 }
+
+/* Phone: rows span the screen like a phone to-do list; a card with only a name on it sits on one line */
+@media (max-width: 760px) {
+  .board { padding-left: 6px; padding-right: 6px; scroll-padding: 0 6px; }
+  .bj-bar { padding-left: 6px; padding-right: 6px; }
+  .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) { flex-direction: row; align-items: center; gap: 8px; }
+  .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) .card-title { flex: 1; min-width: 0; padding-right: 0; }
+  .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) > footer { flex: none; min-height: 0; margin-right: 58px; }
+  .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) > footer > .card-meta { display: none; }
+  .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) .card-tb,
+  .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) .card-more { top: 50%; transform: translateY(-50%); }
+}
