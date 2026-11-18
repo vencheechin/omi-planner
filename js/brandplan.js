@@ -113,6 +113,7 @@ function normalizeOrg(o) {
     depts: (Array.isArray(o.depts) ? o.depts : []).filter((d) => d && d.id).map((d) => ({ id: String(d.id), name: String(d.name || 'Department'), dic: d.dic || null, members: Array.isArray(d.members) ? d.members.filter((x) => typeof x === 'string') : [] })),
     admins: Array.isArray(o.admins) ? o.admins.filter((x) => typeof x === 'string') : [],
     owner: typeof o.owner === 'string' ? o.owner : '',
+    until: o.until && typeof o.until === 'object' ? Object.fromEntries(Object.entries(o.until).filter(([k, v]) => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v))) : {},
     hide: o.hide && typeof o.hide === 'object' ? Object.fromEntries(Object.entries(o.hide).filter(([k, v]) => typeof k === 'string' && Array.isArray(v)).map(([k, v]) => [k, v.filter((x) => typeof x === 'string').slice(0, 40)])) : {},
     roles: o.roles && typeof o.roles === 'object' ? Object.fromEntries(Object.entries(o.roles).filter(([k, v]) => typeof k === 'string' && ['manager', 'staff'].includes(v))) : {},
     reportsTo: o.reportsTo && typeof o.reportsTo === 'object' ? Object.fromEntries(Object.entries(o.reportsTo).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')) : {},
@@ -420,7 +421,7 @@ function stFields(p) {
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
-const orgRecord = () => ({ depts: org().depts, admins: org().admins, roles: org().roles || {}, owner: org().owner || '', hide: org().hide || {}, reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null, stView: org().stView || {} });
+const orgRecord = () => ({ depts: org().depts, admins: org().admins, roles: org().roles || {}, owner: org().owner || '', hide: org().hide || {}, until: org().until || {}, reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null, stView: org().stView || {} });
 const orgWire = () => ({ ...orgRecord(), _v: clone(org()._v || {}) });
 function applyOrg(d) {
   if (!d || typeof d !== 'object') return false;
@@ -428,7 +429,7 @@ function applyOrg(d) {
   o._v = o._v || {};
   const sh = (S.sync.shadow.org = S.sync.shadow.org || {});
   let changed = false;
-  for (const f of ['depts', 'admins', 'roles', 'owner', 'hide', 'reportsTo', 'stages', 'quotes', 'stView']) {
+  for (const f of ['depts', 'admins', 'roles', 'owner', 'hide', 'until', 'reportsTo', 'stages', 'quotes', 'stView']) {
     const rv = d._v?.[f];
     if (!rv || !newer(rv, o._v[f])) continue;
     o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : f === 'quotes' ? (typeof normalizeQuotes === 'function' ? normalizeQuotes(d.quotes) : null) : f === 'stView' ? normStView(d.stView) : normalizeOrg({ [f]: d[f] })[f];

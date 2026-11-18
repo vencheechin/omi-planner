@@ -176,6 +176,7 @@ const I18N_ZH = {
   'Roles': '角色', 'Role': '角色', 'Manager': '经理', 'Staff': '员工',
   'Module Access': '模块权限',
   'Add a requirement': '添加一项要求', 'No requirements yet.': '暂无要求。',
+  'Apply to all': '全部应用', 'Ends': '结束', 'Ended': '已结束', 'End date for everyone': '所有人的结束日期', 'Clear all end dates': '清除所有结束日期',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

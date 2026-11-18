@@ -335,19 +335,27 @@ const APP_MODS = [['timebox', 'Time Box', 'clock'], ['notes', 'Discussion Notes'
 function modOn(key, id = S.meId) {
   if (!APP_MODS.some(([k]) => k === key)) return true;
   if (typeof roleOf !== 'function' || roleOf(id) === 'admin') return true;
+  if (modEnded(id)) return false;
   return !((org().hide || {})[pkey(id)] || []).includes(key);
 }
+/** Access to the modules ends after this day (optional); their own Planner stays. */
+const modUntil = (id) => (org().until || {})[pkey(id)] || '';
+const modEnded = (id) => !!modUntil(id) && todayISO() > modUntil(id);
 function modAccessHTML() {
   const people = adminPeople();
   const rows = people.map((p) => {
     const admin = roleOf(p.id) === 'admin';
     return `<tr><th><span class="org-node">${avatar(p, 24)}<span>${esc(p.name)}<small class="muted"> · ${orgOwner(p.id) ? 'Owner' : OC_ROLES[roleOf(p.id)][0]}</small></span></span></th>
-      ${APP_MODS.map(([k, l]) => `<td class="ma-c">${admin ? `<span class="ma-all" title="Admins see everything">${icon('check', 14)}</span>` : `<input type="checkbox" data-change="modSet" data-p="${esc(pkey(p.id))}" data-m="${k}" ${modOn(k, p.id) ? 'checked' : ''} aria-label="${esc(`${p.name}: ${l}`)}">`}</td>`).join('')}
-      <td class="ma-c">${admin ? '' : `<button class="btn ghost sm" data-act="modAll" data-p="${esc(pkey(p.id))}">All</button>`}</td></tr>`;
+      ${APP_MODS.map(([k, l]) => `<td class="ma-c">${admin ? `<span class="ma-all" title="Admins see everything">${icon('check', 14)}</span>` : `<input type="checkbox" data-change="modSet" data-p="${esc(pkey(p.id))}" data-m="${k}" ${((org().hide || {})[pkey(p.id)] || []).includes(k) ? '' : 'checked'} aria-label="${esc(`${p.name}: ${l}`)}">`}</td>`).join('')}
+      <td class="ma-c">${admin ? '' : `<button class="btn ghost sm" data-act="modAll" data-p="${esc(pkey(p.id))}">All</button>`}</td>
+      <td class="ma-end">${admin ? '<span class="muted small">—</span>' : `<input type="date" value="${esc(modUntil(p.id))}" data-change="modUntil" data-p="${esc(pkey(p.id))}" aria-label="${esc(`${p.name}: access ends`)}">${modEnded(p.id) ? '<small class="ma-ended">Ended</small>' : ''}`}</td></tr>`;
   }).join('');
   return `<section class="dr-hub"><h2>Module Access</h2>
-    <p class="small muted">Tick the modules each person can see. Unticked modules disappear from their sidebar, bottom bar and search. Admins always see everything, and everyone keeps their own Planner.</p>
-    <div class="table-wrap ma-wrap"><table class="adm-table ma-table"><thead><tr><th>Person</th>${APP_MODS.map(([, l, ic]) => `<th class="ma-h"><span>${icon(ic, 16)}<b>${esc(l)}</b></span></th>`).join('')}<th></th></tr></thead>
+    <p class="small muted">Tick the modules each person can see. Unticked modules disappear from their sidebar, bottom bar and search. Admins always see everything, and everyone keeps their own Planner.
+      An end date is optional: after that day the person keeps only their own Planner.</p>
+    <form class="ma-bulk" data-submit="modUntilAll"><label class="mini">End date for everyone <input type="date" name="d" aria-label="End date for everyone"></label>
+      <button class="btn primary sm">Apply to all</button><button type="button" class="btn ghost sm" data-act="modUntilClear">Clear all end dates</button></form>
+    <div class="table-wrap ma-wrap"><table class="adm-table ma-table"><thead><tr><th>Person</th>${APP_MODS.map(([, l, ic]) => `<th class="ma-h"><span>${icon(ic, 16)}<b>${esc(l)}</b></span></th>`).join('')}<th></th><th>Ends</th></tr></thead>
     <tbody>${rows}</tbody></table></div></section>`;
 }
 addEventListener('DOMContentLoaded', () => {
@@ -362,7 +370,35 @@ addEventListener('DOMContentLoaded', () => {
       commit();
     },
   });
+  Object.assign(submits, {
+    modUntilAll: (form, data) => {
+      if (!stAdmin()) return;
+      const d = String(data.get('d') || '');
+      if (!d) { toast('Pick a date first.', { error: true }); return; }
+      const until = { ...(org().until || {}) };
+      const who = adminPeople().filter((p) => roleOf(p.id) !== 'admin');
+      who.forEach((p) => { until[pkey(p.id)] = d; });
+      org().until = until;
+      commit();
+      toast(`End date set for ${who.length} ${who.length === 1 ? 'person' : 'people'}.`);
+    },
+  });
+  Object.assign(changes, {
+    modUntil: (el) => {
+      if (!stAdmin()) return;
+      const until = { ...(org().until || {}) };
+      if (el.value) until[el.dataset.p] = el.value; else delete until[el.dataset.p];
+      org().until = until;
+      commit();
+    },
+  });
   Object.assign(actions, {
+    modUntilClear: async () => {
+      if (!stAdmin() || !Object.keys(org().until || {}).length) return;
+      if (!await confirmDlg('Clear all end dates?', 'Everyone keeps their modules with no end date.', 'Clear')) return;
+      org().until = {};
+      commit();
+    },
     modAll: (el) => { if (!stAdmin()) return; const hide = { ...(org().hide || {}) }; delete hide[el.dataset.p]; org().hide = hide; commit(); },
   });
   // Sidebar (and so the bottom bar): leave out hidden modules.

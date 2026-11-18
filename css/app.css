@@ -2719,3 +2719,10 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 /* Task Requirement as a checklist */
 .req-list .req-text { display: block; padding: 4px 0; overflow-wrap: anywhere; }
 .req-list + .inline-add { margin-top: 2px; }
+
+/* Module Access: end dates */
+.ma-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.ma-bulk input[type=date] { margin-left: 6px; }
+.ma-table td.ma-end { white-space: nowrap; }
+.ma-table td.ma-end input { width: auto; }
+.ma-ended { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: color-mix(in srgb, var(--mc-pub, #c0607a) 30%, transparent); }
