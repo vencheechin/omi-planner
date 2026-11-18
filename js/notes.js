@@ -110,7 +110,7 @@ Object.assign(actions, {
     const forThem = el.dataset.for === 'them';
     const themId = personByKey(dnOther(n))?.id;
     if (forThem && (!themId || !canDelegateTo(themId))) { toast(themId ? `${dnName(dnOther(n))} doesn’t report to you. Admin sets who reports to whom.` : 'Choose who the note is with first.', { error: true }); return; }
-    const t = addTask({ planId: plan.id, bucketId: plan.buckets[0].id, title: i.text || n.title || 'From discussion', notes: `From discussion note “${n.title || 'Untitled'}” with ${dnName(dnOther(n))}`, assignees: [forThem ? themId : S.meId] });
+    const t = addTask({ planId: plan.id, bucketId: plan.buckets[0].id, title: i.text || n.title || 'From discussion', assignees: [forThem ? themId : S.meId] });
     // Taken on from someone else's note: it's theirs to check, so it shows in their Delegate To.
     if (!forThem && n.owner !== pkey(S.meId)) { const owner = personByKey(n.owner); if (owner) { t.assignedBy = owner.id; t.assignedAt = Date.now(); t.shared = true; } }
     i.task = t.id;

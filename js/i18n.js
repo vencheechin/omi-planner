@@ -174,6 +174,7 @@ const I18N_ZH = {
   'Org Chart': '组织架构图', 'Not in the chart yet': '尚未加入架构图', 'Remove person?': '移除此人？',
   'Your profile': '我的资料', 'People in the Admin Portal': '在管理后台管理人员',
   'Roles': '角色', 'Role': '角色', 'Manager': '经理', 'Staff': '员工',
+  'Module Access': '模块权限',
   'Go to month': '前往月份', 'Go to this month': '前往本月', 'Edit this month': '编辑本月', 'Pan Pan': '盼盼',
 };
 

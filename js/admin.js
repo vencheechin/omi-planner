@@ -1,7 +1,7 @@
 /* Admin Portal: reporting lines, admins and departments, and a dashboard of how work is going.
    Only admins see it. The numbers come from what has synced to this device. */
 
-const ADMIN_TABS = [['dash', 'Dashboard'], ['org', 'Org Chart'], ['stages', 'Stages'], ['usage', 'Button Usage']];
+const ADMIN_TABS = [['dash', 'Dashboard'], ['org', 'Org Chart'], ['mods', 'Module Access'], ['stages', 'Stages'], ['usage', 'Button Usage']];
 const ADMIN_PERIODS = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['all', 'All time']];
 
 /** One entry per real person (the same email is the same person). */
@@ -17,7 +17,7 @@ function renderAdmin() {
   return `<div class="page admin-page">
     <header class="page-head"><h1>Admin Portal</h1></header>
     <div class="dr-tools"><div class="seg">${ADMIN_TABS.map(([v, l]) => `<button class="${tab === v ? 'on' : ''}" data-act="adminTab" data-v="${v}">${l}</button>`).join('')}</div></div>
-    ${tab === 'usage' ? `<section class="dr-hub"><h2>Button Usage</h2><p class="small muted">Which buttons and pages get used, and suggestions for tidying the app.</p><div class="row"><button class="btn primary sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>` : tab === 'org' ? orgChartHTML() : tab === 'stages' ? stagesAdminHTML() : tab === 'culture' && typeof cultureAdminHTML === 'function' ? cultureAdminHTML() : tab === 'stview' ? stViewAdminHTML() : tab === 'team' ? `<section class="dr-hub">${adminSettingsHTML()}</section>` : adminDashHTML()}
+    ${tab === 'usage' ? `<section class="dr-hub"><h2>Button Usage</h2><p class="small muted">Which buttons and pages get used, and suggestions for tidying the app.</p><div class="row"><button class="btn primary sm" data-act="openUsage">${icon('chart', 14)} Usage and suggestions</button></div></section>` : tab === 'org' ? orgChartHTML() : tab === 'mods' ? modAccessHTML() : tab === 'stages' ? stagesAdminHTML() : tab === 'culture' && typeof cultureAdminHTML === 'function' ? cultureAdminHTML() : tab === 'stview' ? stViewAdminHTML() : tab === 'team' ? `<section class="dr-hub">${adminSettingsHTML()}</section>` : adminDashHTML()}
   </div>`;
 }
 
@@ -323,4 +323,67 @@ addEventListener('DOMContentLoaded', () => {
       toast(form.dataset.id ? 'Saved.' : `${name} added to the chart.`);
     },
   });
+});
+
+// ---------- Module Access ----------
+// Admins choose, for each Manager and Staff, which modules they see. Admins always see everything,
+// and everyone keeps their own Planner. A hidden module leaves the sidebar, the bottom bar and search.
+const APP_MODS = [['timebox', 'Time Box', 'clock'], ['notes', 'Discussion Notes', 'note'], ['meet', 'Schedule', 'meet'], ['yearly', 'Yearly Planner', 'cal'],
+  ['halfplan', 'S-Team Plan', 'table'], ['pdplan', 'PD Master Plan', 'flag'], ['report', 'Assignments', 'chart'], ['growth', 'Growth', 'book'],
+  ['fitness', 'Fitness', 'pulse'], ['progress', 'Progress Meeting', 'pulse']];
+/** Can this person (you, by default) see this module? */
+function modOn(key, id = S.meId) {
+  if (!APP_MODS.some(([k]) => k === key)) return true;
+  if (typeof roleOf !== 'function' || roleOf(id) === 'admin') return true;
+  return !((org().hide || {})[pkey(id)] || []).includes(key);
+}
+function modAccessHTML() {
+  const people = adminPeople();
+  const rows = people.map((p) => {
+    const admin = roleOf(p.id) === 'admin';
+    return `<tr><th><span class="org-node">${avatar(p, 24)}<span>${esc(p.name)}<small class="muted"> · ${orgOwner(p.id) ? 'Owner' : OC_ROLES[roleOf(p.id)][0]}</small></span></span></th>
+      ${APP_MODS.map(([k, l]) => `<td class="ma-c">${admin ? `<span class="ma-all" title="Admins see everything">${icon('check', 14)}</span>` : `<input type="checkbox" data-change="modSet" data-p="${esc(pkey(p.id))}" data-m="${k}" ${modOn(k, p.id) ? 'checked' : ''} aria-label="${esc(`${p.name}: ${l}`)}">`}</td>`).join('')}
+      <td class="ma-c">${admin ? '' : `<button class="btn ghost sm" data-act="modAll" data-p="${esc(pkey(p.id))}">All</button>`}</td></tr>`;
+  }).join('');
+  return `<section class="dr-hub"><h2>Module Access</h2>
+    <p class="small muted">Tick the modules each person can see. Unticked modules disappear from their sidebar, bottom bar and search. Admins always see everything, and everyone keeps their own Planner.</p>
+    <div class="table-wrap ma-wrap"><table class="adm-table ma-table"><thead><tr><th>Person</th>${APP_MODS.map(([, l, ic]) => `<th class="ma-h"><span>${icon(ic, 16)}<b>${esc(l)}</b></span></th>`).join('')}<th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div></section>`;
+}
+addEventListener('DOMContentLoaded', () => {
+  Object.assign(changes, {
+    modSet: (el) => {
+      if (!stAdmin()) return;
+      const hide = { ...(org().hide || {}) };
+      const cur = new Set(hide[el.dataset.p] || []);
+      if (el.checked) cur.delete(el.dataset.m); else cur.add(el.dataset.m);
+      if (cur.size) hide[el.dataset.p] = [...cur]; else delete hide[el.dataset.p];
+      org().hide = hide;
+      commit();
+    },
+  });
+  Object.assign(actions, {
+    modAll: (el) => { if (!stAdmin()) return; const hide = { ...(org().hide || {}) }; delete hide[el.dataset.p]; org().hide = hide; commit(); },
+  });
+  // Sidebar (and so the bottom bar): leave out hidden modules.
+  const side = renderSidebar;
+  renderSidebar = function renderSidebarWithAccess(...a) {
+    const out = side.apply(this, a);
+    let gone = false;
+    $$('#sidebar .nav-main [data-navkey]').forEach((n) => { if (!modOn(n.dataset.navkey)) { n.remove(); gone = true; } });
+    if (gone && typeof renderTabbar === 'function') renderTabbar();
+    return out;
+  };
+  // Opening a hidden module by link shows a short note instead.
+  const main = renderMain;
+  renderMain = function renderMainWithAccess(...a) {
+    const v = ui.route?.view;
+    if (v && !modOn(v)) return `<div class="page"><header class="page-head"><h1>${esc((APP_MODS.find(([k]) => k === v) || [, 'This module'])[1])}</h1></header><p class="muted">This module isn’t turned on for you. An admin can turn it on in the Admin Portal › Module Access.</p></div>`;
+    return main.apply(this, a);
+  };
+  // Search: leave out pages that are hidden.
+  if (typeof fnCatalog === 'function') {
+    const cat = fnCatalog;
+    fnCatalog = function fnCatalogWithAccess(...a) { return cat.apply(this, a).filter((e) => !(typeof e.go === 'string' && !modOn(e.go.replace(/^#\//, '').split('/')[0]))); };
+  }
 });

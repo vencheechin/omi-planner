@@ -2705,3 +2705,13 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .oc-can li, .oc-cant li { display: grid; grid-template-columns: 16px 1fr; gap: 7px; align-items: start; }
 .oc-can svg { color: var(--mc-sch, #5f8f5f); margin-top: 2px; }
 .oc-cant svg { color: var(--mc-pub, #c0607a); margin-top: 2px; }
+
+/* Admin Portal: Module Access */
+.ma-wrap { overflow-x: auto; }
+.ma-table th.ma-h { vertical-align: bottom; text-align: center; min-width: 74px; }
+.ma-table th.ma-h span { display: grid; justify-items: center; gap: 4px; font-size: 12px; line-height: 1.2; }
+.ma-table th.ma-h b { font-weight: 600; }
+.ma-table td.ma-c { text-align: center; }
+.ma-table input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--highlight); }
+.ma-all { color: var(--muted); }
+.ma-table tbody th { white-space: nowrap; }
