@@ -2826,3 +2826,8 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .nav-foot { justify-content: space-between; align-items: center; }
 .nav-gear { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 12px; background: none; border: 0; color: var(--ink-2); font: inherit; font-weight: 600; cursor: pointer; }
 .nav-gear:hover { background: var(--hover); color: var(--ink); }
+
+/* Search boxes in pickers (people, labels): one box, not a field inside a box */
+.label-search input, .label-search input:focus, .label-search input:focus-visible { outline: none; box-shadow: none; border: 0; background: none; -webkit-appearance: none; appearance: none; border-radius: 0; min-width: 0; }
+.label-search { background: var(--surface-2); border-color: transparent; border-radius: 10px; }
+.label-search:focus-within { outline: 2px solid var(--highlight); outline-offset: 0; }
