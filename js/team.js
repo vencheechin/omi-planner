@@ -10,7 +10,7 @@
 
 const TASK_FIELDS = ['planId', 'bucketId', 'title', 'notes', 'progress', 'priority', 'start', 'due', 'repeat', 'assignees', 'labels',
   'checklist', 'attachments', 'order', 'preview', 'created', 'completedAt', 'assignedBy', 'assignedAt', 'review', 'prevBucketId',
-  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval', 'bookRec', 'reviewResult', 'reqs'];
+  'estimate', 'workType', 'health', 'healthNote', 'decision', 'urgency', 'checkAlerts', 'decisionReq', 'subBy', 'changeReq', 'approvalReq', 'approval', 'bookRec', 'reviewResult', 'reqs', 'informed'];
 const LIST_FIELDS = ['comments', 'history'];
 const PLAN_FIELDS = ['name', 'color', 'labels', 'buckets', 'members', 'created', 'owner', 'labelOrder', 'labelColors'];
 const FILE_APP = 'planner-team';
@@ -42,6 +42,7 @@ const EVENT_TEXT = {
   approvalReq: (e) => `sent an approval request to ${nameOf(e.to)}`,
   bookRec: (e) => `recommended a book to ${nameOf(e.to)}`,
   approvalDone: (e) => `${e.value === 'approved' ? 'approved' : 'rejected'} the approval request`,
+  informed: (e) => `let ${nameOf(e.to)} know`,
   changeReq: (e) => `asked ${nameOf(e.to)} to change ${e.text}`, changeOk: () => 'approved the change', changeNo: () => 'declined the change',
 };
 const nameOf = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
@@ -107,7 +108,8 @@ function onCompleted(t) {
 
 // ---------- Person plans ----------
 const personPlanById = (id) => S.personPlans.find((p) => p.id === id);
-const personPlanTasks = (pp) => S.tasks.filter((t) => t.assignees.includes(pp.personId) && (t.assignedBy === S.meId || t.subBy?.[pp.personId] === S.meId));
+// Also tasks someone else gave this person and told you about (you're their manager).
+const personPlanTasks = (pp) => S.tasks.filter((t) => t.assignees.includes(pp.personId) && (t.assignedBy === S.meId || t.subBy?.[pp.personId] === S.meId || (t.informed || []).some(isMeId)));
 function ensurePersonPlan(personId) {
   if (personId === S.meId || S.personPlans.some((p) => p.personId === personId)) return null;
   const who = person(personId);
@@ -144,6 +146,8 @@ function trackChanges() {
     sy.seenAssignees[t.id] = [...t.assignees];
   }
 
+  // Told about a task given to someone in your team: it shows under Delegate To › that person.
+  S.tasks.forEach((t) => { if ((t.informed || []).some(isMeId)) t.assignees.forEach((a) => { if (!isMeId(a)) { const pp = ensurePersonPlan(a); if (pp) created.push(pp); } }); });
   const shared = S.tasks.filter((t) => t.shared);
   const sharedPlanIds = new Set(shared.map((t) => t.planId));
   S.plans.forEach((p) => {
@@ -208,15 +212,15 @@ function mergePeople(data) {
     if (!local && p.id === owner.id && typeof p.style === 'string') { const added = person(p.id); if (added) added.style = p.style; }
   }
 }
-/** May this device keep a teammate's task? Yes in your own plans, when you're on the task, or when it belongs to
-    someone below you in the Org Chart (a manager sees their team's work, not the other way round). */
+/** May this device keep a teammate's task? Yes in your own plans, when you're on the task (or were told about it),
+    or when it belongs to someone below you in the Org Chart (a manager sees their team's work, not the other way round). */
 function teamTaskVisible(t) {
   if (typeof hierarchyOn !== 'function' || !hierarchyOn()) return true;
   const owner = planById(t.planId)?.owner;
   if (!owner || isMeId(owner)) return true;
-  const ids = [...(t.assignees || []), t.assignedBy, ...(t.history || []).flatMap((e) => [e.by, e.to]), ...(t.comments || []).map((c) => c.author)].filter(Boolean);
+  const ids = [...(t.assignees || []), ...(t.informed || []), t.assignedBy, ...(t.history || []).flatMap((e) => [e.by, e.to]), ...(t.comments || []).map((c) => c.author)].filter(Boolean);
   if (ids.some(isMeId)) return true;
-  return isAbove(S.meId, owner) || (t.assignees || []).some((a) => isAbove(S.meId, a));
+  return isAbove(S.meId, owner);
 }
 function mergeRecord(kind, r, notices) {
   const list = kind === 'plan' ? S.plans : S.tasks;
@@ -293,6 +297,7 @@ function newEvents(t, known) {
     const who = person(e.by)?.name || 'A teammate';
     if (e.type === 'submitted' && reviewerOf(t) === S.meId) out.push({ kind: 'review', text: `${who} submitted “${t.title}” for checking`, note: e.note });
     else if (e.type === 'assigned' && e.to === S.meId) out.push({ kind: 'assigned', text: `${who} assigned you “${t.title}”` });
+    else if (e.type === 'informed' && isMeId(e.to)) out.push({ kind: 'assigned', text: `${who} gave ${t.assignees.map((a) => person(a)?.name).filter(Boolean).join(', ') || 'your team'} “${t.title}”`, note: 'For your information: it’s under Delegate To.' });
     else if (e.type === 'returned' && t.assignees.includes(S.meId)) out.push({ kind: 'returned', text: `${who} sent back “${t.title}”`, note: e.note });
     else if (e.type === 'completed' && t.assignees.includes(S.meId)) out.push({ kind: 'completed', text: `${who} approved “${t.title}”` });
     else if (e.type === 'decision' && e.to === S.meId && t.decisionReq?.status === 'pending') out.push({ kind: 'review', text: `${who} sent you a decision request: “${t.title}”` });
@@ -821,14 +826,16 @@ function workflowHTML(t) {
   if (t.assignedBy && t.assignees.some((a) => a !== t.assignedBy)) {
     lines.push(`<span class="muted small">Delegated by ${esc(nameOf(t.assignedBy))}${t.assignedAt ? ` on ${esc(fmtDateTime(t.assignedAt))}` : ''}</span>`);
   }
+  const onIt = t.assignees.some(isMeId);
+  if (!onIt && (t.informed || []).some(isMeId)) lines.push(`<span class="muted small">${esc(nameOf(t.assignedBy))} let you know about this. You can follow it and comment; ${esc(doerNames(t))} does the work.</span>`);
   let action = '';
   if (t.review && isReviewer(t)) {
     action = `<div class="review-box"><p><b>${esc(person(t.review.by)?.name || 'A teammate')}</b> submitted this for checking on ${esc(fmtDateTime(t.review.at))}.</p>
       <div class="row"><button class="btn primary sm" data-act="approveTask" data-id="${esc(t.id)}">${icon('check', 14)} Approve and complete</button><button class="btn ghost sm" data-act="sendBack" data-id="${esc(t.id)}">Send back</button></div></div>`;
-  } else if (t.review) {
+  } else if (t.review && onIt) {
     action = `<div class="review-box"><p>Waiting for <b>${esc(nameOf(reviewer))}</b> to check. Submitted ${esc(fmtDateTime(t.review.at))}.</p>
       <div class="row"><button class="btn ghost sm" data-act="withdrawReview" data-id="${esc(t.id)}">Withdraw</button></div></div>`;
-  } else if (needsReview(t) && !isDone(t)) {
+  } else if (needsReview(t) && !isDone(t) && onIt) {
     action = `<div class="review-box">
       <div class="row"><button class="btn primary sm" data-act="submitReview" data-id="${esc(t.id)}">Submit for checking</button></div></div>`;
   }
@@ -856,7 +863,7 @@ function renderPersonPlan(pp) {
     <header class="plan-head">
       ${avatar(who, 36)}
       <input class="plan-title" value="${esc(pp.name)}" data-change="personPlanName" data-id="${esc(pp.id)}" aria-label="Plan name">
-      <span class="muted small">Tasks you assigned to ${esc(who?.name || 'this person')}</span>
+      <span class="muted small">Tasks you assigned to ${esc(who?.name || 'this person')}, and tasks others gave them and told you about</span>
       <div class="spacer"></div>
       <a class="btn ghost sm" href="#/report?person=${esc(pp.personId)}">Report</a>
       <button class="icon-btn" data-act="personPlanMenu" data-id="${esc(pp.id)}" aria-label="Plan options">${icon('more')}</button>
@@ -935,4 +942,29 @@ function reportCSV() {
   const head = ['Task', 'Plan', 'Assigned by', 'Assigned to', 'Assigned on', 'Submitted for review', 'Completed on', 'Days to complete', 'Due date', 'Status', 'Late', 'Traffic light', 'Recovery plan / support needed'];
   const rows = filteredReport().map((r) => [r.t.title, planById(r.t.planId)?.name, person(r.by)?.name, person(r.to)?.name, dt(r.assignedAt), dt(r.submittedAt), dt(r.completedAt), r.days ?? '', r.t.due || '', STATUS_LABEL[r.status], r.late ? 'Yes' : 'No', healthText(r.t.health), r.t.healthNote || '']);
   return '﻿' + [head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n');
+}
+
+// ---------- Skipping a level: let their manager know ----------
+// Giving a task to someone who reports to another person (Ven → Albus, who reports to Ray) asks whether to tell Ray.
+// If yes, Ray gets a notification and the task shows in his planner under Delegate To › Albus.
+const setDelegateBase = setDelegate;
+setDelegate = function setDelegateAndAsk(t, id, on) {
+  const was = t.assignees.includes(id);
+  const ok = setDelegateBase(t, id, on);
+  if (ok && on && !was) setTimeout(() => askInformManager(t, id), 0);
+  return ok;
+};
+async function askInformManager(t, id) {
+  if (typeof managerOf !== 'function') return;
+  const mk = managerOf(id);
+  const m = mk && personByKey(mk);
+  const who = person(id);
+  if (!m || !who || isMeId(m.id) || isMeId(mk)) return;
+  if ((t.informed || []).some((x) => pkey(x) === mk) || pkey(t.assignedBy || '') === mk || t.assignees.some((a) => pkey(a) === mk)) return;
+  if (!await confirmDlg(`Let ${m.name} know?`, `${who.name} reports to ${m.name}. ${m.name} will get a notification and see this task in their planner under Delegate To › ${who.name}.`, `Let ${m.name} know`, false)) return;
+  t.informed = [...new Set([...(t.informed || []), m.id])];
+  t.shared = true;
+  addEvent(t, 'informed', { to: m.id });
+  commit();
+  toast(`${m.name} will see “${t.title || 'this task'}”.`);
 }

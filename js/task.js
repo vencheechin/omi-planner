@@ -547,7 +547,8 @@ function ckHeading(t) {
 function reqListHTML(t) {
   const reqs = t.reqs || [];
   const name = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
-  const canAdd = !delegatedToMe(t);
+  // Requirements come from whoever gave the task (or the plan's owner), not from people only told about it.
+  const canAdd = !delegatedToMe(t) && !(othersPlan(planById(t.planId)) && !isMeId(t.assignedBy));
   return `<ul class="checklist req-list">${reqs.map((r) => `<li class="ck-item ${r.done ? 'done' : ''}">
       <button class="check small ${r.done ? 'on' : ''}" data-act="reqToggle" data-id="${esc(r.id)}" aria-label="${r.done ? 'Uncheck' : 'Check'} requirement">${icon('check', 10)}</button>
       <div class="ck-main">${r.by === S.meId ? `<input value="${esc(r.text)}" data-input="reqText" data-id="${esc(r.id)}" aria-label="Requirement">` : `<span class="req-text">${esc(r.text)}</span>`}
