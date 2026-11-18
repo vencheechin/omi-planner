@@ -554,7 +554,7 @@ function cardPreview(t) {
   if (mode === 'checklist' && t.checklist.length && false) { // checklist items no longer shown on cards
     return `<ul class="card-check">${t.checklist.filter((c) => !c.done).slice(0, 4).map((c) => `<li><button class="check small" data-act="cardCheck" data-task="${esc(t.id)}" data-item="${esc(c.id)}" aria-label="Complete ${esc(c.text)}"></button><span>${esc(c.text)}</span></li>`).join('')}</ul>`;
   }
-  if (mode === 'notes' && t.notes) return `<p class="card-notes">${esc(t.notes)}</p>`;
+  // Task details are no longer shown on cards; open the task to read them.
   return '';
 }
 function cardHTML(t, { showPlan } = {}) {
