@@ -363,6 +363,8 @@ document.addEventListener('dblclick', (e) => {
     const u = document.getElementById('undoBtn');
     const r = document.getElementById('redoBtn');
     const items = [];
+    const unread = typeof unreadCount === 'function' ? unreadCount() : 0;
+    const notif = typeof inboxHTML === 'function' ? { label: unread ? `Notifications (${unread > 99 ? '99+' : unread})` : 'Notifications', icon: 'bell', run: () => openPop(btn, inboxHTML) } : null;
     if (u) items.push({ label: 'Undo', icon: 'undo', run: () => actions.undo() });
     if (r) items.push({ label: 'Redo', icon: 'redo', run: () => actions.redo() });
     if (st && st.textContent.trim()) {
@@ -378,12 +380,14 @@ document.addEventListener('dblclick', (e) => {
       try { planMenu(btn); } catch (err) { console.error(err); } finally { openMenu = real; }
       if (planItems && planItems.length) items.unshift(...planItems, '-');
     }
+    if (notif) items.unshift(notif, '-');
     openMenu(btn, items);
   }
   function mark() {
     const st = document.getElementById('status');
     const b = document.getElementById('topMoreBtn');
     if (b && st) b.classList.toggle('warn', /\berror\b/.test(st.className));
+    if (b) b.classList.toggle('unread', typeof unreadCount === 'function' && unreadCount() > 0);
   }
   (function add() {
     const bar = document.getElementById('topbar');
@@ -396,6 +400,7 @@ document.addEventListener('dblclick', (e) => {
     const st = document.getElementById('status');
     if (st) new MutationObserver(mark).observe(st, { attributes: true, attributeFilter: ['class'] });
     mark();
+    setInterval(mark, 2000);
   })();
 })();
 

@@ -2855,3 +2855,10 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 @media (max-width: 760px) {
   #topbar .search:not(:focus-within):not(.has-q) { margin-right: 0; margin-left: auto; }
 }
+
+/* Notifications live under ⋯ in the top bar on a phone, not in the side menu */
+.nav-item.nav-inbox { display: none !important; }
+@media (max-width: 760px) {
+  .icon-btn.nav-toggle.has-unread::after { display: none; }
+  #topbar .top-more.unread:not(.warn)::after { content: ''; position: absolute; top: 7px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--ochre); box-shadow: 0 0 0 2px var(--surface); }
+}
