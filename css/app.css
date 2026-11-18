@@ -2748,3 +2748,12 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   .bj-chip.on { background: var(--heading); border-color: var(--heading); color: var(--bg); }
   .bj-chip.on small { color: inherit; opacity: 0.8; }
 }
+
+/* Add task: options */
+.qa-opts { margin: 6px 0 2px; font-size: 14px; }
+.qa-opts > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); list-style: none; padding: 2px 0; }
+.qa-opts > summary::-webkit-details-marker { display: none; }
+.qa-opts[open] > summary { color: var(--heading); }
+.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.qa-grid label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.qa-grid select, .qa-grid input { width: 100%; min-width: 0; }

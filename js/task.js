@@ -592,3 +592,38 @@ addEventListener('DOMContentLoaded', () => {
     reqText: (el) => { const t = openTaskObj(); const r = (t.reqs || []).find((x) => x.id === el.dataset.id); if (r && r.by === S.meId) { r.text = el.value; t.reqs = [...t.reqs]; Store.save(); } },
   });
 });
+
+// ---------- Add task: options ----------
+// "Options" under the task name: delegate it, give it a due date and a priority as you add it.
+function qaOptsHTML() {
+  const who = S.people.filter((p) => !isMeId(p.id) && canDelegateTo(p.id)).sort((x, y) => x.name.localeCompare(y.name));
+  return `<details class="qa-opts"><summary>${icon('more', 14)} Options</summary>
+    <div class="qa-grid">
+      ${who.length ? `<label class="mini">Delegate to <select name="qaWho" aria-label="Delegate to"><option value="">Me</option>${who.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>` : ''}
+      <label class="mini">Due date <input type="date" name="qaDue" aria-label="Due date"></label>
+      <label class="mini">Priority <select name="qaPri" aria-label="Priority">${PRIORITY.map((p) => `<option value="${p.v}" ${p.v === 5 ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></label>
+    </div></details>`;
+}
+addEventListener('DOMContentLoaded', () => {
+  const base = submits.quickAdd;
+  submits.quickAdd = (form, data) => {
+    const before = new Set(S.tasks.map((t) => t.id));
+    const wasOpen = !!form.querySelector('.qa-opts')?.open;
+    base(form, data);
+    const t = S.tasks.find((x) => !before.has(x.id));
+    if (!t) return;
+    const who = String(data.get('qaWho') || '');
+    const due = String(data.get('qaDue') || '');
+    const pri = Number(data.get('qaPri')) || 5;
+    if (!who && !due && pri === 5) { if (wasOpen) { const d = document.querySelector('form.quick-add .qa-opts'); if (d) d.open = true; } return; }
+    if (due) t.due = due;
+    t.priority = pri;
+    if (who && person(who)) {
+      if (t.assignees.length === 1 && isMeId(t.assignees[0])) t.assignees = [];
+      if (setDelegate(t, who, true)) { const plan = planById(t.planId); if (plan && !plan.members.includes(who)) plan.members.push(who); }
+    }
+    commit();
+    const d = document.querySelector('form.quick-add .qa-opts');
+    if (d && wasOpen) d.open = true;
+  };
+});

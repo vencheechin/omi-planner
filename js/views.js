@@ -558,6 +558,8 @@ function cardPreview(t) {
   return '';
 }
 function cardHTML(t, { showPlan } = {}) {
+  // Your own task (only you on it) shows no name; names show once someone else is on it.
+  const who = t.assignees.length === 1 && isMeId(t.assignees[0]) ? [] : t.assignees;
   const plan = planById(t.planId);
   const meta = [
     S.inbox.some((n) => n.taskId === t.id && !n.read) ? `<span class="meta alert" title="New notifications on this task">${icon('bell', 13)}${S.inbox.filter((n) => n.taskId === t.id && !n.read).length}</span>` : '',
@@ -575,7 +577,7 @@ function cardHTML(t, { showPlan } = {}) {
     ${t.box ? '' : `<button class="icon-btn card-tb ${isScheduled(t) ? 'booked' : t.tbQueued ? 'on' : ''}" data-act="cardTimebox" data-id="${esc(t.id)}" aria-label="${isScheduled(t) ? 'Go to its Time Box' : t.tbQueued ? 'In your Time Box list (tap to take it off)' : 'Assign to Time Box'}">${icon('clock', 18)}</button>`}
     <button class="icon-btn card-more" data-act="cardMenu" data-id="${esc(t.id)}" aria-label="More options for ${esc(t.title || 'Untitled task')}" title="More options">${icon('more', 16)}</button>
     ${cardPreview(t)}
-    ${meta || t.assignees.length ? `<footer><div class="card-meta">${meta}</div><div class="name-chips">${t.assignees.slice(0, 3).map((a) => nameChip(person(a))).join('')}${t.assignees.length > 3 ? `<span class="name-chip more">+${t.assignees.length - 3}</span>` : ''}</div></footer>` : ''}
+    ${meta || who.length ? `<footer><div class="card-meta">${meta}</div><div class="name-chips">${who.slice(0, 3).map((a) => nameChip(person(a))).join('')}${who.length > 3 ? `<span class="name-chip more">+${who.length - 3}</span>` : ''}</div></footer>` : ''}
   </article>`;
 }
 
@@ -620,7 +622,7 @@ function boardHTML(groups, by, ctx) {
         ${g.movable ? `<button class="icon-btn" data-act="colourFrom" data-id="${esc(g.key)}" aria-label="Colour for ${esc(g.label)}">${icon('more')}</button>` : ''}
       </header>
       ${g.locked || g.noAdd || othersPlan(planById(ctx.planId)) ? '' : adding
-        ? `<form class="quick-add" data-submit="quickAdd" data-group="${esc(g.key)}" data-key="${esc(key)}"><input name="title" placeholder="Task name" data-focus="qa-${esc(key)}" autocomplete="off" aria-label="Task name"><div class="row"><button class="btn primary sm">Add task</button><button class="btn ghost sm" type="button" data-act="cancelQuickAdd">Cancel</button></div></form>`
+        ? `<form class="quick-add" data-submit="quickAdd" data-group="${esc(g.key)}" data-key="${esc(key)}"><input name="title" placeholder="Task name" data-focus="qa-${esc(key)}" autocomplete="off" aria-label="Task name">${typeof qaOptsHTML === 'function' ? qaOptsHTML() : ''}<div class="row"><button class="btn primary sm">Add task</button><button class="btn ghost sm" type="button" data-act="cancelQuickAdd">Cancel</button></div></form>`
         : `<button class="add-task" data-act="openQuickAdd" data-key="${esc(key)}">${icon('plus', 14)} Add task</button>`}
       <div class="col-body" data-drop="tasks" data-scroll="col-${esc(key)}">
         ${open.map((t) => cardHTML(t, ctx)).join('')}
