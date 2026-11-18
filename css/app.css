@@ -2750,13 +2750,14 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 }
 
 /* Add task: options */
-.qa-opts { margin: 6px 0 2px; font-size: 14px; }
-.qa-opts > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); list-style: none; padding: 2px 0; }
-.qa-opts > summary::-webkit-details-marker { display: none; }
-.qa-opts[open] > summary { color: var(--heading); }
-.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
-.qa-grid label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.qa-grid select, .qa-grid input { width: 100%; min-width: 0; }
+.quick-add:has(.qa-more) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.quick-add .qa-grid, .quick-add > .row { grid-column: 1 / -1; }
+.qa-more { width: 36px; height: 36px; color: var(--muted); }
+.qa-more.on { color: var(--heading); background: var(--hover); }
+.qa-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; font-size: 13px; }
+.qa-grid[hidden] { display: none; }
+.qa-grid label { display: flex; flex-direction: column; gap: 3px; min-width: 0; color: var(--muted); }
+.qa-grid select, .qa-grid input { width: 100%; min-width: 0; font-size: 14px; padding: 6px 6px; }
 
 /* Phone: compact task boards, so more tasks fit on screen. The phone's large Text Size still enlarges the rest
    of the app, but board text stops at about the size of a phone to-do list. */
