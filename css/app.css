@@ -2862,3 +2862,7 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   .icon-btn.nav-toggle.has-unread::after { display: none; }
   #topbar .top-more.unread:not(.warn)::after { content: ''; position: absolute; top: 7px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--ochre); box-shadow: 0 0 0 2px var(--surface); }
 }
+
+/* Shade the page behind the bucket drop list */
+body.bd-open::after { content: ''; position: fixed; inset: 0; z-index: 58; background: rgba(8, 12, 20, .55); pointer-events: none; }
+body.bd-open .side-bin.float { z-index: 60; }

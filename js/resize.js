@@ -427,8 +427,9 @@ document.addEventListener('dblclick', (e) => {
     panel.className = 'bucket-drop';
     panel.innerHTML = `<p>Drop into a bucket</p><div class="bd-list">${cols.map((c) => `<div class="col bd-item ${c.dataset.group === from ? 'here' : ''}" data-group="${esc(c.dataset.group)}" ${c.dataset.locked ? 'data-locked="1"' : ''}><span>${esc(nameOf(c))}</span><div class="col-body" hidden></div></div>`).join('')}</div>`;
     document.body.append(panel);
+    document.body.classList.add('bd-open');
   }
-  function hide() { panel?.remove(); panel = null; }
+  function hide() { panel?.remove(); panel = null; document.body.classList.remove('bd-open'); }
   function hover(e) {
     if (!panel) return;
     const el = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList?.contains('bd-item'));
