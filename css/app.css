@@ -2715,3 +2715,7 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .ma-table input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--highlight); }
 .ma-all { color: var(--muted); }
 .ma-table tbody th { white-space: nowrap; }
+
+/* Task Requirement as a checklist */
+.req-list .req-text { display: block; padding: 4px 0; overflow-wrap: anywhere; }
+.req-list + .inline-add { margin-top: 2px; }

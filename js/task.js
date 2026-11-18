@@ -207,11 +207,12 @@ function renderTask() {
       ${remindersHTML(t)}
       ${timeboxHTML(t)}
       <section class="task-sec">
-        <div class="sec-head"><h3>Task Requirement</h3></div>
-        ${delegatedToMe(t) ? `<p class="task-details ro">${esc(t.notes) || '<span class="muted">—</span>'}</p>` : `<textarea class="task-details" rows="3" data-input="notes" aria-label="Task details">${esc(t.notes)}</textarea>`}
+        <div class="sec-head"><h3>${esc(reqHeading(t))}${(t.reqs || []).length ? ` <small>${t.reqs.filter((r) => r.done).length} / ${t.reqs.length}</small>` : ''}</h3></div>
+        ${t.notes ? (delegatedToMe(t) ? `<p class="task-details ro">${esc(t.notes)}</p>` : `<textarea class="task-details" rows="2" data-input="notes" aria-label="Task details">${esc(t.notes)}</textarea>`) : ''}
+        ${reqListHTML(t)}
       </section>
       <section class="task-sec">
-        <div class="sec-head"><h3>Check List${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
+        <div class="sec-head"><h3>${esc(ckHeading(t))}${t.checklist.length ? ` <small>${doneItems} / ${t.checklist.length}</small>` : ''}</h3>
           ${t.assignees.some((a) => a !== S.meId) ? `<button class="btn ghost xs ck-alert ${(t.checkAlerts || []).includes(S.meId) ? 'active' : ''}" data-act="toggleCheckAlerts" aria-pressed="${(t.checkAlerts || []).includes(S.meId)}" title="Get a notification when someone ticks an item on this task">${icon('bell', 13)} ${(t.checkAlerts || []).includes(S.meId) ? 'Notifying me when ticked' : 'Notify me when ticked'}</button>` : ''}</div>
         ${t.checklist.length > 1 ? `<label class="mini ck-group">Group <select data-change="ckGroup" aria-label="Group checklist"><option value="">None</option><option value="added" ${S.settings.ckGroup === 'added' ? 'selected' : ''}>Date added</option><option value="done" ${S.settings.ckGroup === 'done' ? 'selected' : ''}>Date completed</option></select></label>` : ''}
         <ul class="checklist ${S.settings.ckGroup && t.checklist.length > 1 ? 'grouped' : ''}">
@@ -531,3 +532,62 @@ async function attachFiles(t, files) {
   }
   commit();
 }
+
+// ---------- Task Requirement as a checklist ----------
+// The person who gives the task lists what's required, one item at a time, each stamped with when it was given.
+// Anyone on the task can tick an item off; only whoever gave an item can change or delete it.
+const reqGiver = (t) => (t.assignedBy && person(t.assignedBy)) || null;
+const reqHeading = (t) => (reqGiver(t) ? `Task Requirement from ${reqGiver(t).name}` : 'Task Requirement');
+function ckHeading(t) {
+  const names = t.assignees.filter((a) => a !== t.assignedBy).map((a) => person(a)?.name).filter(Boolean);
+  if (!names.length || !t.assignedBy) return 'Check List';
+  const who = names.length > 2 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names.join(' and ');
+  return `${who}${/s$/i.test(who) ? "'" : "'s"} Check List`;
+}
+function reqListHTML(t) {
+  const reqs = t.reqs || [];
+  const name = (id) => (id === S.meId ? 'you' : person(id)?.name || 'someone');
+  const canAdd = !delegatedToMe(t);
+  return `<ul class="checklist req-list">${reqs.map((r) => `<li class="ck-item ${r.done ? 'done' : ''}">
+      <button class="check small ${r.done ? 'on' : ''}" data-act="reqToggle" data-id="${esc(r.id)}" aria-label="${r.done ? 'Uncheck' : 'Check'} requirement">${icon('check', 10)}</button>
+      <div class="ck-main">${r.by === S.meId ? `<input value="${esc(r.text)}" data-input="reqText" data-id="${esc(r.id)}" aria-label="Requirement">` : `<span class="req-text">${esc(r.text)}</span>`}
+        <small class="ck-who">Given by ${esc(name(r.by))}, ${esc(fmtDateTime(r.at))}${r.done && r.doneBy ? ` · <span class="ck-done">${icon('check', 10)} Ticked by ${esc(name(r.doneBy))}${r.doneAt ? `, ${esc(fmtDateTime(r.doneAt))}` : ''}</span>` : ''}</small></div>
+      ${r.by === S.meId ? `<button class="icon-btn" data-act="reqDel" data-id="${esc(r.id)}" aria-label="Delete requirement">${icon('close', 12)}</button>` : ''}</li>`).join('')}</ul>
+    ${canAdd ? `<form class="inline-add" data-submit="reqAdd"><span>${icon('plus', 14)}</span><input name="text" data-focus="req-add" autocomplete="off" placeholder="Add a requirement" aria-label="Add a requirement"></form>`
+      : reqs.length || t.notes ? '' : '<p class="muted small">No requirements yet.</p>'}`;
+}
+addEventListener('DOMContentLoaded', () => {
+  Object.assign(actions, {
+    reqToggle: (el) => {
+      const t = openTaskObj();
+      const r = (t.reqs || []).find((x) => x.id === el.dataset.id);
+      if (!r) return;
+      r.done = !r.done;
+      r.doneBy = r.done ? S.meId : null;
+      r.doneAt = r.done ? Date.now() : null;
+      t.reqs = [...t.reqs];
+      if (t.assignees.some((a) => a !== S.meId) || (t.assignedBy && t.assignedBy !== S.meId)) addEvent(t, 'check', { text: r.text, done: r.done, item: r.id });
+      commit();
+    },
+    reqDel: (el) => {
+      const t = openTaskObj();
+      const r = (t.reqs || []).find((x) => x.id === el.dataset.id);
+      if (!r || r.by !== S.meId) return;
+      t.reqs = t.reqs.filter((x) => x !== r);
+      commit();
+    },
+  });
+  Object.assign(submits, {
+    reqAdd: (form, data) => {
+      const text = String(data.get('text') || '').trim();
+      if (!text) return;
+      const t = openTaskObj();
+      t.reqs = [...(t.reqs || []), { id: uid(), text, done: false, by: S.meId, at: Date.now() }];
+      ui.focus = 'req-add';
+      commit();
+    },
+  });
+  Object.assign(inputs, {
+    reqText: (el) => { const t = openTaskObj(); const r = (t.reqs || []).find((x) => x.id === el.dataset.id); if (r && r.by === S.meId) { r.text = el.value; t.reqs = [...t.reqs]; Store.save(); } },
+  });
+});

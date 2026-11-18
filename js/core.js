@@ -156,6 +156,7 @@ function normalizeState(raw) {
       assignees: Array.isArray(t.assignees) ? t.assignees.filter((a) => people.some((x) => x.id === a)) : [],
       labels: Array.isArray(t.labels) ? t.labels.filter((n) => Number.isInteger(n) && n >= 0 && n < LABELS.length) : [],
       checklist: Array.isArray(t.checklist) ? t.checklist : [],
+      reqs: Array.isArray(t.reqs) ? t.reqs.filter((r) => r && r.id && typeof r.text === 'string') : [],
       attachments: Array.isArray(t.attachments) ? t.attachments : [],
       comments: Array.isArray(t.comments) ? t.comments : [],
       history: Array.isArray(t.history) ? t.history.filter((e) => e && e.id) : [],
