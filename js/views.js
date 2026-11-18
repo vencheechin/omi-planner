@@ -111,7 +111,9 @@ function groupsFor(by, tasks, plan) {
 /** Changes a task so it belongs to group `to`. Returns false when that group can't be dropped on. */
 /** A plan's tasks; your own planner also holds the delegated tasks you moved into its buckets. */
 function boardTasks(plan) {
-  const own = tasksOf(plan.id);
+  let own = tasksOf(plan.id);
+  // Your own planner leaves out tasks you've handed to someone else; they're under Delegate To › that person.
+  if (plan.personal || plan === ownPlanner()) own = own.filter((t) => !t.assignees.length || t.assignees.some(isMeId));
   return plan.personal ? own.concat(S.tasks.filter((t) => t.planId !== plan.id && myBucketOf(t))) : own;
 }
 function applyGroup(t, by, from, to) {

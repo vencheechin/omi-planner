@@ -620,7 +620,11 @@ addEventListener('DOMContentLoaded', () => {
     t.priority = pri;
     if (who && person(who)) {
       if (t.assignees.length === 1 && isMeId(t.assignees[0])) t.assignees = [];
-      if (setDelegate(t, who, true)) { const plan = planById(t.planId); if (plan && !plan.members.includes(who)) plan.members.push(who); }
+      if (setDelegate(t, who, true)) {
+        const plan = planById(t.planId);
+        if (plan && !plan.members.includes(who)) plan.members.push(who);
+        if (plan && (plan.personal || plan === ownPlanner()) && !t.assignees.some(isMeId)) toast(`Given to ${person(who).name}. It’s under Delegate To › ${person(who).name}.`);
+      }
     }
     commit();
     const d = document.querySelector('form.quick-add .qa-opts');
