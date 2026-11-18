@@ -1509,7 +1509,7 @@ const submits = {
     if (!name) return;
     const t = taskById(form.dataset.id);
     const p = ensurePerson(name, data.get('email') || '');
-    if (!t.assignees.includes(p.id)) t.assignees.push(p.id);
+    if (!t.assignees.includes(p.id) && !setDelegate(t, p.id, true)) return;
     const plan = planById(t.planId);
     if (!plan.members.includes(p.id)) plan.members.push(p.id);
     refreshPop();

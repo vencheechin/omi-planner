@@ -135,7 +135,8 @@ function isAbove(boss, id) {
   return false;
 }
 /** You delegate downwards only, once Admin has set reporting lines (until then, to anyone). */
-const canDelegateTo = (id) => pkey(id) === pkey(S.meId) || stAdmin() || (roleOf(S.meId) !== 'staff' && (!hierarchyOn() || isAbove(S.meId, id)));
+// Nobody gives work to someone above them in the Org Chart, admins included.
+const canDelegateTo = (id) => pkey(id) === pkey(S.meId) || (!(hierarchyOn() && isAbove(id, S.meId)) && (stAdmin() || (roleOf(S.meId) !== 'staff' && (!hierarchyOn() || isAbove(S.meId, id)))));
 /** The owner: a permanent Admin nobody can change or remove. Set once (the person who sets up the Org Chart);
     until then, whoever is at the top of the chart. */
 const orgOwner = (id) => (org().owner ? pkey(id) === org().owner : hierarchyOn() && !managerOf(id) && Object.values(org().reportsTo || {}).includes(pkey(id)));
