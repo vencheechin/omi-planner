@@ -296,3 +296,19 @@ document.addEventListener('dblclick', (e) => {
     run();
   });
 })();
+
+// ---------- Phone: search is a button until you tap it ----------
+// The search box shrinks to a search button on a phone. Tapping it opens the box across the top bar; it folds
+// back when you leave it empty.
+(function searchButton() {
+  const sync = () => {
+    const s = document.getElementById('search');
+    const box = s && s.closest('.search');
+    if (box) box.classList.toggle('has-q', !!s.value.trim());
+  };
+  document.addEventListener('input', (e) => { if (e.target.id === 'search') sync(); });
+  document.addEventListener('focusout', (e) => { if (e.target.id === 'search') setTimeout(sync, 0); });
+  document.addEventListener('keydown', (e) => { if (e.target.id === 'search' && e.key === 'Escape' && !e.target.value) e.target.blur(); });
+  addEventListener('hashchange', () => setTimeout(sync, 0));
+  addEventListener('DOMContentLoaded', () => setTimeout(sync, 0));
+})();

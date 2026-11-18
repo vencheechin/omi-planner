@@ -2788,3 +2788,12 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) .card-tb,
   .board .card:not(:has(.card-labels, .card-notes, .card-check, .card-img, .card-plan)):has(> footer > .card-meta:empty) .card-more { top: 50%; transform: translateY(-50%); }
 }
+
+/* Phone: search is a button until tapped, then a box across the top bar */
+@media (max-width: 760px) {
+  #topbar { position: relative; }
+  #topbar .search:not(:focus-within):not(.has-q) { flex: 0 0 40px; width: 40px; height: 40px; min-width: 40px; padding: 0; margin-right: auto; justify-content: center; border-radius: 999px; background: none; color: var(--ink-2); cursor: pointer; }
+  #topbar .search:not(:focus-within):not(.has-q) input { flex: 0 0 0; width: 0; min-width: 0; padding: 0; opacity: 0; }
+  #topbar .search:not(:focus-within):not(.has-q) svg { width: 20px; height: 20px; }
+  #topbar .search:focus-within, #topbar .search.has-q { position: absolute; z-index: 5; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); top: calc(env(safe-area-inset-top) + 6px); bottom: 6px; background: var(--surface-2); }
+}
