@@ -819,7 +819,6 @@ function renderPlan(plan) {
       ${planTile(plan, 36)}
       ${plan.owner && plan.owner !== S.meId && person(plan.owner) ? `<h1 class="plan-title">${esc(planLabel(plan))}</h1>` : `<input class="plan-title" value="${esc(plan.name)}" data-change="planName" data-id="${esc(plan.id)}" aria-label="Plan name">`}
       <div class="spacer"></div>
-      <button class="avatars members" data-act="pickMembers" aria-label="Plan members">${plan.members.slice(0, 5).map((m) => avatar(person(m), 26)).join('')}</button>
       <button class="icon-btn" data-act="planMenu" aria-label="Plan options">${icon('more')}</button>
     </header>
     ${toolbar({ fkey, by, tab, tabs: TABS, options: ['bucket', 'assignee', 'progress', 'due', 'priority', 'label', 'health', 'work'] })}
