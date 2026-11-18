@@ -2836,3 +2836,13 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 @media (max-width: 760px) {
   body.has-tb-title #main .plan-page > .plan-head { display: none; }
 }
+
+/* Phone: while holding a task, every bucket is listed near the bottom to drop it into */
+.bucket-drop { position: fixed; z-index: 59; left: 10px; right: 96px; bottom: calc(76px + env(safe-area-inset-bottom)); max-height: 46vh; overflow-y: auto; padding: 10px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
+.bucket-drop > p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.bucket-drop .bd-list { display: flex; flex-direction: column; gap: 6px; }
+.bucket-drop .bd-item { width: auto !important; max-width: none !important; flex: none !important; min-height: 0; display: block; padding: 11px 14px; border-radius: 12px; background: var(--surface-2); border: 1.5px dashed transparent; font-weight: 600; font-size: 16px; color: var(--ink); }
+.bucket-drop .bd-item.here { color: var(--muted); }
+.bucket-drop .bd-item.here span::after { content: ' · now'; font-weight: 400; font-size: 13px; }
+.bucket-drop .bd-item.on { border-color: var(--highlight); background: color-mix(in srgb, var(--highlight) 22%, var(--surface-2)); transform: scale(1.02); }
+.bucket-drop .bd-item[data-locked] { opacity: .45; }

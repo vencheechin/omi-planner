@@ -398,3 +398,44 @@ document.addEventListener('dblclick', (e) => {
     mark();
   })();
 })();
+
+// ---------- Phone: drop a task into any bucket ----------
+// Press and hold a task on a phone and every bucket appears as a list near the bottom; let go over one and the
+// task moves to the end of that bucket. Each entry carries the same data-group as its column, so the usual
+// drop logic does the move.
+(function bucketDrop() {
+  const PHONE = matchMedia('(max-width: 760px)');
+  const nameOf = (col) => {
+    const head = col.querySelector('.col-head');
+    const inp = head && head.querySelector('input.col-title-input');
+    return ((inp && inp.value) || head?.querySelector('.col-title')?.textContent || '').trim() || 'Untitled';
+  };
+  let panel = null;
+  function show() {
+    const s = typeof Drag !== 'undefined' ? Drag.s : null;
+    const board = document.querySelector('#main .board');
+    if (!PHONE.matches || !s || s.type !== 'task' || !board) return;
+    const cols = [...board.querySelectorAll(':scope > .col[data-group]')];
+    if (cols.length < 2) return;
+    const from = s.fromGroup || s.el?.closest('.col[data-group]')?.dataset.group || '';
+    panel = document.createElement('div');
+    panel.className = 'bucket-drop';
+    panel.innerHTML = `<p>Drop into a bucket</p><div class="bd-list">${cols.map((c) => `<div class="col bd-item ${c.dataset.group === from ? 'here' : ''}" data-group="${esc(c.dataset.group)}" ${c.dataset.locked ? 'data-locked="1"' : ''}><span>${esc(nameOf(c))}</span><div class="col-body" hidden></div></div>`).join('')}</div>`;
+    document.body.append(panel);
+  }
+  function hide() { panel?.remove(); panel = null; }
+  function hover(e) {
+    if (!panel) return;
+    const el = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList?.contains('bd-item'));
+    panel.querySelectorAll('.bd-item.on').forEach((n) => n !== el && n.classList.remove('on'));
+    if (el && !el.dataset.locked) el.classList.add('on');
+  }
+  addEventListener('DOMContentLoaded', () => {
+    new MutationObserver(() => {
+      const on = document.body.classList.contains('dragging');
+      if (on && !panel) show(); else if (!on && panel) hide();
+    }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    document.addEventListener('pointermove', hover, { passive: true });
+    document.addEventListener('touchmove', (e) => { const t = e.touches[0]; if (t) hover(t); }, { passive: true });
+  });
+})();
