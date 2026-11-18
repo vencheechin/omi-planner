@@ -369,6 +369,15 @@ document.addEventListener('dblclick', (e) => {
       if (items.length) items.push('-');
       items.push({ label: st.textContent.trim(), icon: 'globe', run: () => { if (st.dataset.act) st.click(); } });
     }
+    // On a plan, its options (Group by, Filter, Text size, members...) come first, so there's one ⋯ on screen.
+    const planBtn = document.querySelector('#main .plan-head [data-act="planMenu"]');
+    if (planBtn && typeof planMenu === 'function') {
+      let planItems = null;
+      const real = openMenu;
+      openMenu = (anchor, list) => { planItems = list; };
+      try { planMenu(btn); } catch (err) { console.error(err); } finally { openMenu = real; }
+      if (planItems && planItems.length) items.unshift(...planItems, '-');
+    }
     openMenu(btn, items);
   }
   function mark() {
@@ -381,7 +390,7 @@ document.addEventListener('dblclick', (e) => {
     const gear = bar && bar.querySelector('[data-act="openSettings"]');
     if (!gear || typeof actions === 'undefined') { setTimeout(add, 200); return; }
     if (document.getElementById('topMoreBtn')) return;
-    gear.insertAdjacentHTML('beforebegin', `<button id="topMoreBtn" class="icon-btn top-more" aria-label="More: sync status, undo and redo" title="More">${icon('more', 19)}</button>`);
+    gear.insertAdjacentHTML('beforebegin', `<button id="topMoreBtn" class="icon-btn top-more" aria-label="More options" title="More">${icon('more', 19)}</button>`);
     const b = document.getElementById('topMoreBtn');
     b.addEventListener('click', (e) => { e.stopPropagation(); menu(b); });
     const st = document.getElementById('status');

@@ -2831,3 +2831,8 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .label-search input, .label-search input:focus, .label-search input:focus-visible { outline: none; box-shadow: none; border: 0; background: none; -webkit-appearance: none; appearance: none; border-radius: 0; min-width: 0; }
 .label-search { background: var(--surface-2); border-color: transparent; border-radius: 10px; }
 .label-search:focus-within { outline: 2px solid var(--highlight); outline-offset: 0; }
+
+/* Phone: a plan's options are in the top-bar ⋯, so the plan's own ⋯ row goes */
+@media (max-width: 760px) {
+  body.has-tb-title #main .plan-page > .plan-head { display: none; }
+}
