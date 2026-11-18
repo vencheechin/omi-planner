@@ -2849,3 +2849,8 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 
 /* Phone: the plan name in the top bar can be held to rename it */
 #topbar .top-name { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: default; }
+
+/* Phone: the search button sits on the right, just left of ⋯ */
+@media (max-width: 760px) {
+  #topbar .search:not(:focus-within):not(.has-q) { margin-right: 0; margin-left: auto; }
+}
