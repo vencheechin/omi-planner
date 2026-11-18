@@ -332,10 +332,10 @@ document.addEventListener('dblclick', (e) => {
   function run() {
     const bar = document.getElementById('topbar');
     if (!bar) return;
-    let el = bar.querySelector('.tb-title');
+    let el = bar.querySelector('.top-name');
     if (!el) {
       el = document.createElement('span');
-      el.className = 'tb-title';
+      el.className = 'top-name';
       const nav = bar.querySelector('.nav-toggle');
       if (nav) nav.after(el); else bar.prepend(el);
     }

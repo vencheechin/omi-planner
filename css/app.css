@@ -2799,10 +2799,16 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 }
 
 /* Phone: the page's name in the top bar, left of the search button */
-.tb-title { display: none; }
+.top-name { display: none; }
 @media (max-width: 760px) {
-  body.has-tb-title .tb-title { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: clamp(17px, calc(17px * var(--scale) * var(--type)), 21px); color: var(--heading); padding: 0 2px; }
+  body.has-tb-title .top-name { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: clamp(17px, calc(17px * var(--scale) * var(--type)), 21px); color: var(--heading); padding: 0 2px; }
   body.has-tb-title #main .plan-head .plan-title, body.has-tb-title #main .plan-head .plan-tile, body.has-tb-title #main .plan-head > .head-icon { display: none; }
   body.has-tb-title #main .plan-head { padding-top: 4px; padding-bottom: 0; min-height: 0; }
   body.has-tb-title #main h1.tb-src { display: none; }
+}
+
+/* One size for every page heading: the same as a plan's name */
+#main h1, #main .bp-head h1, #main .mc-top h1, #main .tb-title h1, #main .tb-head h1 { font-size: calc(15.5px * var(--scale) * var(--type)); line-height: 1.25; }
+@media (max-width: 760px) {
+  #main h1, #main .bp-head h1, #main .mc-top h1, #main .tb-title h1, #main .tb-head h1 { font-size: clamp(18px, calc(18px * var(--scale) * var(--type)), 24px); }
 }
