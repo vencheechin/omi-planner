@@ -191,7 +191,7 @@ function taskMenuItems(t, anchor) {
     { label: 'Label', icon: 'tag', sub: true, run: () => openLabels(anchor, { taskId: t.id, planId: t.planId }) },
     { label: 'Copy task', icon: 'copy', run: () => copyTaskDialog(t) },
     { label: 'Copy link to task', icon: 'link', run: () => copyTaskLink(t) },
-    { label: 'Move task', icon: 'move', run: () => moveTaskDialog(t) },
+    ...(othersPlan(planById(t.planId)) ? [] : [{ label: 'Move task', icon: 'move', run: () => moveTaskDialog(t) }]),
     {
       label: 'Delete', icon: 'trash', danger: true,
       run: () => {
@@ -205,6 +205,8 @@ function taskMenuItems(t, anchor) {
 }
 /** Plan and bucket selects for the copy and move dialogs; the bucket list follows the chosen plan. */
 function planBucketFields(planId, bucketId) {
+  // Someone else's plan (work they delegated to you) is never offered: copies and moves go to your own plans.
+  if (othersPlan(planById(planId))) { planId = personalPlan().id; bucketId = personalPlan().buckets[0].id; }
   const plan = planById(planId);
   return `<div class="task-fields two">
     <label class="field"><span>Plan</span><select name="plan">${S.plans.filter((p) => !othersPlan(p) || p.id === planId).map((p) => `<option value="${esc(p.id)}" ${p.id === planId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>

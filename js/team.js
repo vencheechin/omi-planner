@@ -208,6 +208,16 @@ function mergePeople(data) {
     if (!local && p.id === owner.id && typeof p.style === 'string') { const added = person(p.id); if (added) added.style = p.style; }
   }
 }
+/** May this device keep a teammate's task? Yes in your own plans, when you're on the task, or when it belongs to
+    someone below you in the Org Chart (a manager sees their team's work, not the other way round). */
+function teamTaskVisible(t) {
+  if (typeof hierarchyOn !== 'function' || !hierarchyOn()) return true;
+  const owner = planById(t.planId)?.owner;
+  if (!owner || isMeId(owner)) return true;
+  const ids = [...(t.assignees || []), t.assignedBy, ...(t.history || []).flatMap((e) => [e.by, e.to]), ...(t.comments || []).map((c) => c.author)].filter(Boolean);
+  if (ids.some(isMeId)) return true;
+  return isAbove(S.meId, owner) || (t.assignees || []).some((a) => isAbove(S.meId, a));
+}
 function mergeRecord(kind, r, notices) {
   const list = kind === 'plan' ? S.plans : S.tasks;
   const fields = kind === 'plan' ? PLAN_FIELDS : TASK_FIELDS;
@@ -215,6 +225,15 @@ function mergeRecord(kind, r, notices) {
   const tomb = S.sync.tombstones[r.id];
   if (tomb && tomb[0] >= maxStamp(r)) return false;
   if (kind === 'task' && !planById(r.planId)) return false;
+  // Someone else's tasks reach you only when you're on them, or they're from someone below you in the Org Chart.
+  if (kind === 'task' && !teamTaskVisible(r)) {
+    const i = S.tasks.findIndex((x) => x.id === r.id && x.shared);
+    if (i < 0) return false;
+    S.tasks.splice(i, 1);
+    delete S.sync.shadow[r.id];
+    delete S.sync.seenAssignees[r.id];
+    return true;
+  }
   const sh = S.sync.shadow[r.id] || (S.sync.shadow[r.id] = {});
   let l = list.find((x) => x.id === r.id);
   if (!l) {
