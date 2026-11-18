@@ -233,3 +233,66 @@ document.addEventListener('dblclick', (e) => {
   Store.save();
   render();
 });
+
+// ---------- Phone: jump to a bucket ----------
+// On a phone the board shows one bucket at a time. A row of chips above it lists every bucket; tapping one slides
+// straight to it, and the chip of the bucket on screen is highlighted as you swipe.
+(function bucketJump() {
+  const PHONE = matchMedia('(max-width: 760px)');
+  const nameOf = (col) => {
+    const head = col.querySelector('.col-head');
+    if (!head) return col.classList.contains('add-col') ? '' : 'Bucket';
+    const inp = head.querySelector('input.col-title-input, input');
+    return ((inp && inp.value) || head.querySelector('.col-title, h2, h3, b')?.textContent || head.textContent || '').trim() || 'Untitled';
+  };
+  const colsOf = (board) => [...board.children].filter((c) => c.classList.contains('col') && !c.classList.contains('add-col'));
+  function mark(board, bar) {
+    const cols = colsOf(board);
+    const x = board.scrollLeft + board.clientWidth / 2;
+    let on = 0;
+    cols.forEach((c, i) => { if (c.offsetLeft <= x) on = i; });
+    [...bar.children].forEach((b, i) => {
+      const was = b.classList.contains('on');
+      b.classList.toggle('on', i === on);
+      b.setAttribute('aria-current', i === on ? 'true' : 'false');
+      if (i === on && !was) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
+  function build() {
+    document.querySelectorAll('#main .board').forEach((board) => {
+      const cols = colsOf(board);
+      let bar = board.previousElementSibling?.classList.contains('bj-bar') ? board.previousElementSibling : null;
+      if (cols.length < 2) { bar?.remove(); return; }
+      const html = cols.map((c, i) => {
+        const n = c.querySelector('.col-head .count')?.textContent.trim();
+        return `<button type="button" class="bj-chip" data-i="${i}">${esc(nameOf(c))}${n ? ` <small>${esc(n)}</small>` : ''}</button>`;
+      }).join('');
+      if (!bar) {
+        bar = document.createElement('nav');
+        bar.className = 'bj-bar';
+        bar.setAttribute('aria-label', 'Go to bucket');
+        board.before(bar);
+        bar.addEventListener('click', (e) => {
+          const b = e.target.closest('.bj-chip');
+          const col = b && colsOf(board)[+b.dataset.i];
+          if (!col) return;
+          e.stopPropagation();
+          [...bar.children].forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-current', x === b ? 'true' : 'false'); });
+          board.scrollTo({ left: col.offsetLeft - parseFloat(getComputedStyle(board).paddingLeft || 0), behavior: 'smooth' });
+        });
+      }
+      if (bar.dataset.html !== html) { bar.innerHTML = html; bar.dataset.html = html; }
+      if (!board.dataset.bj) { board.dataset.bj = '1'; board.addEventListener('scroll', () => mark(board, bar), { passive: true }); }
+      mark(board, bar);
+    });
+  }
+  const run = () => { if (PHONE.matches) build(); else document.querySelectorAll('.bj-bar').forEach((b) => b.remove()); };
+  addEventListener('DOMContentLoaded', () => {
+    const main = document.getElementById('main');
+    if (!main) return;
+    let queued = false;
+    new MutationObserver(() => { if (!queued) { queued = true; setTimeout(() => { queued = false; run(); }, 0); } }).observe(main, { childList: true });
+    PHONE.addEventListener?.('change', run);
+    run();
+  });
+})();

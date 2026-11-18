@@ -2732,3 +2732,19 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .va-bar select { width: auto; }
 .va-note { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .va-view { opacity: 0.97; }
+
+/* Phone: one full bucket at a time; swipe for the next */
+@media (max-width: 760px) {
+  .board { scroll-snap-type: x mandatory; scroll-padding: 0 12px; }
+  .board > .col, .board > .add-col { flex: 0 0 100%; width: 100%; max-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+  body.dragging .board { scroll-snap-type: none; }
+}
+.bj-bar { display: none; }
+@media (max-width: 760px) {
+  .bj-bar { display: flex; gap: 6px; overflow-x: auto; padding: 6px 12px 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .bj-bar::-webkit-scrollbar { display: none; }
+  .bj-chip { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; }
+  .bj-chip small { color: var(--muted); font-size: 12px; }
+  .bj-chip.on { background: var(--heading); border-color: var(--heading); color: var(--bg); }
+  .bj-chip.on small { color: inherit; opacity: 0.8; }
+}
