@@ -2757,3 +2757,22 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .qa-grid label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .qa-grid select, .qa-grid input { width: 100%; min-width: 0; }
+
+/* Phone: compact task boards, so more tasks fit on screen. The phone's large Text Size still enlarges the rest
+   of the app, but board text stops at about the size of a phone to-do list. */
+@media (max-width: 760px) {
+  .plan-head h1, .plan-head .plan-title, .plan-head input { font-size: clamp(18px, calc(18px * var(--scale) * var(--type)), 24px); }
+  .toolbar, .toolbar .btn, .toolbar .tabs button, .toolbar .text-size-btn span { font-size: clamp(14px, calc(14px * var(--scale) * var(--type)), 16px); }
+  .board .col-head { min-height: 30px; }
+  .board .col-title-input, .board .col-title { font-size: clamp(15px, var(--bucket-fs), 20px); }
+  .board .col-head .count { font-size: 14px; }
+  .board .col-body { gap: 5px; }
+  .board .add-task { padding: 5px; font-size: clamp(14px, calc(14px * var(--scale) * var(--type)), 16px); }
+  .board .card { padding: 9px 10px; gap: 4px; }
+  .board .card-title { font-size: clamp(15px, calc(15px * var(--scale) * var(--type)), 18px); font-weight: 600; line-height: 1.3; }
+  .board .card-meta, .board .card-plan, .board .card-notes, .board .card-check { font-size: clamp(12px, calc(12.5px * var(--scale) * var(--type)), 14px); }
+  .board .card footer { min-height: 20px; }
+  .board .name-chip { font-size: clamp(11px, calc(12px * var(--scale) * var(--type)), 13px); padding: 1px 8px; }
+  .board .card-tb, .board .card-more { width: 26px; height: 26px; }
+  .bj-chip { font-size: clamp(13px, calc(13px * var(--scale) * var(--type)), 15px); padding: 5px 11px; }
+}
