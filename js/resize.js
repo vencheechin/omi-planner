@@ -312,3 +312,44 @@ document.addEventListener('dblclick', (e) => {
   addEventListener('hashchange', () => setTimeout(sync, 0));
   addEventListener('DOMContentLoaded', () => setTimeout(sync, 0));
 })();
+
+// ---------- Phone: the page's name sits in the top bar ----------
+// On a phone the name of the page you're on (a plan, Time Box, Schedule...) moves up into the top bar, left of the
+// search button, and the big heading on the page itself is hidden to save room.
+(function topTitle() {
+  const PHONE = matchMedia('(max-width: 760px)');
+  function nameNow() {
+    const m = document.getElementById('main');
+    if (!m) return '';
+    const pt = m.querySelector('.plan-head .plan-title');
+    if (pt) return (pt.value ?? pt.textContent ?? '').trim();
+    const h = m.querySelector('h1');
+    if (h) h.classList.add('tb-src');
+    if (h) return h.textContent.trim();
+    const v = (typeof ui !== 'undefined' && ui.route && ui.route.view) || '';
+    return { meet: 'Schedule', timebox: 'Time Box', fitness: 'Fitness', growth: 'Growth', yearly: 'Yearly Planner', notes: 'Discussion Notes', report: 'Report', progress: 'Progress' }[v] || '';
+  }
+  function run() {
+    const bar = document.getElementById('topbar');
+    if (!bar) return;
+    let el = bar.querySelector('.tb-title');
+    if (!el) {
+      el = document.createElement('span');
+      el.className = 'tb-title';
+      const nav = bar.querySelector('.nav-toggle');
+      if (nav) nav.after(el); else bar.prepend(el);
+    }
+    const n = PHONE.matches ? nameNow() : '';
+    if (el.textContent !== n) el.textContent = n;
+    document.body.classList.toggle('has-tb-title', !!n);
+  }
+  addEventListener('DOMContentLoaded', () => {
+    const main = document.getElementById('main');
+    if (!main) return;
+    let queued = false;
+    new MutationObserver(() => { if (!queued) { queued = true; setTimeout(() => { queued = false; run(); }, 0); } }).observe(main, { childList: true });
+    document.addEventListener('change', (e) => { if (e.target.classList?.contains('plan-title')) setTimeout(run, 0); });
+    PHONE.addEventListener?.('change', run);
+    setTimeout(run, 0);
+  });
+})();
