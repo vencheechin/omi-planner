@@ -2726,3 +2726,9 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .ma-table td.ma-end { white-space: nowrap; }
 .ma-table td.ma-end input { width: auto; }
 .ma-ended { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: color-mix(in srgb, var(--mc-pub, #c0607a) 30%, transparent); }
+
+/* Seeing someone else's modules (look only) */
+.va-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 10px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--highlight) 12%, transparent); }
+.va-bar select { width: auto; }
+.va-note { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.va-view { opacity: 0.97; }

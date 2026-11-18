@@ -356,7 +356,8 @@ function modAccessHTML() {
     <form class="ma-bulk" data-submit="modUntilAll"><label class="mini">End date for everyone <input type="date" name="d" aria-label="End date for everyone"></label>
       <button class="btn primary sm">Apply to all</button><button type="button" class="btn ghost sm" data-act="modUntilClear">Clear all end dates</button></form>
     <div class="table-wrap ma-wrap"><table class="adm-table ma-table"><thead><tr><th>Person</th>${APP_MODS.map(([, l, ic]) => `<th class="ma-h"><span>${icon(ic, 16)}<b>${esc(l)}</b></span></th>`).join('')}<th></th><th>Ends</th></tr></thead>
-    <tbody>${rows}</tbody></table></div></section>`;
+    <tbody>${rows}</tbody></table></div></section>
+    ${shareAdminHTML()}`;
 }
 addEventListener('DOMContentLoaded', () => {
   Object.assign(changes, {
@@ -414,7 +415,7 @@ addEventListener('DOMContentLoaded', () => {
   const main = renderMain;
   renderMain = function renderMainWithAccess(...a) {
     const v = ui.route?.view;
-    if (v && !modOn(v)) return `<div class="page"><header class="page-head"><h1>${esc((APP_MODS.find(([k]) => k === v) || [, 'This module'])[1])}</h1></header><p class="muted">This module isn’t turned on for you. An admin can turn it on in the Admin Portal › Module Access.</p></div>`;
+    if (v && !modOn(v)) return `<div class="page"><header class="page-head"><h1>${esc((APP_MODS.find(([k]) => k === v) || [, 'This module'])[1])}</h1></header><p class="muted">${ui.viewing ? 'This module isn’t turned on for them.' : 'This module isn’t turned on for you. An admin can turn it on in the Admin Portal › Module Access.'}</p></div>`;
     return main.apply(this, a);
   };
   // Search: leave out pages that are hidden.
@@ -422,4 +423,114 @@ addEventListener('DOMContentLoaded', () => {
     const cat = fnCatalog;
     fnCatalog = function fnCatalogWithAccess(...a) { return cat.apply(this, a).filter((e) => !(typeof e.go === 'string' && !modOn(e.go.replace(/^#\//, '').split('/')[0]))); };
   }
+});
+
+// ---------- Seeing other people's modules ----------
+// Managers see the modules of everyone below them in the Org Chart (look only). An admin decides which of a
+// person's modules the people below that person may see; nothing is shown upward until an admin allows it.
+// Each planner publishes a read-only copy of its own modules in the team file; a device keeps only the copies
+// it may show.
+const VIEW_MODS = [['hub', 'Planner', 'home'], ['timebox', 'Time Box', 'clock'], ['meet', 'Schedule', 'meet'], ['yearly', 'Yearly Planner', 'cal'],
+  ['notes', 'Discussion Notes', 'note'], ['fitness', 'Fitness', 'pulse'], ['growth', 'Growth', 'book']];
+const ViewCopies = {};
+/** May you see this module of this person (by key)? */
+function canViewMod(k, mod) {
+  if (!k || pkey(S.meId) === k) return false;
+  if (!modOn(mod)) return false;
+  if (typeof roleOf === 'function' && roleOf(S.meId) === 'admin') return true;
+  if (isAbove(S.meId, k)) return true;
+  if (isAbove(k, S.meId)) return ((org().share || {})[k] || []).includes(mod);
+  return false;
+}
+const canViewSomeMod = (k) => VIEW_MODS.some(([m]) => canViewMod(k, m));
+/** The read-only copy of your own modules that goes in your team file. */
+function viewSnap() {
+  if (!hierarchyOn()) return null;
+  const strip = (t) => ({ ...t, attachments: [], comments: [], history: [] });
+  const own = ownPlanner();
+  const tasks = S.tasks.filter((t) => !t.deleted && (planById(t.planId) === own || t.assignees.some(isMeId) || t.box || t.tbQueued)).slice(-1500).map(strip);
+  const planIds = new Set([own?.id, ...tasks.map((t) => t.planId)].filter(Boolean));
+  const plans = S.plans.filter((p) => planIds.has(p.id)).map((p) => ({ ...p, personal: p === own }));
+  const from = addDays(todayISO(), -60);
+  const days = Object.fromEntries(Object.entries(S.days || {}).filter(([d]) => d >= from));
+  const keep = ['timebox', 'yearly', 'fitness', 'growth', 'places', 'mcHidden', 'mcTeam'];
+  const settings = Object.fromEntries(keep.filter((k) => k in S.settings).map((k) => [k, S.settings[k]]));
+  const mp = stPlans().find((x) => x.id === 'meetings');
+  const meet = mp ? { ...mp, meetings: (mp.meetings || []).filter((m) => mcMine(m)), notes: (mp.notes || []).filter((n) => dnMine(n)) } : null;
+  const people = S.people.map((p) => ({ id: p.id, name: p.name, email: p.email || '', color: p.color }));
+  return { at: Date.now(), meId: S.meId, key: pkey(S.meId), people, plans, tasks, days, settings, personPlans: S.personPlans || [], meet };
+}
+/** Draws a module with someone else's copy in place of your own state, then puts yours back. Nothing is saved meanwhile. */
+function withViewCopy(v, fn) {
+  const mine = S;
+  const people = [...mine.people, ...v.people.filter((p) => !mine.people.some((x) => pkey(x.id) === pkey(p.id)))];
+  S = { ...mine, meId: v.meId, people, plans: v.plans, tasks: v.tasks, days: v.days, personPlans: v.personPlans, inbox: [],
+    settings: { ...mine.settings, ...v.settings }, stPlans: [...(mine.stPlans || []).filter((p) => p.id !== 'meetings'), ...(v.meet ? [v.meet] : [])] };
+  ui.viewing = true;
+  try { return fn(); } finally { S = mine; ui.viewing = false; }
+}
+const viewModOfRoute = (r) => (r.view === 'hub' || (r.view === 'plan' && planById(r.id) && planById(r.id) === ownPlanner()) ? 'hub' : VIEW_MODS.some(([m]) => m === r.view) ? r.view : '');
+function viewBarHTML(mod, cur) {
+  const who = Object.values(ViewCopies).filter((v) => canViewMod(v.key, mod)).map((v) => ({ k: v.key, p: personByKey(v.key) || v.people.find((x) => pkey(x.id) === v.key) })).filter((x) => x.p)
+    .sort((a, b) => a.p.name.localeCompare(b.p.name));
+  if (!who.length) return '';
+  const label = VIEW_MODS.find(([m]) => m === mod)[1];
+  return `<div class="va-bar"><label class="mini">Showing <select data-change="viewAs" aria-label="Whose ${esc(label)}"><option value="">Mine</option>${who.map((x) => `<option value="${esc(x.k)}" ${x.k === cur ? 'selected' : ''}>${esc(x.p.name)}</option>`).join('')}</select></label>
+    ${cur ? `<span class="va-note">${icon('eye', 14)} ${esc(possessive(who.find((x) => x.k === cur)?.p.name || 'Their'))} ${esc(label)} · look only${ViewCopies[cur]?.at ? ` · as of ${esc(fmtDateTime(ViewCopies[cur].at))}` : ''}</span>` : ''}</div>`;
+}
+function shareAdminHTML() {
+  const people = adminPeople().filter((p) => Object.values(org().reportsTo || {}).includes(pkey(p.id)));
+  if (!people.length) return '';
+  return `<section class="dr-hub"><h2>What People Below Can See</h2>
+    <p class="small muted">Managers always see the modules of everyone below them (look only). Tick which of a person's own modules the people below them may see. Nothing is shown upward until you tick it.</p>
+    <div class="table-wrap ma-wrap"><table class="adm-table ma-table"><thead><tr><th>Person</th>${VIEW_MODS.map(([, l, ic]) => `<th class="ma-h"><span>${icon(ic, 16)}<b>${esc(l)}</b></span></th>`).join('')}</tr></thead>
+    <tbody>${people.map((p) => `<tr><th><span class="org-node">${avatar(p, 24)}<span>${esc(p.name)}</span></span></th>${VIEW_MODS.map(([m, l]) => `<td class="ma-c"><input type="checkbox" data-change="shareSet" data-p="${esc(pkey(p.id))}" data-m="${m}" ${((org().share || {})[pkey(p.id)] || []).includes(m) ? 'checked' : ''} aria-label="${esc(`People below ${p.name} can see their ${l}`)}"></td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+}
+addEventListener('DOMContentLoaded', () => {
+  if (!ICON.eye) ICON.eye = 'M2 12s3.600-7 10-7 10 7 10 7-3.600 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z';
+  Object.assign(changes, {
+    viewAs: (el) => { ui.viewAs = el.value || ''; render(); },
+    shareSet: (el) => {
+      if (!stAdmin()) return;
+      const share = { ...(org().share || {}) };
+      const cur = new Set(share[el.dataset.p] || []);
+      if (el.checked) cur.add(el.dataset.m); else cur.delete(el.dataset.m);
+      if (cur.size) share[el.dataset.p] = [...cur]; else delete share[el.dataset.p];
+      org().share = share;
+      commit();
+    },
+  });
+  // Nothing is saved while someone else's copy is on screen.
+  const save = Store.save.bind(Store);
+  Store.save = (...a) => (ui.viewing ? undefined : save(...a));
+  // Publish your copy; keep only the copies you may see.
+  if (typeof buildTeamFile === 'function') {
+    const build = buildTeamFile;
+    buildTeamFile = function buildTeamFileWithView(...a) { const f = build.apply(this, a); const v = viewSnap(); if (v) f.view = v; return f; };
+  }
+  if (typeof mergeTeamFile === 'function') {
+    const merge = mergeTeamFile;
+    mergeTeamFile = function mergeTeamFileWithView(data, ...a) {
+      const changed = merge.call(this, data, ...a);
+      const v = data && data.view;
+      if (v && typeof v.key === 'string' && Array.isArray(v.tasks) && Array.isArray(v.plans)) {
+        const before = ViewCopies[v.key]?.at;
+        if (canViewSomeMod(v.key)) ViewCopies[v.key] = v; else delete ViewCopies[v.key];
+        if (ui.viewAs === v.key && before !== v.at) setTimeout(() => render(), 0);
+      }
+      return changed;
+    };
+  }
+  // A "Showing" switch on Planner, Time Box, Schedule, Yearly Planner, Discussion Notes, Fitness and Growth.
+  const main = renderMain;
+  renderMain = function renderMainWithViewAs(...a) {
+    const r = ui.route || {};
+    const mod = !ui.search?.trim() && viewModOfRoute(r);
+    if (!mod || ui.viewing) return main.apply(this, a);
+    const k = ui.viewAs && canViewMod(ui.viewAs, mod) && ViewCopies[ui.viewAs] ? ui.viewAs : '';
+    const bar = viewBarHTML(mod, k);
+    if (!k) return bar + main.apply(this, a);
+    const html = withViewCopy(ViewCopies[k], () => (mod === 'hub' ? (ownPlanner() ? renderPlan(ownPlanner()) : renderHub()) : main.apply(this, a)));
+    return `${bar}<div class="va-view" inert>${html}</div>`;
+  };
 });
