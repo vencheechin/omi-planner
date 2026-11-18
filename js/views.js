@@ -396,7 +396,7 @@ function renderSidebar() {
         return secs.sort((a, b) => at(a[0]) - at(b[0])).map(([k, html]) => `<div class="nav-sec" data-seckey="${k}">${html}</div>`).join('');
       })()}</div>
     </nav>
-    ${typeof binButtonHTML === 'function' ? `<div class="nav-foot">${binButtonHTML()}</div>` : ''}`;
+    <div class="nav-foot"><button class="nav-gear" data-act="openSettings" aria-label="Settings" title="Settings">${icon('gear', 22)}<span>Settings</span></button>${typeof binButtonHTML === 'function' ? binButtonHTML() : ''}</div>`;
   if (typeof binRefresh === 'function') binRefresh();
   document.body.classList.toggle('nav-open', ui.navOpen);
   document.title = plannerName();

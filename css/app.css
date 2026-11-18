@@ -2820,3 +2820,9 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
   #topbar #status, #topbar .hist-btn { display: none; }
   #topbar .top-more.warn::after { content: ''; position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
 }
+
+/* Settings sits at the bottom-left of the side menu, beside the recycle bin (no longer in the top bar) */
+#topbar > [data-act="openSettings"] { display: none; }
+.nav-foot { justify-content: space-between; align-items: center; }
+.nav-gear { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 12px; background: none; border: 0; color: var(--ink-2); font: inherit; font-weight: 600; cursor: pointer; }
+.nav-gear:hover { background: var(--hover); color: var(--ink); }
