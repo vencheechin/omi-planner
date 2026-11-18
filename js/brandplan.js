@@ -28,9 +28,14 @@ const possessive = (n) => `${n}${/s$/i.test(n) ? "'" : "'s"}`;
     in a shared folder the people listed as admins (until someone is, everyone is); on your own, you. */
 function stAdmin() {
   if (typeof Cloud !== 'undefined' && Cloud.team) return isAdmin();
-  // Team folder: the people on the Admins list. With nobody listed yet, the person at the top of the
-  // reporting lines (or everyone, before any lines are set).
-  if (typeof Team !== 'undefined' && Team.dir) { const a = org().admins || []; return a.length ? a.includes(S.meId) : hierarchyOn() ? !managerOf(S.meId) : true; }
+  // Team folder: the person at the top of the org chart (the owner) and anyone given the Admin role.
+  // Before any reporting lines or admins are set, everyone (so the owner can set things up).
+  if (typeof Team !== 'undefined' && Team.dir) {
+    const a = org().admins || [];
+    if (a.includes(S.meId) || a.some((x) => pkey(x) === pkey(S.meId))) return true;
+    if (hierarchyOn()) return orgOwner(S.meId);
+    return !a.length;
+  }
   return true;
 }
 function stCanSee(p) {
@@ -107,6 +112,8 @@ function normalizeOrg(o) {
     ...(o._v && typeof o._v === 'object' ? { _v: o._v } : {}),
     depts: (Array.isArray(o.depts) ? o.depts : []).filter((d) => d && d.id).map((d) => ({ id: String(d.id), name: String(d.name || 'Department'), dic: d.dic || null, members: Array.isArray(d.members) ? d.members.filter((x) => typeof x === 'string') : [] })),
     admins: Array.isArray(o.admins) ? o.admins.filter((x) => typeof x === 'string') : [],
+    owner: typeof o.owner === 'string' ? o.owner : '',
+    roles: o.roles && typeof o.roles === 'object' ? Object.fromEntries(Object.entries(o.roles).filter(([k, v]) => typeof k === 'string' && ['manager', 'staff'].includes(v))) : {},
     reportsTo: o.reportsTo && typeof o.reportsTo === 'object' ? Object.fromEntries(Object.entries(o.reportsTo).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')) : {},
     ...(Array.isArray(o.stages) && typeof normalizeStages === 'function' ? { stages: normalizeStages(o.stages) } : {}),
     ...(Array.isArray(o.quotes) && typeof normalizeQuotes === 'function' ? { quotes: normalizeQuotes(o.quotes) } : {}),
@@ -125,7 +132,21 @@ function isAbove(boss, id) {
   return false;
 }
 /** You delegate downwards only, once Admin has set reporting lines (until then, to anyone). */
-const canDelegateTo = (id) => pkey(id) === pkey(S.meId) || !hierarchyOn() || isAbove(S.meId, id);
+const canDelegateTo = (id) => pkey(id) === pkey(S.meId) || stAdmin() || (roleOf(S.meId) !== 'staff' && (!hierarchyOn() || isAbove(S.meId, id)));
+/** The owner: a permanent Admin nobody can change or remove. Set once (the person who sets up the Org Chart);
+    until then, whoever is at the top of the chart. */
+const orgOwner = (id) => (org().owner ? pkey(id) === org().owner : hierarchyOn() && !managerOf(id) && Object.values(org().reportsTo || {}).includes(pkey(id)));
+/** Admin, Manager or Staff. Admins: the owner, anyone on the Admins list (or in cloud sync, the team's admins).
+    Otherwise the role an admin chose; if none, Manager when someone reports to them, else Staff. */
+function roleOf(id) {
+  const p = person(id);
+  const k = pkey(id);
+  const cloud = typeof Cloud !== 'undefined' && Cloud.team;
+  if (cloud ? (Cloud.team.admins || []).map((e) => String(e).toLowerCase()).includes((p?.email || '').toLowerCase()) : ((org().admins || []).some((x) => x === id || pkey(x) === k) || orgOwner(id))) return 'admin';
+  const r = org().roles?.[k];
+  if (r) return r;
+  return Object.values(org().reportsTo || {}).includes(k) ? 'manager' : 'staff';
+}
 /** Decision and approval requests and S-Team plans go up: to anyone you report to (until lines are set, to anyone). */
 const canSendUpTo = (id) => pkey(id) !== pkey(S.meId) && (!hierarchyOn() || isAbove(id, S.meId));
 /** Reporting lines, as a Settings section: admins edit, everyone else can see them. */
@@ -398,7 +419,7 @@ function stFields(p) {
   return ['meta', 'approval', 'sugg', 'order', 'cfg', ...f];
 }
 const stWire = (p) => ({ id: p.id, ...stRecord(p), _v: clone(p._v || {}) });
-const orgRecord = () => ({ depts: org().depts, admins: org().admins, reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null, stView: org().stView || {} });
+const orgRecord = () => ({ depts: org().depts, admins: org().admins, roles: org().roles || {}, owner: org().owner || '', reportsTo: org().reportsTo || {}, stages: org().stages || null, quotes: org().quotes || null, stView: org().stView || {} });
 const orgWire = () => ({ ...orgRecord(), _v: clone(org()._v || {}) });
 function applyOrg(d) {
   if (!d || typeof d !== 'object') return false;
@@ -406,7 +427,7 @@ function applyOrg(d) {
   o._v = o._v || {};
   const sh = (S.sync.shadow.org = S.sync.shadow.org || {});
   let changed = false;
-  for (const f of ['depts', 'admins', 'reportsTo', 'stages', 'quotes', 'stView']) {
+  for (const f of ['depts', 'admins', 'roles', 'owner', 'reportsTo', 'stages', 'quotes', 'stView']) {
     const rv = d._v?.[f];
     if (!rv || !newer(rv, o._v[f])) continue;
     o[f] = f === 'stages' ? (typeof normalizeStages === 'function' ? normalizeStages(d.stages) : null) : f === 'quotes' ? (typeof normalizeQuotes === 'function' ? normalizeQuotes(d.quotes) : null) : f === 'stView' ? normStView(d.stView) : normalizeOrg({ [f]: d[f] })[f];
@@ -551,13 +572,13 @@ function adminSettingsHTML() {
   if (!stAdmin()) return '';
   const people = S.people.slice().sort((a, b) => a.name.localeCompare(b.name));
   const pick = (act, attrs, exclude = []) => `<select data-change="${act}" ${attrs} aria-label="Add person"><option value="">Add person…</option>${people.filter((x) => !exclude.includes(x.id)).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select>`;
-  const chip = (id, act, attrs) => `<span class="rem-chip">${esc(person(id)?.name || 'Someone')}<button class="chip-x" data-act="${act}" ${attrs} data-p="${esc(id)}" aria-label="Remove">${icon('close', 10)}</button></span>`;
+  const chip = (id, act, attrs) => `<span class="rem-chip">${esc((person(id) || personByKey(id))?.name || 'Someone')}<button class="chip-x" data-act="${act}" ${attrs} data-p="${esc(id)}" aria-label="Remove">${icon('close', 10)}</button></span>`;
   const cloud = typeof Cloud !== 'undefined' && Cloud.team;
   const admins = org().admins || [];
   return `
     <div class="adm-block"><b>Admins</b>
       ${cloud ? `<p class="small">${(Cloud.team.admins || []).map(esc).join(', ') || 'None'} · change in Cloud Sync</p>`
-        : `<div class="adm-chips">${admins.map((id) => chip(id, 'stAdminDel', '')).join('') || '<span class="small muted">Everyone, until someone is added</span>'}${pick('stAdminAdd', '', admins)}</div>`}</div>
+        : `<div class="adm-chips">${admins.map((id) => chip(id, 'stAdminDel', '')).join('') || '<span class="small muted">Only the person at the top of the Org Chart, until someone is added</span>'}${pick('stAdminAdd', '', admins)}</div>`}</div>
     <div class="adm-block"><b>Departments</b>
       ${(org().depts || []).map((d) => `<div class="adm-dept">
         <div class="row"><input value="${esc(d.name)}" data-change="stDeptName" data-d="${esc(d.id)}" aria-label="Department name">

@@ -170,6 +170,18 @@ function adminDashHTML() {
 }
 
 // ---------- Org Chart ----------
+/** The three roles: name, can do, can't do. */
+const OC_ROLES = {
+  admin: ['Admin', ['Everything Managers and Staff can do', 'Open the Admin Portal', 'Add, change and remove people', 'Set roles and who reports to whom', 'Departments, S-Team Access, Stages and Culture', 'See every plan', 'Delegate to anyone'], []],
+  manager: ['Manager', ['Everything Staff can do', 'Delegate to the people below them in the chart', 'Check and approve their team’s work', 'Answer Decision and Approval Requests from their team'], ['Open the Admin Portal', 'Add or remove people, or change roles and reporting lines']],
+  staff: ['Staff', ['Work on their own tasks and tasks given to them', 'Submit work for checking', 'Send Decision and Approval Requests up the chart', 'Use Schedule, Time Box, notes and their own planner'], ['Delegate tasks to others', 'Open the Admin Portal', 'Add or remove people, or change roles and reporting lines']],
+};
+function ocRolesHTML() {
+  return `<section class="dr-hub"><h2>Roles</h2><p class="small muted">Only Admins can open the Admin Portal. You can have as many Admins as you like. ${(() => { const o = adminPeople().find((x) => orgOwner(x.id)); return o ? `${esc(o.name)} is the Owner: a permanent Admin nobody can change or remove.` : 'The person who sets up the Org Chart becomes the Owner: a permanent Admin.'; })()}</p>
+    <div class="oc-roles">${Object.entries(OC_ROLES).map(([v, [name, can, cant]]) => `<div class="oc-rcard"><h3><i class="oc-role oc-r-${v}">${name}</i></h3>
+      <ul class="oc-can">${can.map((x) => `<li>${icon('check', 14)}<span>${esc(x)}</span></li>`).join('')}</ul>
+      ${cant.length ? `<ul class="oc-cant">${cant.map((x) => `<li>${icon('close', 14)}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}</div>`).join('')}</div></section>`;
+}
 // Admins add people and say who reports to whom; the chart draws itself from that.
 // Tap a person to change their details, manager, department or admin role, or to add someone under them.
 const ocCloud = () => typeof Cloud !== 'undefined' && !!Cloud.team;
@@ -188,7 +200,7 @@ function orgChartHTML() {
     return `<button class="oc-card" data-act="ocEdit" data-id="${esc(p.id)}" title="${esc(p.name)}">${avatar(p, 40)}
       <b>${esc(p.name)}${isMeId(p.id) ? ' <small class="muted">(you)</small>' : ''}</b>
       ${d ? `<span class="oc-dept">${esc(d.name)}</span>` : ''}
-      <span class="oc-tags">${ocIsAdmin(p) ? '<i class="oc-tag">Admin</i>' : ''}${n ? `<i class="oc-n">${n} ${n === 1 ? 'report' : 'reports'}</i>` : ''}</span></button>`;
+      <span class="oc-tags"><i class="oc-role oc-r-${roleOf(p.id)}">${orgOwner(p.id) ? 'Owner · Admin' : OC_ROLES[roleOf(p.id)][0]}</i>${n ? `<i class="oc-n">${n} ${n === 1 ? 'report' : 'reports'}</i>` : ''}</span></button>`;
   };
   const node = (p, depth, seen) => {
     const k = pkey(p.id);
@@ -199,19 +211,20 @@ function orgChartHTML() {
   };
   const seen = new Set();
   return `<section class="dr-hub oc-hub">
-      <div class="oc-head"><h2>Org Chart</h2><button class="btn primary sm" data-act="ocAdd">${icon('plus', 14)} Add person</button></div>
-      <p class="small muted">Add people and choose who each one reports to; the chart builds itself. Tap anyone to change them. Requests go up the chart, delegating goes down.</p>
+      <div class="oc-head"><h2>Org Chart</h2></div>
+      <p class="small muted">Tap anyone to set their role and who they report to; the chart builds itself. Requests go up the chart, delegating goes down. Add people under People below.</p>
       ${tops.length ? `<div class="oc-scroll"><div class="oc-tree"><ul>${tops.map((p) => node(p, 0, seen)).join('')}</ul></div></div>`
-        : `<p class="oc-empty muted">No reporting lines yet. Tap a person below and choose who they report to, or add someone.</p>`}
+        : `<p class="oc-empty muted">No reporting lines yet. Tap a person below and choose who they report to.</p>`}
       ${loose.length ? `<div class="oc-loose"><b class="small">Not in the chart yet</b><div class="oc-loose-list">${loose.map((p) => `<button class="oc-chip" data-act="ocEdit" data-id="${esc(p.id)}">${avatar(p, 22)}${esc(p.name)}</button>`).join('')}</div></div>` : ''}
     </section>
+    ${ocRolesHTML()}
     ${peopleAdminHTML()}
     <section class="dr-hub"><h2>Admins & Departments</h2>${adminSettingsHTML()}</section>`;
 }
 /** People: names and emails, add and remove (moved here from Settings). */
 function peopleAdminHTML() {
   return `<section class="dr-hub"><h2>People</h2>
-    <ul class="people-list">${S.people.map((p) => `<li>${avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${isMeId(p.id) ? '<small class="muted">you</small>' : `<button class="icon-btn" data-act="ocRemove" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
+    <ul class="people-list">${S.people.map((p) => `<li>${avatar(p, 28)}<input value="${esc(p.name)}" data-change="personName" data-id="${esc(p.id)}" aria-label="Name"><input type="email" value="${esc(p.email || '')}" placeholder="Email" data-change="personEmail" data-id="${esc(p.id)}" aria-label="Email for ${esc(p.name)}">${isMeId(p.id) ? '<small class="muted">you</small>' : orgOwner(p.id) ? '<small class="muted">owner</small>' : `<button class="icon-btn" data-act="ocRemove" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">${icon('close', 13)}</button>`}</li>`).join('')}</ul>
     <form class="person-add" data-submit="settingsPerson"><input name="name" placeholder="Name" autocomplete="off" aria-label="Name" required><input name="email" type="email" placeholder="Email" autocomplete="off" aria-label="Email"><button class="btn ghost sm">${icon('plus', 14)} Add</button></form>
   </section>`;
 }
@@ -227,10 +240,11 @@ function ocFormHTML(p, boss = '') {
     <label class="field"><span>Email</span><input name="email" type="email" value="${esc(p?.email || '')}" placeholder="So they get the same entry on every device" autocomplete="off"></label>
     <label class="field"><span>Reports to</span><select name="boss"><option value="">— Nobody (top of the chart)</option>${people.map((x) => `<option value="${esc(pkey(x.id))}" ${pkey(x.id) === m ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
     ${depts.length ? `<label class="field"><span>Department</span><select name="dept"><option value="">—</option>${depts.map((d) => `<option value="${esc(d.id)}" ${d.id === dept ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select></label>` : ''}
-    ${ocCloud() ? '' : `<label class="mini oc-admin"><input type="checkbox" name="admin" ${p && ocIsAdmin(p) ? 'checked' : ''}> Admin (can open the Admin Portal)</label>`}
+    <label class="field"><span>Role</span><select name="role" ${p && orgOwner(p.id) ? 'disabled' : ''}>${Object.entries(OC_ROLES).map(([v, [l]]) => `<option value="${v}" ${(p ? roleOf(p.id) : 'staff') === v ? 'selected' : ''} ${v === 'admin' && ocCloud() && !(p && roleOf(p.id) === 'admin') ? 'disabled' : ''}>${l}</option>`).join('')}</select></label>
+    ${p && orgOwner(p.id) ? '<p class="small muted">Owner: always an Admin. Nobody can change this.</p>' : ocCloud() ? '<p class="small muted">With cloud sync, Admins are set in Cloud Sync.</p>' : ''}
     ${under.length ? `<p class="small muted">Reports to them: ${under.map((x) => esc(x.name)).join(', ')}</p>` : ''}
     <div class="dlg-foot oc-foot">
-      ${p && !isMeId(p.id) ? `<button type="button" class="btn ghost danger-text" data-act="ocRemove" data-id="${esc(p.id)}">${icon('trash', 14)} Remove</button>` : ''}
+      ${p && !isMeId(p.id) && !orgOwner(p.id) ? `<button type="button" class="btn ghost danger-text" data-act="ocRemove" data-id="${esc(p.id)}">${icon('trash', 14)} Remove</button>` : ''}
       ${p ? `<button type="button" class="btn ghost" data-act="ocAddUnder" data-id="${esc(p.id)}">${icon('plus', 14)} Add someone under ${esc(p.name.split(' ')[0])}</button>` : ''}
       <button class="btn primary">${p ? 'Save' : 'Add'}</button></div>
   </form>`;
@@ -249,6 +263,7 @@ addEventListener('DOMContentLoaded', () => {
     ocRemove: async (el) => {
       const p = person(el.dataset.id);
       if (!p || isMeId(p.id)) return;
+      if (orgOwner(p.id)) { toast(`${p.name} is the Owner and can’t be removed.`, { error: true }); return; }
       if (!await confirmDlg('Remove person?', `${p.name} comes off the chart and is unassigned from all tasks. Anyone who reported to them moves up to their manager.`, 'Remove')) return;
       const k = pkey(p.id);
       const rt = { ...(org().reportsTo || {}) };
@@ -283,14 +298,25 @@ addEventListener('DOMContentLoaded', () => {
       const rt = { ...(org().reportsTo || {}) };
       if (boss) rt[k] = boss; else delete rt[k];
       org().reportsTo = rt;
+      // The person at the top of the chart becomes its permanent Owner (once; only they can claim it).
+      if (!org().owner && orgOwner(S.meId)) org().owner = pkey(S.meId);
       if (data.has('dept')) {
         const dept = String(data.get('dept') || '');
         org().depts = (org().depts || []).map((d) => ({ ...d, members: d.id === dept ? [...new Set([...(d.members || []), p.id])] : (d.members || []).filter((x) => x !== p.id) }));
         stTouchAll();
       }
-      if (!ocCloud()) {
-        const a = (org().admins || []).filter((x) => x !== p.id);
-        org().admins = data.get('admin') ? [...a, p.id] : a;
+      const role = String(data.get('role') || '');
+      if (role && role !== roleOf(p.id)) {
+        if (isMeId(p.id) && roleOf(p.id) === 'admin') { toast('You can’t take away your own Admin role. Ask another admin.', { error: true }); return; }
+        if (role !== 'admin' && orgOwner(p.id)) { toast(`${p.name} is the Owner and always an Admin.`, { error: true }); return; }
+        if (!ocCloud()) {
+          const a = (org().admins || []).filter((x) => x !== p.id && pkey(x) !== k);
+          // The first admin added: keep yourself too, so you aren't locked out of the Admin Portal.
+          org().admins = role === 'admin' ? [...new Set([...(a.length || !stAdmin() ? a : [pkey(S.meId)]), k])] : a;
+        }
+        const roles = { ...(org().roles || {}) };
+        if (role === 'admin') delete roles[k]; else roles[k] = role;
+        org().roles = roles;
       }
       $$('dialog.oc-dlg').forEach((x) => x.close());
       commit();

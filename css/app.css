@@ -2690,3 +2690,18 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 .oc-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .oc-foot .danger-text { margin-right: auto; }
 @media (max-width: 700px) { .oc-card { width: 104px; padding: 10px 6px 8px; } .oc-card b { font-size: 13px; } .oc-tree li { padding-left: 3px; padding-right: 3px; } }
+
+/* Org Chart: roles */
+.oc-tags .oc-role, .oc-role { font-style: normal; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; }
+.oc-r-admin { background: color-mix(in srgb, var(--highlight) 30%, transparent); color: var(--ink); }
+.oc-r-manager { background: color-mix(in srgb, #5f8fbf 32%, transparent); color: var(--ink); }
+.oc-r-staff { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.oc-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.oc-rcard { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.oc-rcard h3 { margin: 0 0 8px; }
+.oc-rcard h3 .oc-role { font-size: 14px; padding: 3px 12px; }
+.oc-can, .oc-cant { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 14px; }
+.oc-cant { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); }
+.oc-can li, .oc-cant li { display: grid; grid-template-columns: 16px 1fr; gap: 7px; align-items: start; }
+.oc-can svg { color: var(--mc-sch, #5f8f5f); margin-top: 2px; }
+.oc-cant svg { color: var(--mc-pub, #c0607a); margin-top: 2px; }
