@@ -160,7 +160,6 @@ function planMenu(anchor) {
     '-',
     { label: 'Plan members', icon: 'user', run: () => openPop(anchor, () => memberPicker(plan)) },
     { label: 'Labels', icon: 'tag', run: () => openLabels(anchor, { taskId: null, planId: plan.id }) },
-    { label: 'Change colour', icon: 'flag', run: () => colourPicker(anchor, plan) },
     { label: 'Copy plan', icon: 'copy', run: () => duplicatePlan(plan) },
     { label: 'Export to Excel (CSV)', icon: 'download', run: () => download(`${safeFilename(plan.name)}.csv`, new Blob([planToCSV(plan)], { type: 'text/csv;charset=utf-8' })) },
     '-',
