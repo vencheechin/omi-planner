@@ -327,6 +327,8 @@ const delegatedToMe = (t) => !!t.assignedBy && t.assignedBy !== S.meId && t.assi
 const myPlan = () => S.plans.find((p) => p.personal);
 /** Someone else's plan you see because they delegated to you: only they add tasks to it. */
 const othersPlan = (p) => !!(p && p.owner && p.owner !== S.meId);
+/** You may add tasks to a plan you own, or to someone else's plan you're on (a member, or given a task in it). */
+const canAddToPlan = (p) => !othersPlan(p) || (p.members || []).some(isMeId) || S.tasks.some((t) => t.planId === p.id && !t.deleted && t.assignees.some(isMeId));
 /** Who handed this task to you: the person who re-delegated it (subBy), else the original assigner. */
 const delegatorOf = (t, id = S.meId) => t.subBy?.[id] || t.assignedBy;
 /** You can add or remove this person on the task. On a task delegated to you: never the assigner or yourself

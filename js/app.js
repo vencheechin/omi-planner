@@ -88,13 +88,14 @@ function currentViewTasks() {
 }
 /** Stops adding a task to a plan someone else owns. */
 function cantAddHere() {
-  if (!othersPlan(currentPlan())) return false;
+  if (canAddToPlan(currentPlan())) return false;
   toast(`Only ${person(currentPlan().owner)?.name || 'the owner'} can add tasks here.`);
   return true;
 }
 const newFields = () => {
   const plan = currentPlan();
-  if (plan) return { planId: plan.id, bucketId: plan.buckets[0].id };
+  // On someone else's plan, a task you add is yours.
+  if (plan) return { planId: plan.id, bucketId: plan.buckets[0].id, ...(othersPlan(plan) ? { assignees: [S.meId], shared: true } : {}) };
   const pp = currentPersonPlan();
   return { planId: personalPlan().id, bucketId: personalPlan().buckets[0].id, assignees: [pp ? pp.personId : S.meId] };
 };
