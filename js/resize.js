@@ -353,3 +353,39 @@ document.addEventListener('dblclick', (e) => {
     setTimeout(run, 0);
   });
 })();
+
+// ---------- Phone: sync status, Undo and Redo under ⋯ ----------
+// On a phone the top bar keeps only ☰, the page name, search, ⋯ and settings. ⋯ holds the save/sync status, Undo
+// and Redo; a dot on ⋯ shows when something needs attention.
+(function topMore() {
+  function menu(btn) {
+    const st = document.getElementById('status');
+    const u = document.getElementById('undoBtn');
+    const r = document.getElementById('redoBtn');
+    const items = [];
+    if (u) items.push({ label: 'Undo', icon: 'undo', run: () => actions.undo() });
+    if (r) items.push({ label: 'Redo', icon: 'redo', run: () => actions.redo() });
+    if (st && st.textContent.trim()) {
+      if (items.length) items.push('-');
+      items.push({ label: st.textContent.trim(), icon: 'globe', run: () => { if (st.dataset.act) st.click(); } });
+    }
+    openMenu(btn, items);
+  }
+  function mark() {
+    const st = document.getElementById('status');
+    const b = document.getElementById('topMoreBtn');
+    if (b && st) b.classList.toggle('warn', /\berror\b/.test(st.className));
+  }
+  (function add() {
+    const bar = document.getElementById('topbar');
+    const gear = bar && bar.querySelector('[data-act="openSettings"]');
+    if (!gear || typeof actions === 'undefined') { setTimeout(add, 200); return; }
+    if (document.getElementById('topMoreBtn')) return;
+    gear.insertAdjacentHTML('beforebegin', `<button id="topMoreBtn" class="icon-btn top-more" aria-label="More: sync status, undo and redo" title="More">${icon('more', 19)}</button>`);
+    const b = document.getElementById('topMoreBtn');
+    b.addEventListener('click', (e) => { e.stopPropagation(); menu(b); });
+    const st = document.getElementById('status');
+    if (st) new MutationObserver(mark).observe(st, { attributes: true, attributeFilter: ['class'] });
+    mark();
+  })();
+})();

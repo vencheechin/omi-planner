@@ -2812,3 +2812,11 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 @media (max-width: 760px) {
   #main h1, #main .bp-head h1, #main .mc-top h1, #main .tb-title h1, #main .tb-head h1 { font-size: clamp(18px, calc(18px * var(--scale) * var(--type)), 24px); }
 }
+
+/* Phone: sync status, Undo and Redo live under ⋯ in the top bar */
+.top-more { display: none; }
+@media (max-width: 760px) {
+  #topbar .top-more { display: inline-flex; position: relative; flex: none; }
+  #topbar #status, #topbar .hist-btn { display: none; }
+  #topbar .top-more.warn::after { content: ''; position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+}
