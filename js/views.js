@@ -790,8 +790,10 @@ function chartsHTML(tasks, plan) {
 }
 
 // ---------- Plan + personal pages ----------
-function toolbar({ fkey, by, options, tab, tabs }) {
+function toolbar({ fkey, by, options, tab, tabs, inMenu }) {
   const n = filterCount(filterOf(fkey));
+  // In a plan, Group by, Filter and Text size live in the plan's ⋯ menu; the bar shows only while a filter is on.
+  if (inMenu) return n ? `<div class="toolbar"><div class="spacer"></div><button class="btn ghost sm active" data-act="filterMenu">${icon('filter', 14)} Filter (${n})</button><button class="btn ghost sm" data-act="clearFilter">Clear</button></div>` : '';
   return `<div class="toolbar">
     <div class="tabs" role="tablist" ${tabs.length < 2 ? 'hidden' : ''}>${tabs.map(([k, label]) => `<button role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" data-act="setTab" data-tab="${k}">${label}</button>`).join('')}</div>
     <div class="spacer"></div>
@@ -803,6 +805,7 @@ function toolbar({ fkey, by, options, tab, tabs }) {
 }
 // Grid, Schedule and Charts were removed: plans show as a board.
 const TABS = [['board', 'Board']];
+const PLAN_GROUPS = ['bucket', 'assignee', 'progress', 'due', 'priority', 'label', 'health', 'work'];
 
 function renderPlan(plan) {
   const fkey = plan.id;
@@ -821,7 +824,7 @@ function renderPlan(plan) {
       <div class="spacer"></div>
       <button class="icon-btn" data-act="planMenu" aria-label="Plan options">${icon('more')}</button>
     </header>
-    ${toolbar({ fkey, by, tab, tabs: TABS, options: ['bucket', 'assignee', 'progress', 'due', 'priority', 'label', 'health', 'work'] })}
+    ${toolbar({ fkey, by, tab, tabs: TABS, options: PLAN_GROUPS, inMenu: true })}
     <div class="view">${body}</div>
   </div>`;
 }

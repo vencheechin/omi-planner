@@ -154,6 +154,10 @@ function planMenu(anchor) {
   openMenu(anchor, [
     { label: 'New plan', icon: 'plus', run: () => actions.newPlan() },
     '-',
+    { label: `Group by ${GROUPINGS[currentBy()] || 'Bucket'}`, icon: 'group', run: () => { anchor.dataset.options = PLAN_GROUPS.join(','); actions.groupMenu(anchor); } },
+    { label: filterCount(filterOf(plan.id)) ? `Filter (${filterCount(filterOf(plan.id))})` : 'Filter', icon: 'filter', run: () => actions.filterMenu(anchor) },
+    { label: 'Text size', icon: 'pencil', run: () => actions.sizeMenu(anchor) },
+    '-',
     { label: 'Plan members', icon: 'user', run: () => openPop(anchor, () => memberPicker(plan)) },
     { label: 'Labels', icon: 'tag', run: () => openLabels(anchor, { taskId: null, planId: plan.id }) },
     { label: 'Change colour', icon: 'flag', run: () => colourPicker(anchor, plan) },
