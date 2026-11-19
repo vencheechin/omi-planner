@@ -190,9 +190,7 @@ function colourPicker(anchor, plan) {
 // ---------- Task menu (card "…" and the task panel) ----------
 function taskMenuItems(t, anchor) {
   return [
-    ...(isScheduled(t) || (t.boxId && boxOf(t)) || t.tbQueued
-      ? [{ label: 'Remove from Time Box', icon: 'clock', run: () => actions.removeFromTimebox({ dataset: { id: t.id } }) }]
-      : [{ label: 'Add to Time Box', icon: 'clock', run: () => { t.tbQueued = true; commit(); toast('Added to Time Box. It’s waiting in the list on the right of the Time Box page.'); } }]),
+    // Time Box: the clock button beside the task adds it and takes it off.
     {
       label: t.assignees.length ? `Delegated to ${t.assignees.map((a) => person(a)?.name || 'someone').join(', ')}` : 'Delegate to someone', icon: 'user', sub: true,
       run: () => { ui.assignQuery = ''; openPop(anchor, () => assignPicker(t)); $('[data-focus="assign-search"]', ui.pop.el)?.focus(); },
