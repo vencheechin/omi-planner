@@ -103,6 +103,13 @@ document.addEventListener('pointermove', (e) => {
     startNavDrag(d.y);
   }
   e.preventDefault();
+  // Move with the screen's refresh, not every touch event, so it glides.
+  d.lastX = e.clientX; d.lastY = e.clientY;
+  if (d.frame) return;
+  d.frame = requestAnimationFrame(() => { d.frame = 0; navDragStep(d, { clientX: d.lastX, clientY: d.lastY }); });
+}, { passive: false });
+function navDragStep(d, e) {
+  if (navDrag !== d || !d.ghost) return;
   d.ghost.style.top = `${e.clientY - d.offY}px`;
   if (d.dock) {
     d.ghost.style.left = `${e.clientX - d.offX}px`;
@@ -114,11 +121,13 @@ document.addEventListener('pointermove', (e) => {
   const others = [...box.querySelectorAll(`:scope > [data-${d.kind}]`)].filter((x) => x !== d.it);
   const before = others.find((x) => { const r = x.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
   if ((before || null) !== d.it.nextElementSibling) box.insertBefore(d.it, before || null);
-}, { passive: false });
+}
 function endNavDrag(drop) {
   const d = navDrag;
   if (!d) return;
   clearTimeout(d.hold);
+  // Apply the last move before letting go.
+  if (d.frame) { cancelAnimationFrame(d.frame); d.frame = 0; navDragStep(d, { clientX: d.lastX, clientY: d.lastY }); }
   navDrag = null;
   if (!d.active) return;
   document.body.classList.remove('dock-dragging');
