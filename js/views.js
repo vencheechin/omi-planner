@@ -351,9 +351,11 @@ function delegateFromNavHTML(r, planLink) {
   // Plans someone else shared with you, then anyone who delegated work outside those plans.
   const shared = S.plans.filter(sharedWithMe).sort((a, b) => planLabel(a).localeCompare(planLabel(b)));
   const list = delegatedFromTasks();
-  const keys = [...new Set(list.map((t) => pkey(t.assignedBy)))].filter(personByKey).sort(byPersonName);
-  if (!keys.length && !shared.length) return '';
-  return `<h3>Delegate From</h3>${keys.map((k) => `<a class="nav-item plan ${r.view === 'from' && r.id === k ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span><em>${list.filter((t) => pkey(t.assignedBy) === k).length}</em></a>`).join('')}${shared.map(planLink).join('')}`;
+  // One entry per person, by their name; plans of theirs you're on open from that person's page.
+  const keys = [...new Set([...list.map((t) => pkey(t.assignedBy)), ...shared.map((p) => pkey(p.owner))])].filter(personByKey).sort(byPersonName);
+  if (!keys.length) return '';
+  const theirPlanOpen = (k) => r.view === 'plan' && shared.some((p) => p.id === r.id && pkey(p.owner) === k);
+  return `<h3>Delegate From</h3>${keys.map((k) => { const n = list.filter((t) => pkey(t.assignedBy) === k).length; return `<a class="nav-item plan ${(r.view === 'from' && r.id === k) || theirPlanOpen(k) ? 'active' : ''}" href="#/from/${encodeURIComponent(k)}">${avatar(personByKey(k), 22)}<span>${esc(personByKey(k).name)}</span>${n ? `<em>${n}</em>` : ''}</a>`; }).join('')}`;
 }
 function renderSidebar() {
   renderTabbar();
@@ -366,7 +368,7 @@ function renderSidebar() {
   const toCheck = S.tasks.filter(isReviewer).length;
   const personLink = (pp) => {
     const waiting = personPlanTasks(pp).filter((t) => t.review).length;
-    return `<a class="nav-item plan ${r.view === 'person' && r.id === pp.id ? 'active' : ''}" href="#/person/${esc(pp.id)}">${avatar(person(pp.personId), 22)}<span>${esc(pp.name)}</span>${waiting ? `<em class="to-check" title="Waiting for your check">${waiting}</em>` : ''}</a>`;
+    return `<a class="nav-item plan ${r.view === 'person' && r.id === pp.id ? 'active' : ''}" href="#/person/${esc(pp.id)}">${avatar(person(pp.personId), 22)}<span>${esc(person(pp.personId)?.name || pp.name)}</span>${waiting ? `<em class="to-check" title="Waiting for your check">${waiting}</em>` : ''}</a>`;
   };
   $('#sidebar').innerHTML = `
     <a class="brand" href="#/hub"><img src="icons/omi-logo.svg" width="34" height="34" alt="OMI"><span>${esc(plannerName())}</span></a>
@@ -392,7 +394,8 @@ function renderSidebar() {
           ['req-others', requestsNavHTML(r, 'others')],
           ['approved', approvedNavHTML()],
           ['history', decidedByMe().length ? `<h3><a class="${r.view === 'history' ? 'active' : ''}" href="#/history">Approval History</a></h3>` : ''],
-          ['deleg-to', S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''],
+          // One entry per person, by their name.
+          ['deleg-to', S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.filter((pp, i, all) => person(pp.personId) && all.findIndex((x) => pkey(x.personId) === pkey(pp.personId)) === i).sort((a, b) => (person(a.personId)?.name || '').localeCompare(person(b.personId)?.name || '')).map(personLink).join('')}` : ''],
           ['deleg-from', delegateFromNavHTML(r, planLink)],
           ['pinned', pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''],
           ['recent', recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''],
@@ -508,6 +511,7 @@ function renderDelegatedFrom() {
   };
   return `<div class="page">
     <header class="page-head"><h1>Delegate From${who ? `: ${esc(who.name)}` : ''}</h1></header>
+    ${(() => { const plans = S.plans.filter((p) => sharedWithMe(p) && pkey(p.owner) === k); return plans.length ? `<p class="small from-plans">${esc(who?.name || 'Their')}${who ? "'s" : ''} plans you're on: ${plans.map((p) => `<a href="#/plan/${esc(p.id)}">${esc(p.name)}</a>`).join(' · ')}</p>` : ''; })()}
     <p class="muted small from-note">Your own buckets: arrange them however suits you. ${esc(who?.name || 'They')} won’t see them, and their buckets stay as they are.</p>
     <div class="board from-board" data-by="from">
       ${cols.map(col).join('')}
