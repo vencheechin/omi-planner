@@ -367,7 +367,8 @@ document.addEventListener('dblclick', (e) => {
     const notif = typeof inboxHTML === 'function' ? { label: unread ? `Notifications (${unread > 99 ? '99+' : unread})` : 'Notifications', icon: 'bell', run: () => openPop(btn, inboxHTML) } : null;
     if (u) items.push({ label: 'Undo', icon: 'undo', run: () => actions.undo() });
     if (r) items.push({ label: 'Redo', icon: 'redo', run: () => actions.redo() });
-    if (st && st.textContent.trim()) {
+    // Sync status isn't listed; a red dot on ⋯ still warns if saving fails.
+    if (st && /\berror\b/.test(st.className)) {
       if (items.length) items.push('-');
       items.push({ label: st.textContent.trim(), icon: 'globe', run: () => { if (st.dataset.act) st.click(); } });
     }
