@@ -2874,3 +2874,16 @@ body.bd-open .side-bin.float { z-index: 60; }
 .cf-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; height: auto; padding: 8px 10px; white-space: normal; }
 .cf-opt small { color: var(--muted); font-size: 12px; }
 .cf-opt span { font-weight: 600; overflow-wrap: anywhere; }
+
+/* Phone: every task is one line: tick, name, then label, due date and names, then Time Box and ⋯ */
+@media (max-width: 760px) {
+  .board .card:not(:has(.card-img)) { flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 8px; padding-right: 68px; }
+  .board .card:not(:has(.card-img)) .card-title { order: 1; flex: 1 1 auto; min-width: 0; padding-right: 0; }
+  .board .card:not(:has(.card-img)) .card-labels { order: 2; flex: none; padding-right: 0; flex-wrap: nowrap; max-width: 40%; }
+  .board .card:not(:has(.card-img)) .card-labels > * { flex: none; }
+  .board .card:not(:has(.card-img)) > footer { order: 3; flex: none; min-height: 0; margin-right: 0; gap: 6px; }
+  .board .card:not(:has(.card-img)) > footer > .card-meta { display: flex; flex-wrap: nowrap; gap: 6px; }
+  .board .card:not(:has(.card-img)) > footer > .card-meta:empty { display: none; }
+  .board .card:not(:has(.card-img)) > footer > .name-chips { flex-wrap: nowrap; }
+  .board .card:not(:has(.card-img)) .card-tb, .board .card:not(:has(.card-img)) .card-more { top: 50%; transform: translateY(-50%); }
+}
