@@ -115,6 +115,7 @@ const loadScript = (src) => new Promise((resolve, reject) => {
 /** Reads the cover photo, looks the book up in Open Library and asks you to confirm before filling the form. */
 async function scanCover(file, form, status) {
   const say = (msg) => { if (status) status.textContent = msg; };
+  if (!navigator.onLine) { say('Scanning a cover needs the internet. Type the title and author instead.'); return; }
   try {
     say('Reading the cover… (the first scan takes a little longer)');
     await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');

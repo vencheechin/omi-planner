@@ -1,6 +1,6 @@
 'use strict';
 /* Keeps a copy of the app so it starts with no network. Bump VERSION when files are added or removed. */
-const VERSION = 'planner-v304';
+const VERSION = 'planner-v305';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'js/core.js', 'js/views.js', 'js/task.js', 'js/team.js', 'js/timebox.js', 'js/config.js', 'js/cloud.js', 'js/import.js', 'js/chat.js', 'js/styles.js', 'js/devicefolder.js', 'js/dropbox.js', 'js/usage.js', 'js/reminders.js', 'js/brandplan.js', 'js/admin.js', 'js/app.js', 'js/fitness.js', 'js/growth.js', 'js/alarm.js', 'js/donesound.js', 'js/ownsound.js', 'js/photo.js', 'js/remsound.js', 'js/rest.js', 'js/bin.js', 'js/pdplan.js', 'js/sttasks.js', 'js/bpselect.js', 'js/findfn.js', 'js/pipeline.js', 'js/tasting.js', 'js/stages.js', 'js/holidays.js', 'js/yearly.js', 'js/tz.js', 'js/meetcal.js', 'js/wheel.js', 'js/depart.js', 'js/culture.js', 'js/notes.js', 'js/progress.js', 'js/history.js', 'js/resize.js', 'js/dock.js', 'js/i18n.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/omi-logo.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/panpan/panpan.png', 'icons/panpan/matcha.png', 'icons/panpan/soymilk.png', 'icons/panpan/rose.png', 'icons/panpan/seasalt.png', 'icons/panpan/sesame.png', 'icons/panpan/hojicha.png',
@@ -12,13 +12,21 @@ self.addEventListener('install', (e) => {
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== COVERS).map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
+// Book cover pictures (Growth) are kept once seen, so they still show offline.
+const COVERS = 'planner-covers';
+const isCover = (u) => u.hostname === 'covers.openlibrary.org';
 // Network first, so updates show up as soon as the files change; the cache takes over offline
 // or when no server is running.
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const u = new URL(e.request.url);
+  if (e.request.method === 'GET' && isCover(u)) {
+    e.respondWith(caches.open(COVERS).then((c) => c.match(e.request).then((hit) => hit || fetch(e.request).then((res) => { if (res.ok || res.type === 'opaque') c.put(e.request, res.clone()); return res; }))));
+    return;
+  }
+  if (e.request.method !== 'GET' || u.origin !== location.origin) return;
   // no-cache: always ask the server whether a file changed (cheap when it hasn't), so updates show at once.
   e.respondWith(fetch(e.request, { cache: 'no-cache' })
     .then((res) => {

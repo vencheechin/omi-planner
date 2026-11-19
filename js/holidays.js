@@ -114,3 +114,10 @@ Object.assign(changes, {
   holRegion: (el) => { const p = holPrefs(); const rs = new Set(p.regions); if (el.checked) rs.add(el.value); else rs.delete(el.value); S.settings.hol = { ...p, regions: [...rs] }; Store.save(); render(); },
   holKind: (el) => { const p = holPrefs(); S.settings.hol = { ...p, [el.value]: el.checked }; Store.save(); render(); },
 });
+
+// Fetch this year's and next year's public holidays whenever there's a connection, so calendars have them offline.
+addEventListener('DOMContentLoaded', () => {
+  const ahead = () => { const y = new Date().getFullYear(); holFetch(String(y)); holFetch(String(y + 1)); };
+  setTimeout(ahead, 3000);
+  addEventListener('online', ahead);
+});

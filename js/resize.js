@@ -490,3 +490,6 @@ document.addEventListener('dblclick', (e) => {
     PHONE.addEventListener?.('change', () => applySizes());
   })();
 })();
+
+// Back online: sync the team folder straight away (Cloud Sync already does).
+addEventListener('online', () => { try { if (typeof Team !== 'undefined' && Team.dir) Team.sync(); } catch (err) { console.error(err); } });
