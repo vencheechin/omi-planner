@@ -62,11 +62,13 @@ renderSidebar = function renderSidebarWithHandle() {
 let navDrag = null;
 document.addEventListener('pointerdown', (e) => {
   // A main link, or a whole section below them (picked up by its heading).
+  if (e.target.closest?.('.sec-col')) return; // the colour dot on a section heading
   const link = e.target.closest?.('.nav-main [data-navkey]');
-  const head = !link && e.target.closest?.('.nav-secs [data-seckey] > h3');
-  const it = link || (head && head.parentElement);
+  const item = !link && e.target.closest?.('.nav-secs [data-navitem]');
+  const head = !link && !item && e.target.closest?.('.nav-secs [data-seckey] > h3, .nav-secs [data-seckey] > .req-box > h3');
+  const it = link || item || (head && head.closest('[data-seckey]'));
   if (!it || e.button !== 0) return;
-  navDrag = { it, kind: link ? 'navkey' : 'seckey', x: e.clientX, y: e.clientY, active: false, touch: e.pointerType !== 'mouse' };
+  navDrag = { it, kind: link ? 'navkey' : item ? 'navitem' : 'seckey', x: e.clientX, y: e.clientY, active: false, touch: e.pointerType !== 'mouse' };
   if (navDrag.touch) navDrag.hold = setTimeout(() => { if (navDrag) startNavDrag(navDrag.y); }, 280);
 });
 function startNavDrag(y) {
@@ -89,7 +91,7 @@ function startNavDrag(y) {
   navigator.vibrate?.(10);
 }
 // The browser's own link dragging would cancel ours halfway (and show a plain link ghost instead).
-document.addEventListener('dragstart', (e) => { if (e.target.closest?.('.nav-main [data-navkey], .nav-secs [data-seckey]')) e.preventDefault(); }, true);
+document.addEventListener('dragstart', (e) => { if (e.target.closest?.('.nav-main [data-navkey], .nav-secs [data-seckey], .nav-secs [data-navitem]')) e.preventDefault(); }, true);
 // While dragging on a phone, the menu shouldn't scroll under your finger.
 document.addEventListener('touchmove', (e) => { if (navDrag?.active) e.preventDefault(); }, { passive: false });
 document.addEventListener('pointermove', (e) => {
@@ -143,9 +145,17 @@ function endNavDrag(drop) {
     document.body.classList.remove('col-resizing');
     if (drop) {
       const shown = [...d.it.parentElement.querySelectorAll(`:scope > [data-${d.kind}]`)].map((x) => x.getAttribute(`data-${d.kind}`));
-      const key = d.kind === 'navkey' ? 'navOrder' : 'navSecOrder';
-      // Sections hidden right now (nothing in them) keep their place after the ones you can see.
-      S.settings[key] = [...shown, ...(S.settings[key] || []).filter((k) => !shown.includes(k))];
+      if (d.kind === 'navitem') {
+        // Items keep their own order within their section.
+        const sec = d.it.closest('[data-seckey]')?.dataset.seckey;
+        const all = { ...(S.settings.navItemOrder || {}) };
+        all[sec] = [...shown, ...(all[sec] || []).filter((k) => !shown.includes(k))].slice(0, 200);
+        S.settings.navItemOrder = all;
+      } else {
+        const key = d.kind === 'navkey' ? 'navOrder' : 'navSecOrder';
+        // Sections hidden right now (nothing in them) keep their place after the ones you can see.
+        S.settings[key] = [...shown, ...(S.settings[key] || []).filter((k) => !shown.includes(k))];
+      }
       Store.save();
     }
     renderSidebar();
@@ -582,3 +592,48 @@ addEventListener('DOMContentLoaded', () => {
     return base(el, ...a);
   };
 });
+
+// ---------- Left menu sections: colour and item order ----------
+// Each section (Request to me, Pending from Others, Delegate To, Delegate From…) can have its own background
+// colour, chosen from the dot on its heading, and the items in it keep the order you drag them into.
+(function navSections() {
+  const idOf = (a) => a.getAttribute('href') && a.getAttribute('href') !== 'javascript:void 0' ? a.getAttribute('href') : a.dataset.openTask ? `task:${a.dataset.openTask}` : '';
+  function decorate() {
+    const cols = S.settings.navSecColor || {};
+    const orders = S.settings.navItemOrder || {};
+    document.querySelectorAll('#sidebar .nav-secs > [data-seckey]').forEach((sec) => {
+      const k = sec.dataset.seckey;
+      const c = cols[k] || '';
+      sec.classList.toggle('has-col', !!c);
+      if (c) sec.style.setProperty('--sec-bg', c); else sec.style.removeProperty('--sec-bg');
+      const h = sec.querySelector(':scope > h3, :scope > .req-box > h3');
+      if (h && !h.querySelector('.sec-col')) h.insertAdjacentHTML('beforeend', `<button type="button" class="sec-col" data-act="secColour" data-key="${esc(k)}" aria-label="Section colour" title="Section colour"><i></i></button>`);
+      // Items in the order you dragged them into; new ones go after.
+      const box = sec.querySelector(':scope > .req-box') || sec;
+      const items = [...box.querySelectorAll(':scope > .nav-item')];
+      items.forEach((a) => { const id = idOf(a); if (id) a.dataset.navitem = id; });
+      const order = orders[k] || [];
+      if (order.length) {
+        const at = (a) => { const i = order.indexOf(a.dataset.navitem); return i < 0 ? 1000 + items.indexOf(a) : i; };
+        [...items].sort((a, b) => at(a) - at(b)).forEach((a) => box.append(a));
+      }
+    });
+  }
+  function colourPop(el) {
+    const k = el.dataset.key;
+    const cur = (S.settings.navSecColor || {})[k] || '';
+    openPop(el, () => `<div class="picker colour-list"><h4>Section colour</h4>${[{ v: '', label: 'None' }, ...currentStyle().palette.map(([v, label]) => ({ v, label }))].map((c) => `<button class="colour-opt ${c.v === cur ? 'on' : ''}" data-act="secColourSet" data-key="${esc(k)}" data-v="${esc(c.v)}"><i style="background:${c.v || 'transparent'}; ${c.v ? '' : 'box-shadow: inset 0 0 0 1px var(--line);'}"></i><span>${esc(c.label)}</span>${c.v === cur ? icon('check', 14) : ''}</button>`).join('')}</div>`);
+  }
+  addEventListener('DOMContentLoaded', () => {
+    Object.assign(actions, {
+      secColour: (el) => colourPop(el),
+      secColourSet: (el) => { const all = { ...(S.settings.navSecColor || {}) }; if (el.dataset.v) all[el.dataset.key] = el.dataset.v; else delete all[el.dataset.key]; S.settings.navSecColor = all; closePop(); Store.save(); renderSidebar(); },
+    });
+    // Run after every other change to the menu.
+    setTimeout(() => {
+      const base = renderSidebar;
+      renderSidebar = function renderSidebarWithSections(...a) { const r = base.apply(this, a); try { decorate(); } catch (err) { console.error(err); } return r; };
+      try { decorate(); } catch { /* not drawn yet */ }
+    }, 0);
+  });
+})();

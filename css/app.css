@@ -2903,3 +2903,12 @@ body.bd-open .side-bin.float { z-index: 60; }
 /* Complete / Cancel beside a task's circle */
 .tick-pop { position: fixed; z-index: 120; display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
 .tick-pop .btn { white-space: nowrap; }
+
+/* Left menu sections: own colour (from the dot on the heading) */
+.nav-sec .sec-col { margin-left: auto; width: 22px; height: 22px; border-radius: 50%; border: 0; background: none; display: inline-grid; place-items: center; cursor: pointer; opacity: .55; flex: none; }
+.nav-sec .sec-col i { width: 12px; height: 12px; border-radius: 50%; background: var(--sec-bg, transparent); box-shadow: inset 0 0 0 1.5px var(--muted); }
+.nav-sec .sec-col:hover, .nav-sec.has-col .sec-col { opacity: 1; }
+.nav-sec > h3, .nav-sec > .req-box > h3 { display: flex; align-items: center; gap: 6px; }
+.nav-sec.has-col { background: color-mix(in srgb, var(--sec-bg) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sec-bg) 30%, transparent); border-radius: 12px; padding: 2px 4px 6px; margin: 4px 0 8px; }
+.nav-sec.has-col > .req-box { background: none; box-shadow: none; margin: 0; padding: 0; }
+.nav-secs [data-navitem] { -webkit-user-drag: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }

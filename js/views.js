@@ -212,18 +212,20 @@ const checkingForMe = () => S.tasks.filter((t) => !isDone(t) && isReviewer(t));
 const checkingSent = () => S.tasks.filter((t) => !isDone(t) && t.review && isMeId(t.review.by) && !isReviewer(t));
 /** Your submissions that were approved or sent back, with the checker's comment, until you close them. */
 const checkedForMe = () => S.tasks.filter((t) => t.reviewResult && isMeId(t.reviewResult.for) && !isMeId(t.reviewResult.by) && t.reviewSeen !== t.reviewResult.at).sort((a, b) => b.reviewResult.at - a.reviewResult.at);
-function requestsNavHTML(r) {
+function requestsNavHTML(r, part) {
   const n = (kind, dir) => openReqs(kind).filter((t) => (dir === 'from') === reqForMe(t, kind)).length;
   const row = (href, on, ic, label, count, mine) => `<a class="nav-item req-item ${on ? 'active' : ''}" href="${href}">${icon(ic, 17)}<span>${label}</span>${count ? `<em class="${mine ? 'to-check' : ''}">${count}</em>` : ''}</a>`;
   const reqOn = (kind, dir) => r.view === 'req' && r.kind === kind && r.dir === dir && !r.id;
-  return `<div class="req-box req-me"><h3>Request to me</h3>
+  const me = `<div class="req-box req-me"><h3>Request to me</h3>
     ${row('#/check/me', r.view === 'check' && r.dir === 'me', 'check', 'Checking', checkingForMe().length, true)}
     ${row('#/req/approval/from', reqOn('approval', 'from'), 'approve', 'Approval', n('approval', 'from'), true)}
     ${row('#/req/decision/from', reqOn('decision', 'from'), 'flag', 'Decision Required', n('decision', 'from'), true)}
-    </div><div class="req-box req-others"><h3 class="req-sub">Pending from Others</h3>
+    </div>`;
+  const others = `<div class="req-box req-others"><h3 class="req-sub">Pending from Others</h3>
     ${row('#/check/sent', r.view === 'check' && r.dir === 'sent', 'clock', 'Pending Checking', checkingSent().length + checkedForMe().length, checkedForMe().length > 0)}
     ${row('#/req/approval/to', reqOn('approval', 'to'), 'approve', 'Pending Approval', n('approval', 'to'))}
     ${row('#/req/decision/to', reqOn('decision', 'to'), 'flag', 'Pending Decision', n('decision', 'to'))}</div>`;
+  return part === 'me' ? me : part === 'others' ? others : me + others;
 }
 /** Checking / approval / decision lists: grouped by the person (default) or by the task's due date. */
 const reqGroupBy = () => (S.settings.reqGroup === 'due' ? 'due' : 'person');
@@ -385,7 +387,9 @@ function renderSidebar() {
       <div class="nav-secs">${(() => {
         // The sections below the main links, in the order you dragged them into (by their heading).
         const secs = [
-          ['requests', requestsNavHTML(r)],
+          // "Request to me" and "Pending from Others" are separate sections.
+          ['req-me', requestsNavHTML(r, 'me')],
+          ['req-others', requestsNavHTML(r, 'others')],
           ['approved', approvedNavHTML()],
           ['history', decidedByMe().length ? `<h3><a class="${r.view === 'history' ? 'active' : ''}" href="#/history">Approval History</a></h3>` : ''],
           ['deleg-to', S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.map(personLink).join('')}` : ''],
@@ -394,7 +398,10 @@ function renderSidebar() {
           ['recent', recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''],
         ].filter(([, html]) => html);
         const order = S.settings.navSecOrder || [];
-        const at = (k) => (order.includes(k) ? order.indexOf(k) : k === 'requests' ? -1 : 100 + secs.findIndex(([x]) => x === k));
+        const legacy = order.indexOf('requests'); // before the two were split
+        const at = (k) => (order.includes(k) ? order.indexOf(k)
+          : k === 'req-me' ? (legacy >= 0 ? legacy - 0.2 : -2) : k === 'req-others' ? (legacy >= 0 ? legacy - 0.1 : -1)
+          : 100 + secs.findIndex(([x]) => x === k));
         return secs.sort((a, b) => at(a[0]) - at(b[0])).map(([k, html]) => `<div class="nav-sec" data-seckey="${k}">${html}</div>`).join('');
       })()}</div>
     </nav>
