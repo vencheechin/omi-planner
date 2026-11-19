@@ -493,3 +493,34 @@ document.addEventListener('dblclick', (e) => {
 
 // Back online: sync the team folder straight away (Cloud Sync already does).
 addEventListener('online', () => { try { if (typeof Team !== 'undefined' && Team.dir) Team.sync(); } catch (err) { console.error(err); } });
+
+// ---------- Phone: keep the field you're typing in above the keyboard ----------
+// The on-screen keyboard covers the bottom of the task panel and other sheets. Measure it, leave that much room
+// at the bottom of the panel, and scroll the field you're typing in to the middle of what's still visible.
+(function keyboardRoom() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const PHONE = matchMedia('(max-width: 760px)');
+  const root = document.documentElement;
+  let field = null;
+  const inSheet = (el) => el && el.closest && el.closest('dialog, .pop') && el.matches('input:not([type=checkbox]):not([type=radio]):not([type=date]):not([type=time]), textarea, [contenteditable="true"]');
+  function show() {
+    if (!field || !document.contains(field) || document.activeElement !== field) return;
+    const r = field.getBoundingClientRect();
+    const top = vv.offsetTop + 60, bottom = vv.offsetTop + vv.height - 16;
+    if (r.top >= top && r.bottom <= bottom) return;
+    // Centre it in the part of the screen the keyboard leaves free.
+    const box = field.closest('.task-scroll, .dlg-body, .picker-scroll, .pop');
+    const by = r.top + r.height / 2 - (top + (bottom - top) / 2);
+    if (box) box.scrollBy({ top: by, behavior: 'smooth' }); else field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function measure() {
+    const kb = PHONE.matches ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+    root.style.setProperty('--kb', `${kb > 80 ? kb : 0}px`);
+    if (kb > 80) setTimeout(show, 60);
+  }
+  vv.addEventListener('resize', measure);
+  vv.addEventListener('scroll', measure);
+  document.addEventListener('focusin', (e) => { if (PHONE.matches && inSheet(e.target)) { field = e.target; setTimeout(() => { measure(); show(); }, 350); } });
+  document.addEventListener('focusout', () => setTimeout(() => { if (!inSheet(document.activeElement)) { field = null; measure(); } }, 200));
+})();

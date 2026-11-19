@@ -2887,3 +2887,10 @@ body.bd-open .side-bin.float { z-index: 60; }
   .board .card:not(:has(.card-img)) > footer > .name-chips { flex-wrap: nowrap; }
   .board .card:not(:has(.card-img)) .card-tb, .board .card:not(:has(.card-img)) .card-more { top: 50%; transform: translateY(-50%); }
 }
+
+/* Phone: room for the on-screen keyboard at the bottom of the task panel and other sheets */
+@media (max-width: 760px) {
+  #taskDialog .task-scroll { padding-bottom: calc(22px + env(safe-area-inset-bottom) + var(--kb, 0px)); }
+  dialog.dlg .dlg-body { padding-bottom: calc(18px + var(--kb, 0px)); }
+  .task-scroll, dialog.dlg .dlg-body { scroll-padding-bottom: calc(24px + var(--kb, 0px)); }
+}
