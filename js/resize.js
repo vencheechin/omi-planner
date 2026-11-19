@@ -468,3 +468,25 @@ document.addEventListener('dblclick', (e) => {
   ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => document.addEventListener(t, cancel));
   document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('#topbar .top-name')) e.preventDefault(); });
 })();
+
+// ---------- Phone: every module's text matches the Planner ----------
+// The Planner's boards stop growing at a phone to-do-list size. On a phone the whole app now stops at that same
+// size, so a large iPhone Text Size (or Aa) no longer makes other modules bigger than the Planner. Smaller still works.
+(function capPhoneText() {
+  const PHONE = matchMedia('(max-width: 760px)');
+  function cap() {
+    if (!PHONE.matches) return;
+    const root = document.documentElement;
+    const type = parseFloat(getComputedStyle(root).getPropertyValue('--type')) || 1;
+    const scale = parseFloat(root.style.getPropertyValue('--scale')) || 1;
+    const max = Math.round((17 / 14 / type) * 1000) / 1000; // body text at 17px, as in iPhone apps
+    if (scale > max) root.style.setProperty('--scale', String(max));
+  }
+  (function hook() {
+    if (typeof applySizes !== 'function') { setTimeout(hook, 100); return; }
+    const base = applySizes;
+    applySizes = function applySizesCapped(...a) { const r = base.apply(this, a); cap(); return r; };
+    cap();
+    PHONE.addEventListener?.('change', () => applySizes());
+  })();
+})();
