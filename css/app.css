@@ -2866,3 +2866,11 @@ dialog.mc-peek .dlg-body { padding-top: 12px; }
 /* Shade the page behind the bucket drop list */
 body.bd-open::after { content: ''; position: fixed; inset: 0; z-index: 58; background: rgba(8, 12, 20, .55); pointer-events: none; }
 body.bd-open .side-bin.float { z-index: 60; }
+
+/* Changes made at the same time */
+.cf-list { list-style: none; display: grid; gap: 14px; margin-top: 10px; }
+.cf-item { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.cf-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cf-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; height: auto; padding: 8px 10px; white-space: normal; }
+.cf-opt small { color: var(--muted); font-size: 12px; }
+.cf-opt span { font-weight: 600; overflow-wrap: anywhere; }

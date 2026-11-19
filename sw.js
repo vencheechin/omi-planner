@@ -1,6 +1,6 @@
 'use strict';
 /* Keeps a copy of the app so it starts with no network. Bump VERSION when files are added or removed. */
-const VERSION = 'planner-v305';
+const VERSION = 'planner-v306';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'js/core.js', 'js/views.js', 'js/task.js', 'js/team.js', 'js/timebox.js', 'js/config.js', 'js/cloud.js', 'js/import.js', 'js/chat.js', 'js/styles.js', 'js/devicefolder.js', 'js/dropbox.js', 'js/usage.js', 'js/reminders.js', 'js/brandplan.js', 'js/admin.js', 'js/app.js', 'js/fitness.js', 'js/growth.js', 'js/alarm.js', 'js/donesound.js', 'js/ownsound.js', 'js/photo.js', 'js/remsound.js', 'js/rest.js', 'js/bin.js', 'js/pdplan.js', 'js/sttasks.js', 'js/bpselect.js', 'js/findfn.js', 'js/pipeline.js', 'js/tasting.js', 'js/stages.js', 'js/holidays.js', 'js/yearly.js', 'js/tz.js', 'js/meetcal.js', 'js/wheel.js', 'js/depart.js', 'js/culture.js', 'js/notes.js', 'js/progress.js', 'js/history.js', 'js/resize.js', 'js/dock.js', 'js/i18n.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/omi-logo.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/panpan/panpan.png', 'icons/panpan/matcha.png', 'icons/panpan/soymilk.png', 'icons/panpan/rose.png', 'icons/panpan/seasalt.png', 'icons/panpan/sesame.png', 'icons/panpan/hojicha.png',

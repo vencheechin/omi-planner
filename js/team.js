@@ -968,3 +968,202 @@ async function askInformManager(t, id) {
   commit();
   toast(`${m.name} will see “${t.title || 'this task'}”.`);
 }
+
+// ---------- Clashing changes: ask the person higher in the Org Chart ----------
+// Every change to a task now remembers which version its author was looking at (_p). When a change arrives that
+// was made without seeing someone else's change to the same part of the task (both edited it, e.g. one offline),
+// or a task is deleted by one person while another was still changing it, the clash is recorded. The person higher
+// in the Org Chart of the two chooses which to keep; until then the later change stays. If neither is above the
+// other, the later change stays and the person whose change was replaced is told.
+const CF_LABEL = { title: 'Task name', notes: 'Details', progress: 'Progress', priority: 'Priority', start: 'Start date', due: 'Due date', bucketId: 'Bucket', assignees: 'Delegated to', labels: 'Labels', checklist: 'Check List', reqs: 'Task Requirement', planId: 'Plan', repeat: 'Repeat' };
+const cfSame = (a, b) => !!a && !!b && a[0] === b[0] && String(a[1]) === String(b[1]);
+const cfSawOlder = (w, wPrev, o) => wPrev !== undefined && (cfSame(wPrev, o) || (wPrev && newer(wPrev, o)));
+/** The latest version of each task this device has seen, so a deletion can say what its author knew. */
+const cfMax = new Map();
+const cfList = () => (S.sync.conflicts = Array.isArray(S.sync.conflicts) ? S.sync.conflicts : []);
+const cfLastEditor = (rec) => { let best = null; for (const v of Object.values(rec?._v || {})) if (!best || newer(v, best)) best = v; return best ? best[1] : null; };
+/** Who settles a clash between two people: the one above the other, else the owner of the plan if one of them, else nobody. */
+function cfDecider(a, b, planId) {
+  if (!a || !b || pkey(a) === pkey(b)) return null;
+  if (typeof hierarchyOn === 'function' && hierarchyOn()) {
+    if (isAbove(a, b)) return a;
+    if (isAbove(b, a)) return b;
+  }
+  const owner = planById(planId)?.owner;
+  if (owner && pkey(owner) === pkey(a)) return a;
+  if (owner && pkey(owner) === pkey(b)) return b;
+  return null;
+}
+function cfAdd(c) {
+  if (cfList().some((x) => x.key === c.key)) return;
+  const decider = cfDecider(c.a.by, c.b.by, c.planId);
+  const who = (id) => (isMeId(id) ? 'you' : person(id)?.name || 'Someone');
+  const done = S.sync.cfDone || [];
+  if (done.includes(c.key)) return;
+  if (decider && !isMeId(decider)) {
+    // Someone else decides: pass the clash on to them through your team file.
+    S.sync.cfOut = (S.sync.cfOut || []).filter((x) => x.key !== c.key && Date.now() - (x.at || 0) < 30 * 864e5).concat({ ...c, at: Date.now() }).slice(-100);
+    const lost = c.kind === 'delete' ? (isMeId(c.b.by) ? c.b : null) : c.b;
+    if (lost && isMeId(lost.by)) notify({ id: uid(), at: Date.now(), read: false, kind: 'review', taskId: c.id, text: c.kind === 'delete' ? `${who(c.a.by)} deleted “${c.title}” while you were changing it` : `${who(c.a.by)} changed ${(CF_LABEL[c.f] || 'a part').toLowerCase()} of “${c.title}” at the same time as you`, note: `${person(decider)?.name || 'Your manager'} will choose which to keep.` });
+    return;
+  }
+  if (decider && isMeId(decider)) {
+    cfList().push({ ...c, at: Date.now() });
+    notify({ id: uid(), at: Date.now(), read: false, kind: 'review', conflict: true, text: c.kind === 'delete' ? `“${c.title}” was deleted and changed at the same time` : `${who(c.a.by)} and ${who(c.b.by)} changed “${c.title}” at the same time`, note: 'Choose which to keep.' });
+    setTimeout(() => cfPrompt(), 400);
+  } else if (!decider) {
+    const lost = c.kind === 'delete' ? null : c.b; // b is the change that was replaced
+    if (lost && isMeId(lost.by)) notify({ id: uid(), at: Date.now(), read: false, kind: 'returned', taskId: c.id, text: `${who(c.a.by)} changed ${CF_LABEL[c.f] || 'a part'} of “${c.title}” at the same time as you; their change was kept`, note: `Yours was: ${cfShow(c.f, lost.val)}` });
+  }
+}
+function cfShow(f, v) {
+  if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return '(empty)';
+  if (f === 'due' || f === 'start') return fmtDate(v);
+  if (f === 'assignees') return v.map((a) => person(a)?.name || 'someone').join(', ');
+  if (f === 'progress') return PROGRESS.find((p) => p.v === v)?.label || `${v}%`;
+  if (f === 'priority') return PRIORITY.find((p) => p.v === v)?.label || String(v);
+  if (f === 'bucketId') { for (const p of S.plans) { const b = p.buckets.find((x) => x.id === v); if (b) return b.name; } return 'another bucket'; }
+  if (f === 'planId') return planById(v)?.name || 'another plan';
+  if (f === 'checklist' || f === 'reqs') return `${v.length} item${v.length === 1 ? '' : 's'}: ${v.slice(0, 3).map((x) => `${x.done ? '✓ ' : ''}${x.text}`).join(', ')}${v.length > 3 ? '…' : ''}`;
+  if (Array.isArray(v)) return `${v.length} item${v.length === 1 ? '' : 's'}`;
+  return String(v).slice(0, 120);
+}
+// Remember, for each change you make, the version you were looking at.
+addEventListener('DOMContentLoaded', () => {
+  if (typeof stampAll === 'function') {
+    const baseStamp = stampAll;
+    stampAll = function stampAllWithBase(...a) {
+      const before = new Map(S.tasks.map((t) => [t.id, { ...(t._v || {}) }]));
+      S.tasks.forEach((t) => cfMax.set(t.id, maxStamp(t)));
+      const tombs = new Set(Object.keys(S.sync.tombstones || {}));
+      const r = baseStamp.apply(this, a);
+      for (const t of S.tasks) {
+        const old = before.get(t.id) || {};
+        for (const f of TASK_FIELDS) {
+          const v = t._v?.[f];
+          if (v && !cfSame(old[f], v) && isMeId(v[1])) { t._p = t._p || {}; t._p[f] = old[f] || null; }
+        }
+      }
+      for (const [id, st] of Object.entries(S.sync.tombstones || {})) {
+        if (!tombs.has(id) && Array.isArray(st) && st.length === 2 && cfMax.has(id)) st.push(cfMax.get(id));
+      }
+      S.tasks.forEach((t) => cfMax.set(t.id, maxStamp(t)));
+      return r;
+    };
+  }
+  // Spot clashes in incoming tasks before the usual merge decides.
+  const baseMergeRecord = mergeRecord;
+  mergeRecord = function mergeRecordWithClash(kind, r, notices) {
+    try { if (kind === 'task' && r && typeof r.id === 'string') cfCheckTask(r); } catch (err) { console.error(err); }
+    const out = baseMergeRecord.call(this, kind, r, notices);
+    // Fields taken from the teammate keep the teammate's note of what they were looking at.
+    if (kind === 'task' && r && r._p) {
+      const l = taskById(r.id);
+      if (l) for (const f of TASK_FIELDS) if (cfSame(l._v?.[f], r._v?.[f]) && f in r._p) { l._p = l._p || {}; l._p[f] = r._p[f]; }
+    }
+    return out;
+  };
+  const baseMergeTeamFile = mergeTeamFile;
+  mergeTeamFile = function mergeTeamFileWithClash(data, ...a) {
+    try { cfCheckTombs(data); } catch (err) { console.error(err); }
+    const out = baseMergeTeamFile.call(this, data, ...a);
+    S.tasks.forEach((t) => cfMax.set(t.id, maxStamp(t)));
+    // Clashes a teammate's phone spotted that you're the one to settle.
+    try { for (const c of Array.isArray(data?.clashes) ? data.clashes : []) if (c && c.key && c.a && c.b && isMeId(cfDecider(c.a.by, c.b.by, c.planId))) cfAdd(c); } catch (err) { console.error(err); }
+    return out;
+  };
+  const baseBuild = buildTeamFile;
+  buildTeamFile = function buildTeamFileWithClash(...a) {
+    const f = baseBuild.apply(this, a);
+    const out = (S.sync.cfOut || []).filter((x) => Date.now() - (x.at || 0) < 30 * 864e5);
+    if (out.length) f.clashes = out;
+    return f;
+  };
+  const baseOpenNotice = openNotice;
+  openNotice = function openNoticeWithClash(id) {
+    const n = S.inbox.find((x) => x.id === id);
+    if (n && n.conflict) { n.read = true; closePop(); Store.save(); cfPrompt(true); return; }
+    return baseOpenNotice.call(this, id);
+  };
+  Object.assign(actions, {
+    cfPick: (el) => cfResolve(el.dataset.key, el.dataset.pick),
+  });
+  setTimeout(() => { try { S.tasks.forEach((t) => cfMax.set(t.id, maxStamp(t))); } catch { /* not loaded yet */ } cfPrompt(); }, 1500);
+});
+/** A teammate's version of a task arrives: did its changes and ours cross without seeing each other? */
+function cfCheckTask(r) {
+  const l = taskById(r.id);
+  const tomb = S.sync.tombstones[r.id];
+  // You deleted it; they changed it after the version you saw.
+  if (!l && tomb && isMeId(tomb[1]) && tomb[2] !== undefined && maxStamp(r) > tomb[2]) {
+    const by = cfLastEditor(r);
+    if (by && !isMeId(by)) cfAdd({ kind: 'delete', key: `del|${r.id}|${tomb[0]}|${maxStamp(r)}`, id: r.id, planId: r.planId, title: r.title || 'Untitled task', a: { by: tomb[1], at: tomb[0] }, b: { by, at: maxStamp(r) }, snap: clone(r), deletedNow: tomb[0] >= maxStamp(r) });
+    return;
+  }
+  if (!l || !r._v) return;
+  for (const f of TASK_FIELDS) {
+    const rv = r._v[f]; const lv = l._v?.[f];
+    if (!rv || !lv || cfSame(rv, lv) || String(rv[1]) === String(lv[1])) continue;
+    if (fieldHash(r[f]) === fieldHash(l[f])) continue;
+    const remoteWins = newer(rv, lv);
+    const [w, wPrev, o] = remoteWins ? [rv, r._p?.[f], lv] : [lv, l._p?.[f], rv];
+    if (wPrev === undefined || cfSawOlder(w, wPrev, o)) continue; // the later change was made knowing the earlier one
+    const win = remoteWins ? { by: rv[1], at: rv[0], val: clone(r[f]) } : { by: lv[1], at: lv[0], val: clone(l[f]) };
+    const lose = remoteWins ? { by: lv[1], at: lv[0], val: clone(l[f]) } : { by: rv[1], at: rv[0], val: clone(r[f]) };
+    cfAdd({ kind: 'field', key: `f|${r.id}|${f}|${w[0]}|${o[0]}`, id: r.id, planId: l.planId, title: l.title || r.title || 'Untitled task', f, a: win, b: lose });
+  }
+}
+/** A teammate deleted tasks: was anyone still changing them, after the version the deleter saw? */
+function cfCheckTombs(data) {
+  for (const [id, st] of Object.entries(data?.tombstones || {})) {
+    if (!Array.isArray(st) || st[2] === undefined) continue;
+    const local = taskById(id);
+    if (!local || maxStamp(local) <= st[2]) continue;
+    const by = cfLastEditor(local);
+    if (!by || String(by) === String(st[1])) continue;
+    cfAdd({ kind: 'delete', key: `del|${id}|${st[0]}|${maxStamp(local)}`, id, planId: local.planId, title: local.title || 'Untitled task', a: { by: st[1], at: st[0] }, b: { by, at: maxStamp(local) }, snap: clone(local), deletedNow: st[0] >= maxStamp(local) });
+  }
+}
+function cfPrompt(force) {
+  const list = cfList();
+  if (!list.length) { if (force) toast('Nothing to decide: every clash has been settled.'); return; }
+  if (!force && (document.querySelector('dialog[open]') || ui.cfShown)) return;
+  ui.cfShown = true;
+  const who = (id) => (isMeId(id) ? 'You' : person(id)?.name || 'Someone');
+  const when = (t) => fmtDateTime(t);
+  const row = (c) => c.kind === 'delete'
+    ? `<li class="cf-item"><b>“${esc(c.title)}”</b><p class="small muted">${esc(who(c.a.by))} deleted it (${esc(when(c.a.at))}) while ${esc(who(c.b.by).toLowerCase() === 'you' ? 'you' : who(c.b.by))} was changing it (${esc(when(c.b.at))}).</p>
+        <div class="cf-btns"><button class="btn sm" data-act="cfPick" data-key="${esc(c.key)}" data-pick="del">Keep it deleted</button><button class="btn primary sm" data-act="cfPick" data-key="${esc(c.key)}" data-pick="keep">Keep the task</button></div></li>`
+    : `<li class="cf-item"><b>“${esc(c.title)}” · ${esc(CF_LABEL[c.f] || c.f)}</b>
+        <div class="cf-btns"><button class="btn sm cf-opt" data-act="cfPick" data-key="${esc(c.key)}" data-pick="a"><small>${esc(who(c.a.by))} · ${esc(when(c.a.at))}</small><span>${esc(cfShow(c.f, c.a.val))}</span></button>
+        <button class="btn sm cf-opt" data-act="cfPick" data-key="${esc(c.key)}" data-pick="b"><small>${esc(who(c.b.by))} · ${esc(when(c.b.at))}</small><span>${esc(cfShow(c.f, c.b.val))}</span></button></div></li>`;
+  document.querySelector('dialog.cf-dlg')?.remove();
+  showDialog({ title: 'Changes made at the same time', html: `<p class="small muted">These were changed by two people at the same time. You're higher in the Org Chart, so you choose which to keep. Until you do, the later change stays.</p><ul class="cf-list">${list.map(row).join('')}</ul>`, onClose: () => { ui.cfShown = false; } });
+  document.querySelector('dialog[open]:last-of-type')?.classList.add('cf-dlg');
+}
+function cfResolve(key, pick) {
+  const list = cfList();
+  const c = list.find((x) => x.key === key);
+  if (!c) return;
+  S.sync.conflicts = list.filter((x) => x !== c);
+  S.sync.cfDone = [...(S.sync.cfDone || []), c.key].slice(-300);
+  if (c.kind === 'delete') {
+    const t = taskById(c.id);
+    if (pick === 'del') { if (t) { S.tasks = S.tasks.filter((x) => x !== t); } toast(`“${c.title}” stays deleted.`); }
+    else if (!t && c.snap) {
+      const back = clone(c.snap);
+      delete back._v; delete back._p;
+      delete S.sync.tombstones[c.id]; delete S.sync.shadow[c.id];
+      back.shared = true;
+      S.tasks.push(back);
+      toast(`“${c.title}” is back.`);
+    } else toast(`“${c.title}” is kept.`);
+  } else {
+    const t = taskById(c.id);
+    const chosen = pick === 'a' ? c.a : c.b;
+    if (t) { t[c.f] = clone(chosen.val); toast(`Kept ${isMeId(chosen.by) ? 'your' : `${person(chosen.by)?.name || 'their'}`} ${(CF_LABEL[c.f] || 'change').toLowerCase()} for “${c.title}”.`); }
+  }
+  commit();
+  const dlg = document.querySelector('dialog.cf-dlg');
+  if (dlg) { if (!cfList().length) dlg.querySelector('[data-act="closeDialog"]')?.click(); else { ui.cfShown = false; dlg.querySelector('[data-act="closeDialog"]')?.click(); setTimeout(() => cfPrompt(true), 50); } }
+}
