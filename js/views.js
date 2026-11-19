@@ -398,7 +398,6 @@ function renderSidebar() {
           ['deleg-to', S.personPlans.length ? `<h3>Delegate To</h3>${S.personPlans.filter((pp, i, all) => person(pp.personId) && all.findIndex((x) => pkey(x.personId) === pkey(pp.personId)) === i).sort((a, b) => (person(a.personId)?.name || '').localeCompare(person(b.personId)?.name || '')).map(personLink).join('')}` : ''],
           ['deleg-from', delegateFromNavHTML(r, planLink)],
           ['pinned', pinned.length ? `<h3>Pinned</h3>${pinned.map(planLink).join('')}` : ''],
-          ['recent', recent.length ? `<h3>Recent</h3>${recent.map(planLink).join('')}` : ''],
         ].filter(([, html]) => html);
         const order = S.settings.navSecOrder || [];
         const legacy = order.indexOf('requests'); // before the two were split

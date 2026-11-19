@@ -164,6 +164,7 @@ function planMenu(anchor) {
     { label: 'Text size', icon: 'pencil', run: () => actions.sizeMenu(anchor) },
     '-',
     { label: 'Plan members', icon: 'user', run: () => openPop(anchor, () => memberPicker(plan)) },
+    ...(plan.personal || plan === ownPlanner() ? [] : [{ label: plan.pinned ? 'Unpin from side menu' : 'Pin to side menu', icon: 'star', run: () => { plan.pinned = !plan.pinned; commit(); toast(plan.pinned ? `“${plan.name}” is pinned in the side menu.` : `“${plan.name}” is no longer in the side menu. Search finds it.`); } }]),
     { label: 'Labels', icon: 'tag', run: () => openLabels(anchor, { taskId: null, planId: plan.id }) },
     { label: 'Copy plan', icon: 'copy', run: () => duplicatePlan(plan) },
     { label: 'Export to Excel (CSV)', icon: 'download', run: () => download(`${safeFilename(plan.name)}.csv`, new Blob([planToCSV(plan)], { type: 'text/csv;charset=utf-8' })) },
