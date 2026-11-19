@@ -524,3 +524,22 @@ addEventListener('online', () => { try { if (typeof Team !== 'undefined' && Team
   document.addEventListener('focusin', (e) => { if (PHONE.matches && inSheet(e.target)) { field = e.target; setTimeout(() => { measure(); show(); }, 350); } });
   document.addEventListener('focusout', () => setTimeout(() => { if (!inSheet(document.activeElement)) { field = null; measure(); } }, 200));
 })();
+
+// ---------- Ask before ticking a task off ----------
+// The circle on a task completes it (it moves to "Show completed"); a stray tap shouldn't do that, so ask first.
+// Un-ticking a completed task doesn't ask.
+addEventListener('DOMContentLoaded', () => {
+  const base = actions.toggleDone;
+  if (!base) return;
+  actions.toggleDone = async (el, ...a) => {
+    const t = taskById(el.dataset.id);
+    if (!t || isDone(t) || (delegatorOnly(t) && !t.review)) return base(el, ...a);
+    const what = checkLabel(t);
+    const name = t.title || 'Untitled task';
+    const msg = what === 'Submit for checking' ? `It goes to ${person(reviewerOf(t))?.name || 'the assigner'} to check.`
+      : what === 'Approve and complete' ? 'It is approved and moves to Show completed.'
+      : 'It moves to Show completed. You can untick it there.';
+    if (!await confirmDlg(`${what}: “${name}”?`, msg, what === 'Mark complete' ? 'Complete' : what, false)) return;
+    return base(el, ...a);
+  };
+});
