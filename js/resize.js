@@ -546,20 +546,38 @@ addEventListener('online', () => { try { if (typeof Team !== 'undefined' && Team
 })();
 
 // ---------- Ask before ticking a task off ----------
-// The circle on a task completes it (it moves to "Show completed"); a stray tap shouldn't do that, so ask first.
-// Un-ticking a completed task doesn't ask.
+// The circle on a task completes it (it moves to "Show completed"). A stray tap shouldn't do that, so a small
+// Complete / Cancel pop-up opens right beside the circle. Un-ticking a completed task doesn't ask.
+function tickAsk(anchor, label) {
+  document.querySelector('.tick-pop')?.remove();
+  return new Promise((resolve) => {
+    const pop = document.createElement('div');
+    pop.className = 'tick-pop';
+    pop.setAttribute('role', 'dialog');
+    pop.innerHTML = `<button type="button" class="btn primary sm" data-yes>${esc(label)}</button><button type="button" class="btn ghost sm" data-no>Cancel</button>`;
+    (anchor.closest('dialog') || document.body).append(pop);
+    const r = anchor.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.right + 8))}px`;
+    pop.style.top = `${Math.max(8, Math.min(innerHeight - h - 8, r.top + r.height / 2 - h / 2))}px`;
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; pop.remove(); document.removeEventListener('pointerdown', outside, true); resolve(ok); };
+    const outside = (e) => { if (!pop.contains(e.target)) finish(false); };
+    pop.querySelector('[data-yes]').onclick = (e) => { e.stopPropagation(); finish(true); };
+    pop.querySelector('[data-no]').onclick = (e) => { e.stopPropagation(); finish(false); };
+    setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+    pop.querySelector('[data-yes]').focus();
+  });
+}
 addEventListener('DOMContentLoaded', () => {
   const base = actions.toggleDone;
   if (!base) return;
   actions.toggleDone = async (el, ...a) => {
     const t = taskById(el.dataset.id);
-    if (!t || isDone(t) || (delegatorOnly(t) && !t.review)) return base(el, ...a);
+    if (!t || isDone(t) || (delegatorOnly(t) && !t.review) || !el.getBoundingClientRect) return base(el, ...a);
     const what = checkLabel(t);
-    const name = t.title || 'Untitled task';
-    const msg = what === 'Submit for checking' ? `It goes to ${person(reviewerOf(t))?.name || 'the assigner'} to check.`
-      : what === 'Approve and complete' ? 'It is approved and moves to Show completed.'
-      : 'It moves to Show completed. You can untick it there.';
-    if (!await confirmDlg(`${what}: “${name}”?`, msg, what === 'Mark complete' ? 'Complete' : what, false)) return;
+    const label = what === 'Submit for checking' ? 'Submit' : what === 'Approve and complete' ? 'Approve' : 'Complete';
+    if (!await tickAsk(el, label)) return;
     return base(el, ...a);
   };
 });

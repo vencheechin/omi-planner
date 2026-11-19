@@ -2899,3 +2899,7 @@ body.bd-open .side-bin.float { z-index: 60; }
 @media (max-width: 760px) {
   body.bd-armed:not(.bd-open) .bj-bar { outline: 2px dashed color-mix(in srgb, var(--highlight) 70%, transparent); outline-offset: -2px; border-radius: 12px; background: color-mix(in srgb, var(--highlight) 10%, transparent); }
 }
+
+/* Complete / Cancel beside a task's circle */
+.tick-pop { position: fixed; z-index: 120; display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
+.tick-pop .btn { white-space: nowrap; }
