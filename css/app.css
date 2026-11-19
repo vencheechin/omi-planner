@@ -2920,3 +2920,14 @@ body.bd-open .side-bin.float { z-index: 60; }
 .nav-ghost.nav-sec.has-col { background: linear-gradient(color-mix(in srgb, var(--sec-bg) 22%, transparent), color-mix(in srgb, var(--sec-bg) 22%, transparent)), var(--surface-2, var(--surface)); }
 .nav-ghost { will-change: top, transform; }
 .nav-ghost .sec-col { display: none; }
+
+/* Left menu: Edit menu (show / hide modules) */
+.nav-edit-bar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin: 0 6px 6px; font-size: 13px; }
+.nav-edit-bar .small { margin-right: auto; }
+.nav-edit-bar .link-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.nav-main .nav-item.nav-editing { cursor: pointer; }
+.nav-main .nav-item .nav-eye { margin-left: auto; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; background: color-mix(in srgb, var(--highlight) 25%, transparent); color: var(--ink); }
+.nav-main .nav-item.nav-off { opacity: .45; }
+.nav-main .nav-item.nav-off .nav-eye { background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.nav-main .nav-item.nav-editing > em { display: none; }
+.nav-main .nav-item.nav-hide { display: none !important; }

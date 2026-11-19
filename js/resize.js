@@ -646,3 +646,54 @@ addEventListener('DOMContentLoaded', () => {
     }, 0);
   });
 })();
+
+// ---------- Left menu: choose which modules to show ----------
+// "Edit" above the main links lets you tick which modules show in your menu; "Show all" brings back any you hid.
+// This is your own choice; what an admin turns off for you in Module Access stays off.
+(function navShowHide() {
+  let editing = false;
+  const hidden = () => S.settings.navHidden || [];
+  function decorate() {
+    const main = document.querySelector('#sidebar .nav-main');
+    if (!main) return;
+    const h = hidden();
+    const items = [...main.querySelectorAll(':scope > [data-navkey]')];
+    items.forEach((a) => {
+      const off = h.includes(a.dataset.navkey);
+      a.classList.toggle('nav-off', off && editing);
+      a.classList.toggle('nav-hide', off && !editing);
+      a.classList.toggle('nav-editing', editing);
+      a.querySelector('.nav-eye')?.remove();
+      if (editing) a.insertAdjacentHTML('beforeend', `<span class="nav-eye" aria-hidden="true">${icon(off ? 'close' : 'check', 14)}</span>`);
+    });
+    const n = items.filter((a) => h.includes(a.dataset.navkey)).length;
+    let bar = document.querySelector('#sidebar .nav-edit-bar');
+    if (!bar) { bar = document.createElement('div'); bar.className = 'nav-edit-bar'; main.before(bar); }
+    bar.innerHTML = editing
+      ? `<span class="small muted">Tap a module to show or hide it</span><button type="button" class="link-btn" data-act="navShowAll">Show all</button><button type="button" class="btn primary sm" data-act="navEdit">Done</button>`
+      : `${n ? `<span class="small muted">${n} hidden</span><button type="button" class="link-btn" data-act="navShowAll">Show all</button>` : ''}<button type="button" class="link-btn" data-act="navEdit">${icon('pencil', 13)} Edit menu</button>`;
+  }
+  // While editing, tapping a module shows or hides it instead of opening it.
+  document.addEventListener('click', (e) => {
+    if (!editing) return;
+    const a = e.target.closest?.('#sidebar .nav-main [data-navkey]');
+    if (!a) return;
+    e.preventDefault(); e.stopPropagation();
+    const k = a.dataset.navkey;
+    const h = hidden();
+    S.settings.navHidden = h.includes(k) ? h.filter((x) => x !== k) : [...h, k];
+    Store.save();
+    decorate();
+  }, true);
+  addEventListener('DOMContentLoaded', () => {
+    Object.assign(actions, {
+      navEdit: () => { editing = !editing; decorate(); if (!editing) renderSidebar(); },
+      navShowAll: () => { S.settings.navHidden = []; Store.save(); decorate(); toast('All modules are back in your menu.'); },
+    });
+    setTimeout(() => {
+      const base = renderSidebar;
+      renderSidebar = function renderSidebarWithShowHide(...a) { const r = base.apply(this, a); try { decorate(); } catch (err) { console.error(err); } return r; };
+      try { decorate(); } catch { /* not drawn yet */ }
+    }, 0);
+  });
+})();
