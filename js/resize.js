@@ -405,9 +405,9 @@ document.addEventListener('dblclick', (e) => {
 })();
 
 // ---------- Phone: drop a task into any bucket ----------
-// Press and hold a task on a phone and every bucket appears as a list near the bottom; let go over one and the
-// task moves to the end of that bucket. Each entry carries the same data-group as its column, so the usual
-// drop logic does the move.
+// Press, hold and drag a task on a phone: it moves up and down within its own bucket. Drag it up onto the row of
+// bucket names at the top and a list of every bucket appears; let go over one and the task moves to the end of
+// that bucket. Each entry carries the same data-group as its column, so the usual drop logic does the move.
 (function bucketDrop() {
   const PHONE = matchMedia('(max-width: 760px)');
   const nameOf = (col) => {
@@ -416,33 +416,50 @@ document.addEventListener('dblclick', (e) => {
     return ((inp && inp.value) || head?.querySelector('.col-title')?.textContent || '').trim() || 'Untitled';
   };
   let panel = null;
-  function show() {
-    const s = typeof Drag !== 'undefined' ? Drag.s : null;
+  let armed = null; // { from, board, left } while a task is held on a phone board
+  const holding = () => typeof Drag !== 'undefined' && Drag.s && Drag.s.active && Drag.s.type === 'task';
+  function arm() {
     const board = document.querySelector('#main .board');
-    if (!PHONE.matches || !s || s.type !== 'task' || !board) return;
-    const cols = [...board.querySelectorAll(':scope > .col[data-group]')];
+    if (!PHONE.matches || !holding() || !board) return;
+    const s = Drag.s;
+    armed = { from: s.fromGroup || s.el?.closest('.col[data-group]')?.dataset.group || '', board, left: board.scrollLeft };
+    document.body.classList.add('bd-armed');
+  }
+  function show() {
+    const cols = [...armed.board.querySelectorAll(':scope > .col[data-group]')];
     if (cols.length < 2) return;
-    const from = s.fromGroup || s.el?.closest('.col[data-group]')?.dataset.group || '';
     panel = document.createElement('div');
     panel.className = 'bucket-drop';
-    panel.innerHTML = `<p>Drop into a bucket</p><div class="bd-list">${cols.map((c) => `<div class="col bd-item ${c.dataset.group === from ? 'here' : ''}" data-group="${esc(c.dataset.group)}" ${c.dataset.locked ? 'data-locked="1"' : ''}><span>${esc(nameOf(c))}</span><div class="col-body" hidden></div></div>`).join('')}</div>`;
+    panel.innerHTML = `<p>Drop into a bucket</p><div class="bd-list">${cols.map((c) => `<div class="col bd-item ${c.dataset.group === armed.from ? 'here' : ''}" data-group="${esc(c.dataset.group)}" ${c.dataset.locked ? 'data-locked="1"' : ''}><span>${esc(nameOf(c))}</span><div class="col-body" hidden></div></div>`).join('')}</div>`;
     document.body.append(panel);
     document.body.classList.add('bd-open');
   }
-  function hide() { panel?.remove(); panel = null; document.body.classList.remove('bd-open'); }
+  function hide() { panel?.remove(); panel = null; armed = null; document.body.classList.remove('bd-open', 'bd-armed'); }
   function hover(e) {
-    if (!panel) return;
-    const el = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList?.contains('bd-item'));
-    panel.querySelectorAll('.bd-item.on').forEach((n) => n !== el && n.classList.remove('on'));
-    if (el && !el.dataset.locked) el.classList.add('on');
+    if (!armed || !holding()) return;
+    // The board stays on the bucket you started in.
+    if (armed.board.isConnected && armed.board.scrollLeft !== armed.left) armed.board.scrollLeft = armed.left;
+    // Up onto the bucket names (or above them): show the list of buckets.
+    const bar = armed.board.previousElementSibling?.classList.contains('bj-bar') ? armed.board.previousElementSibling : null;
+    if (!panel && bar && e.clientY <= bar.getBoundingClientRect().bottom + 6) show();
+    const el = panel && document.elementsFromPoint(e.clientX, e.clientY).find((n) => n.classList?.contains('bd-item'));
+    if (panel) {
+      panel.querySelectorAll('.bd-item.on').forEach((n) => n !== el && n.classList.remove('on'));
+      if (el && !el.dataset.locked) el.classList.add('on');
+    }
+    // Anywhere else, only a place in the same bucket counts.
+    const tg = Drag.s.target;
+    if (!el && tg && tg.group && tg.group !== armed.from) { Drag.s.target = null; Drag.s.ph?.remove(); }
   }
   addEventListener('DOMContentLoaded', () => {
     new MutationObserver(() => {
       const on = document.body.classList.contains('dragging');
-      if (on && !panel) show(); else if (!on && panel) hide();
+      if (on && !armed) arm(); else if (!on && (armed || panel)) hide();
     }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     document.addEventListener('pointermove', hover, { passive: true });
     document.addEventListener('touchmove', (e) => { const t = e.touches[0]; if (t) hover(t); }, { passive: true });
+    // Edge auto-scroll mustn't slide to the next bucket while you hold a task.
+    document.addEventListener('scroll', (e) => { if (armed && e.target === armed.board && armed.board.scrollLeft !== armed.left) armed.board.scrollLeft = armed.left; }, true);
   });
 })();
 

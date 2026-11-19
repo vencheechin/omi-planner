@@ -2894,3 +2894,8 @@ body.bd-open .side-bin.float { z-index: 60; }
   dialog.dlg .dlg-body { padding-bottom: calc(18px + var(--kb, 0px)); }
   .task-scroll, dialog.dlg .dlg-body { scroll-padding-bottom: calc(24px + var(--kb, 0px)); }
 }
+
+/* Phone: while holding a task, the bucket names glow as the place to drag it to another bucket */
+@media (max-width: 760px) {
+  body.bd-armed:not(.bd-open) .bj-bar { outline: 2px dashed color-mix(in srgb, var(--highlight) 70%, transparent); outline-offset: -2px; border-radius: 12px; background: color-mix(in srgb, var(--highlight) 10%, transparent); }
+}
