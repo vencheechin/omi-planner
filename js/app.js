@@ -551,7 +551,6 @@ const actions = {
     const i = plan.buckets.findIndex((b) => b.id === id);
     openMenu(el, [
       { label: 'Colour', icon: 'tag', sub: true, run: () => openPop(el, () => colourListHTML('bucket', id, plan.buckets[i]?.color, 'transparent', 'None')) },
-      ...(plan.buckets.length > 1 ? [{ label: 'Move', icon: 'move', sub: true, run: () => openPop(el, () => bucketOrderHTML(currentPlan(), id)) }] : []),
       {
         label: 'Delete bucket', icon: 'trash', danger: true, selfConfirm: true,
         run: async () => {
