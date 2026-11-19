@@ -570,10 +570,11 @@ addEventListener('DOMContentLoaded', () => {
       if (t.assignees.some((a) => a !== S.meId) || (t.assignedBy && t.assignedBy !== S.meId)) addEvent(t, 'check', { text: r.text, done: r.done, item: r.id });
       commit();
     },
-    reqDel: (el) => {
+    reqDel: async (el) => {
       const t = openTaskObj();
       const r = (t.reqs || []).find((x) => x.id === el.dataset.id);
       if (!r || r.by !== S.meId) return;
+      if (!await confirmDlg(`Delete “${r.text || 'this requirement'}”?`, 'It is removed from the Task Requirement.', 'Delete')) return;
       t.reqs = t.reqs.filter((x) => x !== r);
       commit();
     },

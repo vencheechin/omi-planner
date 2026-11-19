@@ -202,8 +202,9 @@ function taskMenuItems(t, anchor) {
     { label: 'Copy link to task', icon: 'link', run: () => copyTaskLink(t) },
     ...(othersPlan(planById(t.planId)) ? [] : [{ label: 'Move task', icon: 'move', run: () => moveTaskDialog(t) }]),
     {
-      label: 'Delete', icon: 'trash', danger: true,
-      run: () => {
+      label: 'Delete', icon: 'trash', danger: true, selfConfirm: true,
+      run: async () => {
+        if (!await confirmDlg(`Delete “${t.title || 'Untitled task'}”?`, 'It goes to the recycle bin, where you can restore it.', 'Delete')) return;
         if (ui.openTask === t.id) ui.openTask = null;
         binTask(t);
         commit();
@@ -529,8 +530,9 @@ const actions = {
     openMenu(el, [
       ...(i > 0 ? [{ label: 'Move left', icon: 'move', run: () => move(-1) }] : []),
       ...(i < all.length - 1 ? [{ label: 'Move right', icon: 'move', run: () => move(1) }] : []),
-      { label: 'Delete bucket', icon: 'trash', danger: true, run: () => {
+      { label: 'Delete bucket', icon: 'trash', danger: true, selfConfirm: true, run: async () => {
         const name = all[i].name;
+        if (!await confirmDlg(`Delete “${name}”?`, 'Its tasks go back to Not sorted; no task is deleted.', 'Delete bucket')) return;
         // Its tasks go back to "Not sorted"; nothing is deleted.
         S.tasks.forEach((t) => { if (t.fromBucketId === id) t.fromBucketId = null; });
         setFromBuckets(k, all.filter((b) => b.id !== id));
@@ -1119,10 +1121,11 @@ const actions = {
     commit();
     toast(on ? 'You won’t be notified when items are ticked.' : 'You’ll be notified when someone ticks an item on this task.');
   },
-  delCheck: (el) => {
+  delCheck: async (el) => {
     const t = openTaskObj();
     const c = t.checklist.find((x) => x.id === el.dataset.id);
     if (!c || !canDelCheck(t, c)) { toast('Only the person who added this item can delete it.', { error: true }); return; }
+    if (!await confirmDlg(`Delete “${c.text || 'this item'}”?`, 'It is removed from the Check List.', 'Delete')) return;
     t.checklist = t.checklist.filter((x) => x !== c);
     commit();
   },
