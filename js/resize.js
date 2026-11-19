@@ -431,6 +431,9 @@ document.addEventListener('dblclick', (e) => {
     panel = document.createElement('div');
     panel.className = 'bucket-drop';
     panel.innerHTML = `<p>Drop into a bucket</p><div class="bd-list">${cols.map((c) => `<div class="col bd-item ${c.dataset.group === armed.from ? 'here' : ''}" data-group="${esc(c.dataset.group)}" ${c.dataset.locked ? 'data-locked="1"' : ''}><span>${esc(nameOf(c))}</span><div class="col-body" hidden></div></div>`).join('')}</div>`;
+    // Just under the bucket names, where the task was dragged to.
+    const bar = armed.board.previousElementSibling?.classList.contains('bj-bar') ? armed.board.previousElementSibling : null;
+    if (bar) { panel.style.top = `${Math.round(bar.getBoundingClientRect().bottom + 8)}px`; panel.style.bottom = 'auto'; panel.style.right = '10px'; }
     document.body.append(panel);
     document.body.classList.add('bd-open');
   }
